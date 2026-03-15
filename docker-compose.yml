@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:15.6
+    environment:
+      POSTGRES_DB: ${DB_NAME:-barmi}
+      POSTGRES_USER: ${DB_USER:-barmi}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-barmi}
+    volumes:
+      - barmi_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-barmi} -d ${DB_NAME:-barmi}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-barmi}
+      DB_USER: ${DB_USER:-barmi}
+      DB_PASSWORD: ${DB_PASSWORD:-barmi}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:?MP_WEBHOOK_SECRET is required}
+      STORE_BASE_DOMAIN: ${STORE_BASE_DOMAIN:-example.com}
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-ARS}
+      OBSERVABILITY_OUTBOX_BACKLOG_THRESHOLD: ${OBSERVABILITY_OUTBOX_BACKLOG_THRESHOLD:-1000}
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  barmi_pgdata:

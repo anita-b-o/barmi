@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: barmi-backend
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:barmi}
+    username: ${DB_USER:barmi}
+    password: ${DB_PASSWORD:barmi}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
+app:
+  security:
+    jwtSecret: JWT_SIGNING_KEY=7f9c2ba4e88f827d616045507605853ed73b8094b9b2e0c3c5c7e5c7c4e1c9a1
+    jwtTtlMinutes: 60
+    refreshTtlDays: 30
+    allowDevIdentityHeader: ${ALLOW_DEV_IDENTITY_HEADER:false}
+  money:
+    defaultCurrency: ${DEFAULT_CURRENCY:UNSET}
+  tenant:
+    baseDomain: ${STORE_BASE_DOMAIN:example.com}
+  mercadoPago:
+    webhookSecret: ${MP_WEBHOOK_SECRET:change-me}
+
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true

@@ -1,0 +1,21 @@
+{
+  "orderId": "d62f6906-7bfd-45c4-bfb8-362adad88819",
+  "status": "PENDING_PAYMENT",
+  "createdAt": "2026-03-05T10:31:22.379149Z",
+  "currency": "ARS",
+  "subtotalAmount": 150.00,
+  "shippingCostAmount": 0.00,
+  "totalAmount": 150.00,
+  "items": [
+    {
+      "productId": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "name": "External Apple",
+      "qty": 1,
+      "unitPriceAmount": 150.00,
+      "lineTotalAmount": 150.00,
+      "currency": "ARS"
+    }
+  ],
+  "shipping": null,
+  "payment": null
+}

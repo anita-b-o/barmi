@@ -1,0 +1,16 @@
+[
+  {
+    "id": "44444444-4444-4444-4444-444444444444",
+    "name": "External Apple",
+    "priceAmount": 150.0,
+    "currency": "ARS",
+    "deliverySupported": true
+  },
+  {
+    "id": "55555555-5555-5555-5555-555555555555",
+    "name": "External Banana",
+    "priceAmount": 120.0,
+    "currency": "ARS",
+    "deliverySupported": false
+  }
+]

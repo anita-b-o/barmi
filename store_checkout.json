@@ -1,0 +1,15 @@
+{
+  "items": [
+    { "productId": "22222222-2222-2222-2222-222222222222", "quantity": 1 },
+    { "productId": "33333333-3333-3333-3333-333333333333", "quantity": 2 }
+  ],
+  "shipping": {
+    "type": "DELIVERY",
+    "postalCode": "1900"
+  },
+  "customer": {
+    "name": "Test",
+    "email": "test@example.com",
+    "phone": "0000000000"
+  }
+}

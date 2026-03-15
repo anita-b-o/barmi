@@ -1,0 +1,18 @@
+app:
+  money:
+    defaultCurrency: ARS
+  security:
+    jwtSecret: this_is_a_super_long_test_secret_key_that_is_at_least_32_bytes_long
+  tenant:
+    baseDomain: example.com
+  mercadoPago:
+    webhookSecret: secret
+  outbox:
+    dispatcher:
+      enabled: false
+jwt:
+  secret: this_is_a_super_long_test_secret_key_that_is_at_least_32_bytes_long
+spring:
+  task:
+    scheduling:
+      enabled: false

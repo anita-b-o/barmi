@@ -1,0 +1,9 @@
+{
+  "ecosystemId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "postalCode": "1900",
+  "available": true,
+  "zoneId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+  "type": "EXACT",
+  "costAmount": 0.00,
+  "currency": "ARS"
+}

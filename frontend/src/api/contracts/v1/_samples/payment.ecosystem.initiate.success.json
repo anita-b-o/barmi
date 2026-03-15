@@ -1,0 +1,12 @@
+{
+  "intentId": "b2222222-2222-2222-2222-222222222222",
+  "scope": "ECOSYSTEM",
+  "orderId": "a2222222-2222-2222-2222-222222222222",
+  "status": "PENDING",
+  "amount": 150.0,
+  "currency": "ARS",
+  "createdAt": "2026-03-10T12:10:00.000Z",
+  "checkoutUrl": "https://checkout.mercadopago.example/def456",
+  "provider": "MERCADOPAGO",
+  "providerPreferenceId": "def456"
+}

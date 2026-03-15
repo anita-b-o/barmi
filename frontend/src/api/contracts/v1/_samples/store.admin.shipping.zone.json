@@ -1,0 +1,11 @@
+{
+  "zoneId": "e3333333-3333-3333-3333-333333333333",
+  "storeId": "s1111111-1111-1111-1111-111111111111",
+  "type": "EXACT",
+  "postalCode": "1900",
+  "rangeStart": null,
+  "rangeEnd": null,
+  "costAmount": 7.5,
+  "currency": "ARS",
+  "createdAt": "2026-03-10T12:20:00.000Z"
+}

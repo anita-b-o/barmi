@@ -1,0 +1,10 @@
+{
+  "id": "22430d7b-7ac1-4774-b806-61a91bbbdda0",
+  "ecosystemId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  "status": "PENDING_PAYMENT",
+  "currency": "ARS",
+  "subtotalAmount": 150.00,
+  "shippingCostAmount": 0.00,
+  "totalAmount": 150.00,
+  "createdAt": "2026-03-05T10:55:11.432438372Z"
+}

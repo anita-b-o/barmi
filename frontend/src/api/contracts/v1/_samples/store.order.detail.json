@@ -1,0 +1,32 @@
+{
+  "orderId": "ce0a6d48-564c-4340-ab9d-e3d2339eb4f9",
+  "status": "PENDING_PAYMENT",
+  "createdAt": "2026-03-01T14:00:48.264041Z",
+  "currency": "ARS",
+  "subtotalAmount": 390.00,
+  "shippingCostAmount": 0.00,
+  "totalAmount": 390.00,
+  "items": [
+    {
+      "productId": "22222222-2222-2222-2222-222222222222",
+      "name": "Apple",
+      "qty": 1,
+      "unitPriceAmount": 150.00,
+      "lineTotalAmount": 150.00,
+      "currency": "ARS"
+    },
+    {
+      "productId": "33333333-3333-3333-3333-333333333333",
+      "name": "Banana",
+      "qty": 2,
+      "unitPriceAmount": 120.00,
+      "lineTotalAmount": 240.00,
+      "currency": "ARS"
+    }
+  ],
+  "shipping": {
+    "zoneId": "44444444-4444-4444-4444-444444444444",
+    "postalCode": "1900"
+  },
+  "payment": null
+}

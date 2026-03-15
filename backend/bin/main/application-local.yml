@@ -1,0 +1,38 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5434}/${DB_NAME:barmi}
+    username: ${DB_USER:barmi}
+    password: ${DB_PASSWORD:barmi123}
+
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5434}/${DB_NAME:barmi}
+    user: ${DB_USER:barmi}
+    password: ${DB_PASSWORD:barmi123}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+server:
+  port: 8080
+
+app:
+  security:
+    jwtSecret: ${JWT_SECRET:this_is_a_super_long_local_secret_key_that_is_at_least_32_bytes_long}
+    jwtTtlMinutes: 60
+  tenant:
+    baseDomain: ${STORE_BASE_DOMAIN:example.com}
+  mercadoPago:
+    webhookSecret: ${MP_WEBHOOK_SECRET:change-me}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

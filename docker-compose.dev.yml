@@ -1,0 +1,30 @@
+name: barmi-dev
+
+services:
+  barmi-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: barmi
+      POSTGRES_USER: barmi
+      POSTGRES_PASSWORD: barmi123
+    ports:
+      - "5434:5432"
+    volumes:
+      - barmi_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U barmi -d barmi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - barmi_redisdata:/data
+
+volumes:
+  barmi_pgdata:
+  barmi_redisdata:

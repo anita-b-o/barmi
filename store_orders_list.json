@@ -1,0 +1,1 @@
+{"totalElements":2,"totalPages":1,"page":0,"size":20,"content":[{"orderId":"ce0a6d48-564c-4340-ab9d-e3d2339eb4f9","status":"PENDING_PAYMENT","createdAt":"2026-03-01T14:00:48.264041Z","totalAmount":390.00,"currency":"ARS"},{"orderId":"0bda6f4f-30e0-4602-b45b-1d1ed3e8bcc0","status":"PENDING_PAYMENT","createdAt":"2026-03-01T14:00:39.971448Z","totalAmount":390.00,"currency":"ARS"}]}
