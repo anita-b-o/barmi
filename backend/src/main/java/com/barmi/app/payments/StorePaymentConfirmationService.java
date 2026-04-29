@@ -1,5 +1,7 @@
 package com.barmi.app.payments;
 
+import com.barmi.app.catalog.StorePromotionService;
+import com.barmi.app.catalog.StoreStockService;
 import com.barmi.app.fulfillment.CreateFulfillmentForPaidOrderService;
 import com.barmi.domain.enums.PaymentScope;
 import com.barmi.domain.events.OutboxEvent;
@@ -40,6 +42,8 @@ public class StorePaymentConfirmationService {
     private final PaymentRepository paymentRepository;
     private final StoreOrderRepository storeOrderRepository;
     private final OutboxEventRepository outboxEventRepository;
+    private final StoreStockService storeStockService;
+    private final StorePromotionService storePromotionService;
     private final CreateFulfillmentForPaidOrderService createFulfillmentForPaidOrderService;
     private final Counter paymentsConfirmedCounter;
     private final Counter paymentsMismatchCounter;
@@ -49,6 +53,8 @@ public class StorePaymentConfirmationService {
             PaymentRepository paymentRepository,
             StoreOrderRepository storeOrderRepository,
             OutboxEventRepository outboxEventRepository,
+            StoreStockService storeStockService,
+            StorePromotionService storePromotionService,
             CreateFulfillmentForPaidOrderService createFulfillmentForPaidOrderService,
             MeterRegistry meterRegistry
     ) {
@@ -56,6 +62,8 @@ public class StorePaymentConfirmationService {
         this.paymentRepository = paymentRepository;
         this.storeOrderRepository = storeOrderRepository;
         this.outboxEventRepository = outboxEventRepository;
+        this.storeStockService = storeStockService;
+        this.storePromotionService = storePromotionService;
         this.createFulfillmentForPaidOrderService = createFulfillmentForPaidOrderService;
         this.paymentsConfirmedCounter = meterRegistry.counter("barmi_payments_confirmed_total", "scope", "STORE");
         this.paymentsMismatchCounter = meterRegistry.counter("barmi_payments_mismatch_total", "scope", "STORE");
@@ -85,13 +93,14 @@ public class StorePaymentConfirmationService {
             return;
         }
 
+        StoreOrder order = storeOrderRepository.findById(storeOrderId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "store_order_not_found"));
+
         if (paymentRepository.existsByScopeAndOperationIdAndStatus(PaymentScope.STORE, storeOrderId, PaymentStatus.CONFIRMED)) {
+            ensurePromotionConsumedForPaidOrder(order);
             saveProcessedEvent(webhookEventId);
             return;
         }
-
-        StoreOrder order = storeOrderRepository.findById(storeOrderId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "store_order_not_found"));
 
         Payment payment = paymentRepository.findByProviderAndProviderPaymentId(PROVIDER, providerPaymentId)
                 .orElseGet(() -> new Payment(
@@ -156,7 +165,37 @@ public class StorePaymentConfirmationService {
 
         boolean paidNow = false;
         if (order.getStatus() == StoreOrderStatus.PENDING_PAYMENT) {
+            StoreStockService.StockCommitResult stockCommitResult = storeStockService.commitPaidOrderStock(order);
+            if (!stockCommitResult.applied()) {
+                Map<String, Object> payload = Map.of(
+                        "storeOrderId", order.getId(),
+                        "storeId", order.getStoreId(),
+                        "paymentId", providerPaymentId,
+                        "conflicts", stockCommitResult.conflicts().stream()
+                                .map(conflict -> Map.of(
+                                        "productId", conflict.productId(),
+                                        "sku", conflict.sku(),
+                                        "availableQuantity", conflict.availableQuantity(),
+                                        "requestedQuantity", conflict.requestedQuantity()
+                                ))
+                                .toList()
+                );
+
+                OutboxEvent event = new OutboxEvent(
+                        UUID.randomUUID(),
+                        "STORE_ORDER_STOCK_CONFLICT",
+                        PaymentScope.STORE.name(),
+                        order.getId(),
+                        toJson(payload)
+                );
+                outboxEventRepository.save(event);
+                log.warn("payment_stock_conflict scope=STORE operation_id={} provider_payment_id={}", order.getId(), providerPaymentId);
+                saveProcessedEvent(webhookEventId);
+                return;
+            }
+
             order.markPaid();
+            ensurePromotionConsumedForPaidOrder(order);
             storeOrderRepository.save(order);
             paidNow = true;
         }
@@ -182,6 +221,13 @@ public class StorePaymentConfirmationService {
             createFulfillmentForPaidOrderService.createForPaidOrder(order);
         }
         saveProcessedEvent(webhookEventId);
+    }
+
+    private void ensurePromotionConsumedForPaidOrder(StoreOrder order) {
+        if (order.getStatus() != StoreOrderStatus.PAID) {
+            return;
+        }
+        storePromotionService.consumeAppliedPromotion(order);
     }
 
     private void saveProcessedEvent(UUID webhookEventId) {

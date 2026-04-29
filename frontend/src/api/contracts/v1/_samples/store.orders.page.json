@@ -9,14 +9,22 @@
       "status": "PENDING_PAYMENT",
       "createdAt": "2026-03-01T14:00:48.264041Z",
       "totalAmount": 390.00,
-      "currency": "ARS"
+      "currency": "ARS",
+      "operationalIssue": {
+        "code": "STOCK_CONFLICT",
+        "title": "Conflicto de stock post-pago",
+        "message": "Pago confirmado con conflicto operativo de stock pendiente de revisión.",
+        "detectedAt": null,
+        "items": []
+      }
     },
     {
       "orderId": "0bda6f4f-30e0-4602-b45b-1d1ed3e8bcc0",
       "status": "PENDING_PAYMENT",
       "createdAt": "2026-03-01T14:00:39.971448Z",
       "totalAmount": 390.00,
-      "currency": "ARS"
+      "currency": "ARS",
+      "operationalIssue": null
     }
   ]
 }

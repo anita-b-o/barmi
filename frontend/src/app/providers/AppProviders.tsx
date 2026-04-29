@@ -1,16 +1,27 @@
 import React from 'react'
 import { CssBaseline } from '@mui/material'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { AuthProvider } from '../../core/auth'
-import { CartProvider } from '../../ui/state/cartContext'
-import { EcosystemCartProvider } from '../../ui/state/ecosystemCartContext'
+import { AuthProvider } from '@/core/auth'
+import ThemeGlobalStyles from '@/app/theme/ThemeGlobalStyles'
+import { ThemeModeProvider } from '@/app/theme/ThemeModeProvider'
+import { CartProvider } from '@/features/store/cart/cartContext'
+import { EcosystemCartProvider } from '@/features/ecosystem/cart/ecosystemCartContext'
 
-const queryClient = new QueryClient()
+export function createAppQueryClient() {
+  return new QueryClient()
+}
 
-export function AppProviders({ children }: { children: React.ReactNode }) {
+type AppProvidersProps = {
+  children: React.ReactNode
+  queryClient?: QueryClient
+  withStrictMode?: boolean
+}
+
+function ProvidersTree({ children, queryClient }: { children: React.ReactNode; queryClient: QueryClient }) {
   return (
-    <React.StrictMode>
+    <ThemeModeProvider>
       <CssBaseline />
+      <ThemeGlobalStyles />
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <CartProvider>
@@ -20,6 +31,15 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
           </CartProvider>
         </AuthProvider>
       </QueryClientProvider>
-    </React.StrictMode>
+    </ThemeModeProvider>
   )
+}
+
+export function AppProviders({
+  children,
+  queryClient = createAppQueryClient(),
+  withStrictMode = true
+}: AppProvidersProps) {
+  const tree = <ProvidersTree queryClient={queryClient}>{children}</ProvidersTree>
+  return withStrictMode ? <React.StrictMode>{tree}</React.StrictMode> : tree
 }

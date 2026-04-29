@@ -27,11 +27,16 @@ public class EcosystemOrderQueryController {
 
     @GetMapping
     public EcosystemOrderQueryService.PageResult<EcosystemOrderQueryService.OrderSummaryView> list(
+            @RequestParam(required = false) UUID ecosystemId,
             @RequestParam(required = false) EcosystemOrderStatus status,
+            @RequestParam(required = false) java.time.Instant createdFrom,
+            @RequestParam(required = false) java.time.Instant createdTo,
+            @RequestParam(required = false) java.time.Instant paidFrom,
+            @RequestParam(required = false) java.time.Instant paidTo,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String sort
     ) {
-        return ecosystemOrderQueryService.listOrders(status, page, size, sort);
+        return ecosystemOrderQueryService.listOrders(ecosystemId, status, page, size, sort, createdFrom, createdTo, paidFrom, paidTo);
     }
 }

@@ -49,6 +49,21 @@ public class EcosystemOrder {
     @Column(name = "shipping_postal_code")
     private String shippingPostalCode;
 
+    @Column(name = "original_amount", nullable = false, precision = 19, scale = 2)
+    private BigDecimal originalAmount = BigDecimal.ZERO;
+
+    @Column(name = "discount_amount", nullable = false, precision = 19, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    @Column(name = "applied_promotion_id")
+    private UUID appliedPromotionId;
+
+    @Column(name = "applied_coupon_code")
+    private String appliedCouponCode;
+
+    @Column(name = "promotion_consumed_at")
+    private Instant promotionConsumedAt;
+
     @Column(name = "total_amount", nullable = false, precision = 19, scale = 2)
     private BigDecimal totalAmount;
 
@@ -70,6 +85,10 @@ public class EcosystemOrder {
             String shippingCurrency,
             UUID shippingZoneId,
             String shippingPostalCode,
+            BigDecimal originalAmount,
+            BigDecimal discountAmount,
+            UUID appliedPromotionId,
+            String appliedCouponCode,
             BigDecimal totalAmount
     ) {
         this.id = id;
@@ -81,6 +100,10 @@ public class EcosystemOrder {
         this.shippingCurrency = shippingCurrency;
         this.shippingZoneId = shippingZoneId;
         this.shippingPostalCode = shippingPostalCode;
+        this.originalAmount = originalAmount;
+        this.discountAmount = discountAmount;
+        this.appliedPromotionId = appliedPromotionId;
+        this.appliedCouponCode = appliedCouponCode;
         this.totalAmount = totalAmount;
     }
 
@@ -96,6 +119,40 @@ public class EcosystemOrder {
             BigDecimal totalAmount,
             List<EcosystemOrderItem> items
     ) {
+        return create(
+                id,
+                ecosystem,
+                currency,
+                subtotalAmount,
+                shippingCostAmount,
+                shippingCurrency,
+                shippingZoneId,
+                shippingPostalCode,
+                totalAmount,
+                BigDecimal.ZERO,
+                null,
+                null,
+                totalAmount,
+                items
+        );
+    }
+
+    public static EcosystemOrder create(
+            UUID id,
+            Ecosystem ecosystem,
+            String currency,
+            BigDecimal subtotalAmount,
+            BigDecimal shippingCostAmount,
+            String shippingCurrency,
+            UUID shippingZoneId,
+            String shippingPostalCode,
+            BigDecimal originalAmount,
+            BigDecimal discountAmount,
+            UUID appliedPromotionId,
+            String appliedCouponCode,
+            BigDecimal totalAmount,
+            List<EcosystemOrderItem> items
+    ) {
         if (id == null) throw new IllegalArgumentException("id is required");
         if (ecosystem == null) throw new IllegalArgumentException("ecosystem is required");
         if (currency == null || currency.isBlank()) throw new IllegalArgumentException("currency is required");
@@ -108,8 +165,14 @@ public class EcosystemOrder {
         if (shippingCostAmount == null || shippingCostAmount.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("shippingCostAmount must be >= 0");
         }
-        if (totalAmount.compareTo(subtotalAmount.add(shippingCostAmount)) != 0) {
-            throw new IllegalStateException("total_mismatch");
+        if (originalAmount == null || originalAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("originalAmount must be >= 0");
+        }
+        if (discountAmount == null || discountAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("discountAmount must be >= 0");
+        }
+        if (originalAmount.subtract(discountAmount).compareTo(totalAmount) != 0) {
+            throw new IllegalStateException("discount_total_mismatch");
         }
         if (shippingCostAmount.compareTo(BigDecimal.ZERO) > 0) {
             if (shippingZoneId == null || shippingPostalCode == null || shippingPostalCode.isBlank()) {
@@ -141,6 +204,10 @@ public class EcosystemOrder {
                 shippingCurrency == null ? "" : shippingCurrency,
                 shippingZoneId,
                 shippingPostalCode,
+                originalAmount,
+                discountAmount,
+                appliedPromotionId,
+                appliedCouponCode,
                 totalAmount
         );
         order.addItems(items);
@@ -177,7 +244,29 @@ public class EcosystemOrder {
     public String getShippingCurrency() { return shippingCurrency; }
     public UUID getShippingZoneId() { return shippingZoneId; }
     public String getShippingPostalCode() { return shippingPostalCode; }
+    public BigDecimal getOriginalAmount() { return originalAmount; }
+    public BigDecimal getDiscountAmount() { return discountAmount; }
+    public UUID getAppliedPromotionId() { return appliedPromotionId; }
+    public String getAppliedCouponCode() { return appliedCouponCode; }
+    public Instant getPromotionConsumedAt() { return promotionConsumedAt; }
     public BigDecimal getTotalAmount() { return totalAmount; }
     public Instant getCreatedAt() { return createdAt; }
     public List<EcosystemOrderItem> getItems() { return items; }
+
+    public boolean hasAppliedPromotion() {
+        return appliedPromotionId != null && appliedCouponCode != null && !appliedCouponCode.isBlank();
+    }
+
+    public boolean isPromotionConsumed() {
+        return promotionConsumedAt != null;
+    }
+
+    public void markPromotionConsumed() {
+        if (!hasAppliedPromotion()) {
+            throw new IllegalStateException("promotion_not_applied");
+        }
+        if (promotionConsumedAt == null) {
+            promotionConsumedAt = Instant.now();
+        }
+    }
 }

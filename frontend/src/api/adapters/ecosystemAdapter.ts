@@ -1,6 +1,7 @@
 import { requestJson } from '../client/http'
 import type {
   EcosystemCheckoutReq,
+  EcosystemCheckoutPreviewRes,
   EcosystemCheckoutRes,
   EcosystemOrderDetail,
   EcosystemOrderItem,
@@ -53,7 +54,19 @@ export function parseEcosystemCheckoutRes(data: unknown): EcosystemCheckoutRes {
   assertStatus(data.status, 'Ecosystem checkout status is required')
   assertString(data.currency, 'Ecosystem checkout currency is required')
   assertNumber(data.subtotalAmount, 'Ecosystem checkout subtotalAmount is required')
+  assertNumber(data.originalAmount, 'Ecosystem checkout originalAmount is required')
+  assertNumber(data.discountAmount, 'Ecosystem checkout discountAmount is required')
+  if (!(data.appliedCouponCode === null || typeof data.appliedCouponCode === 'string')) {
+    throw new Error('Ecosystem checkout appliedCouponCode is invalid')
+  }
   assertNumber(data.shippingCostAmount, 'Ecosystem checkout shippingCostAmount is required')
+  assertString(data.shippingCurrency, 'Ecosystem checkout shippingCurrency is required')
+  if (!(data.shippingZoneId === null || typeof data.shippingZoneId === 'string')) {
+    throw new Error('Ecosystem checkout shippingZoneId is invalid')
+  }
+  if (!(data.shippingPostalCode === null || typeof data.shippingPostalCode === 'string')) {
+    throw new Error('Ecosystem checkout shippingPostalCode is invalid')
+  }
   assertNumber(data.totalAmount, 'Ecosystem checkout totalAmount is required')
   assertString(data.createdAt, 'Ecosystem checkout createdAt is required')
   return {
@@ -62,9 +75,47 @@ export function parseEcosystemCheckoutRes(data: unknown): EcosystemCheckoutRes {
     status: data.status,
     currency: data.currency,
     subtotalAmount: data.subtotalAmount,
+    originalAmount: data.originalAmount,
+    discountAmount: data.discountAmount,
+    appliedCouponCode: data.appliedCouponCode ?? null,
     shippingCostAmount: data.shippingCostAmount,
+    shippingCurrency: data.shippingCurrency,
+    shippingZoneId: data.shippingZoneId ?? null,
+    shippingPostalCode: data.shippingPostalCode ?? null,
     totalAmount: data.totalAmount,
     createdAt: data.createdAt
+  }
+}
+
+export function parseEcosystemCheckoutPreview(data: unknown): EcosystemCheckoutPreviewRes {
+  assertRecord(data, 'Invalid ecosystem checkout preview payload')
+  assertString(data.currency, 'Ecosystem checkout preview currency is required')
+  assertNumber(data.subtotalAmount, 'Ecosystem checkout preview subtotalAmount is required')
+  assertNumber(data.originalAmount, 'Ecosystem checkout preview originalAmount is required')
+  assertNumber(data.discountAmount, 'Ecosystem checkout preview discountAmount is required')
+  if (!(data.appliedCouponCode === null || typeof data.appliedCouponCode === 'string')) {
+    throw new Error('Ecosystem checkout preview appliedCouponCode is invalid')
+  }
+  assertNumber(data.shippingCostAmount, 'Ecosystem checkout preview shippingCostAmount is required')
+  assertString(data.shippingCurrency, 'Ecosystem checkout preview shippingCurrency is required')
+  if (!(data.shippingZoneId === null || typeof data.shippingZoneId === 'string')) {
+    throw new Error('Ecosystem checkout preview shippingZoneId is invalid')
+  }
+  if (!(data.shippingPostalCode === null || typeof data.shippingPostalCode === 'string')) {
+    throw new Error('Ecosystem checkout preview shippingPostalCode is invalid')
+  }
+  assertNumber(data.totalAmount, 'Ecosystem checkout preview totalAmount is required')
+  return {
+    currency: data.currency,
+    subtotalAmount: data.subtotalAmount,
+    originalAmount: data.originalAmount,
+    discountAmount: data.discountAmount,
+    appliedCouponCode: data.appliedCouponCode ?? null,
+    shippingCostAmount: data.shippingCostAmount,
+    shippingCurrency: data.shippingCurrency,
+    shippingZoneId: data.shippingZoneId ?? null,
+    shippingPostalCode: data.shippingPostalCode ?? null,
+    totalAmount: data.totalAmount
   }
 }
 
@@ -185,12 +236,35 @@ export const ecosystemAdapter = {
     })
     return parseEcosystemCheckoutRes(data)
   },
-  async listOrders(page = 0, size = 20, status?: string) {
+  async previewCheckout(payload: EcosystemCheckoutReq) {
+    const data = await requestJson<unknown>('/api/ecosystem/checkout/preview', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    })
+    return parseEcosystemCheckoutPreview(data)
+  },
+  async listOrders(
+    page = 0,
+    size = 20,
+    status?: string,
+    options: {
+      ecosystemId?: string
+      createdFrom?: string
+      createdTo?: string
+      paidFrom?: string
+      paidTo?: string
+    } = {}
+  ) {
     const params = new URLSearchParams({
       page: String(page),
       size: String(size)
     })
     if (status) params.set('status', status)
+    if (options.ecosystemId) params.set('ecosystemId', options.ecosystemId)
+    if (options.createdFrom) params.set('createdFrom', options.createdFrom)
+    if (options.createdTo) params.set('createdTo', options.createdTo)
+    if (options.paidFrom) params.set('paidFrom', options.paidFrom)
+    if (options.paidTo) params.set('paidTo', options.paidTo)
     const data = await requestJson<unknown>(`/api/ecosystem/orders?${params.toString()}`)
     return parseEcosystemOrdersPage(data)
   },

@@ -1,5 +1,6 @@
 package com.barmi.app.payments;
 
+import com.barmi.app.ecosystem.EcosystemPromotionService;
 import com.barmi.domain.enums.PaymentScope;
 import com.barmi.domain.events.OutboxEvent;
 import com.barmi.domain.events.ProcessedEvent;
@@ -40,6 +41,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
     private final PaymentRepository paymentRepository;
     private final EcosystemOrderRepository ecosystemOrderRepository;
     private final OutboxEventRepository outboxEventRepository;
+    private final EcosystemPromotionService ecosystemPromotionService;
     private final Counter paymentsConfirmedCounter;
     private final Counter paymentsMismatchCounter;
 
@@ -48,12 +50,14 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
             PaymentRepository paymentRepository,
             EcosystemOrderRepository ecosystemOrderRepository,
             OutboxEventRepository outboxEventRepository,
+            EcosystemPromotionService ecosystemPromotionService,
             MeterRegistry meterRegistry
     ) {
         this.processedEventRepository = processedEventRepository;
         this.paymentRepository = paymentRepository;
         this.ecosystemOrderRepository = ecosystemOrderRepository;
         this.outboxEventRepository = outboxEventRepository;
+        this.ecosystemPromotionService = ecosystemPromotionService;
         this.paymentsConfirmedCounter = meterRegistry.counter("barmi_payments_confirmed_total", "scope", "ECOSYSTEM");
         this.paymentsMismatchCounter = meterRegistry.counter("barmi_payments_mismatch_total", "scope", "ECOSYSTEM");
     }
@@ -185,6 +189,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
         }
 
         order.markPaid();
+        ecosystemPromotionService.consumeAppliedPromotion(order);
         ecosystemOrderRepository.save(order);
 
         Map<String, Object> payload = Map.of(

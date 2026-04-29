@@ -53,6 +53,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
+    implementation("org.springframework.boot:spring-boot-starter-mail")
 
     // Flyway (en Flyway 10, PostgreSQL es módulo separado)
     implementation("org.flywaydb:flyway-core")
@@ -101,6 +102,18 @@ tasks.register<Test>("integrationTest") {
     useJUnitPlatform()
 
     systemProperty("spring.profiles.active", "integrationtest")
+}
+
+tasks.register("baselineCheck") {
+    description = "Runs the fast backend baseline validation."
+    group = "verification"
+    dependsOn(tasks.test)
+}
+
+tasks.register("baselineVerify") {
+    description = "Runs the fuller backend baseline validation, including integration tests."
+    group = "verification"
+    dependsOn(tasks.test, "integrationTest")
 }
 
 tasks.check {

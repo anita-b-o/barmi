@@ -1,5 +1,7 @@
 package com.barmi.app.orders;
 
+import com.barmi.app.catalog.StorePromotionService;
+import com.barmi.app.security.StoreAuthorizationService;
 import com.barmi.app.tenant.TenantContext;
 import com.barmi.app.shipping.StoreShippingQuoteService;
 import com.barmi.domain.catalog.Product;
@@ -42,6 +44,8 @@ public class CheckoutStoreOrderService {
     private final StoreOrderItemRepository storeOrderItemRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final StoreShippingQuoteService storeShippingQuoteService;
+    private final StorePromotionService storePromotionService;
+    private final StoreAuthorizationService storeAuthorizationService;
 
     public CheckoutStoreOrderService(
             @Value("${app.money.defaultCurrency}") String defaultCurrency,
@@ -50,7 +54,9 @@ public class CheckoutStoreOrderService {
             StoreOrderRepository storeOrderRepository,
             StoreOrderItemRepository storeOrderItemRepository,
             OutboxEventRepository outboxEventRepository,
-            StoreShippingQuoteService storeShippingQuoteService
+            StoreShippingQuoteService storeShippingQuoteService,
+            StorePromotionService storePromotionService,
+            StoreAuthorizationService storeAuthorizationService
     ) {
         this.defaultCurrency = defaultCurrency;
         this.storeRepository = storeRepository;
@@ -59,13 +65,74 @@ public class CheckoutStoreOrderService {
         this.storeOrderItemRepository = storeOrderItemRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.storeShippingQuoteService = storeShippingQuoteService;
+        this.storePromotionService = storePromotionService;
+        this.storeAuthorizationService = storeAuthorizationService;
     }
 
     public record CheckoutItem(UUID productId, int qty) {}
     public record ShippingRequest(String postalCode) {}
+    public record CheckoutAmounts(
+            String currency,
+            BigDecimal subtotalAmount,
+            BigDecimal shippingCostAmount,
+            String shippingCurrency,
+            UUID shippingZoneId,
+            String shippingPostalCode,
+            BigDecimal originalAmount,
+            BigDecimal discountAmount,
+            BigDecimal totalAmount,
+            UUID appliedPromotionId,
+            String appliedCouponCode
+    ) {}
 
     @Transactional
+    public StoreOrder checkout(List<CheckoutItem> items, ShippingRequest shipping, String couponCode) {
+        return checkout(items, shipping, couponCode, null);
+    }
+
+    @Transactional
+    public StoreOrder checkout(List<CheckoutItem> items, ShippingRequest shipping, String couponCode, String buyerEmail) {
+        CheckoutContext context = prepareCheckout(items, shipping);
+        CheckoutAmounts amounts = calculateAmounts(context, couponCode);
+        String resolvedBuyerEmail = resolveBuyerEmail(buyerEmail);
+
+        StoreOrder order = StoreOrder.create(
+                context.orderId(),
+                context.store().getId(),
+                context.currency(),
+                amounts.subtotalAmount(),
+                amounts.totalAmount(),
+                amounts.shippingCostAmount(),
+                amounts.shippingCurrency(),
+                amounts.shippingZoneId(),
+                amounts.shippingPostalCode(),
+                amounts.originalAmount(),
+                amounts.discountAmount(),
+                amounts.appliedPromotionId(),
+                amounts.appliedCouponCode(),
+                resolvedBuyerEmail,
+                context.orderItems()
+        );
+
+        storeOrderRepository.save(order);
+        storeOrderItemRepository.saveAll(context.orderItems());
+
+        outboxEventRepository.save(buildCreatedEvent(order, context.store(), context.orderItems(), amounts));
+
+        return order;
+    }
+
+    @Transactional(readOnly = true)
+    public CheckoutAmounts preview(List<CheckoutItem> items, ShippingRequest shipping, String couponCode) {
+        CheckoutContext context = prepareCheckout(items, shipping);
+        return calculateAmounts(context, couponCode);
+    }
+
     public StoreOrder checkout(List<CheckoutItem> items, ShippingRequest shipping) {
+        return checkout(items, shipping, null, null);
+    }
+
+    private CheckoutContext prepareCheckout(List<CheckoutItem> items, ShippingRequest shipping) {
         if (items == null || items.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "items_required");
         }
@@ -119,12 +186,18 @@ public class CheckoutStoreOrderService {
             qtyByProductId.merge(product.getId(), item.qty(), Integer::sum);
         }
 
+        for (Map.Entry<UUID, Integer> entry : qtyByProductId.entrySet()) {
+            Product product = productById.get(entry.getKey());
+            if (product.getStockQuantity() < entry.getValue()) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "product_out_of_stock");
+            }
+        }
+
         // TODO: currency strategy to be defined (store-level or price-level).
         String currency = defaultCurrency;
-
-        UUID orderId = UUID.randomUUID();
         List<StoreOrderItem> orderItems = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
+        UUID orderId = UUID.randomUUID();
 
         for (CheckoutItem item : items) {
             Product product = productById.get(item.productId());
@@ -166,32 +239,55 @@ public class CheckoutStoreOrderService {
             shippingZoneId = shippingZone.getId();
         }
 
-        BigDecimal total = subtotal.add(shippingCost);
-
-        StoreOrder order = StoreOrder.create(
+        return new CheckoutContext(
+                store,
                 orderId,
-                store.getId(),
                 currency,
+                orderItems,
                 subtotal,
-                total,
                 shippingCost,
                 shippingCurrency,
                 shippingZoneId,
-                shippingPostalCode,
-                orderItems
+                shippingPostalCode
         );
+    }
 
-        storeOrderRepository.save(order);
-        storeOrderItemRepository.saveAll(orderItems);
+    private CheckoutAmounts calculateAmounts(CheckoutContext context, String couponCode) {
+        BigDecimal originalAmount = context.subtotalAmount().add(context.shippingCostAmount());
+        StorePromotionService.PromotionApplication promotion = storePromotionService.preview(
+                context.store().getId(),
+                couponCode,
+                originalAmount
+        );
+        return new CheckoutAmounts(
+                context.currency(),
+                context.subtotalAmount(),
+                context.shippingCostAmount(),
+                context.shippingCurrency(),
+                context.shippingZoneId(),
+                context.shippingPostalCode(),
+                promotion.originalAmount(),
+                promotion.discountAmount(),
+                promotion.finalAmount(),
+                promotion.promotionId(),
+                promotion.code()
+        );
+    }
 
+    private OutboxEvent buildCreatedEvent(
+            StoreOrder order,
+            Store store,
+            List<StoreOrderItem> orderItems,
+            CheckoutAmounts amounts
+    ) {
         Map<String, Object> shippingPayload = new HashMap<>();
-        shippingPayload.put("zoneId", shippingZoneId);
-        shippingPayload.put("postalCode", shippingPostalCode);
-        shippingPayload.put("costAmount", shippingCost);
-        shippingPayload.put("currency", shippingCurrency);
+        shippingPayload.put("zoneId", amounts.shippingZoneId());
+        shippingPayload.put("postalCode", amounts.shippingPostalCode());
+        shippingPayload.put("costAmount", amounts.shippingCostAmount());
+        shippingPayload.put("currency", amounts.shippingCurrency());
 
         Map<String, Object> payload = new HashMap<>();
-        payload.put("storeOrderId", orderId);
+        payload.put("storeOrderId", order.getId());
         payload.put("storeId", store.getId());
         payload.put("items", orderItems.stream()
                 .map(i -> Map.of(
@@ -202,22 +298,61 @@ public class CheckoutStoreOrderService {
                 ))
                 .toList());
         payload.put("totals", Map.of(
-                "subtotal", subtotal,
-                "total", total,
-                "currency", currency
+                "subtotal", amounts.subtotalAmount(),
+                "originalAmount", amounts.originalAmount(),
+                "discountAmount", amounts.discountAmount(),
+                "total", amounts.totalAmount(),
+                "currency", order.getCurrency()
         ));
+        if (amounts.appliedCouponCode() != null) {
+            payload.put("promotion", Map.of(
+                    "promotionId", amounts.appliedPromotionId(),
+                    "couponCode", amounts.appliedCouponCode()
+            ));
+        }
         payload.put("shipping", shippingPayload);
 
-        OutboxEvent event = new OutboxEvent(
+        return new OutboxEvent(
                 UUID.randomUUID(),
                 EVENT_TYPE,
                 PaymentScope.STORE.name(),
-                orderId,
+                order.getId(),
                 toJson(payload)
         );
-        outboxEventRepository.save(event);
+    }
 
-        return order;
+    private record CheckoutContext(
+            Store store,
+            UUID orderId,
+            String currency,
+            List<StoreOrderItem> orderItems,
+            BigDecimal subtotalAmount,
+            BigDecimal shippingCostAmount,
+            String shippingCurrency,
+            UUID shippingZoneId,
+            String shippingPostalCode
+    ) {}
+
+    private String resolveBuyerEmail(String buyerEmail) {
+        String explicitBuyerEmail = normalizeEmail(buyerEmail);
+        if (explicitBuyerEmail != null) {
+            return explicitBuyerEmail;
+        }
+
+        String currentEmail = normalizeEmail(storeAuthorizationService.currentEmail());
+        if (currentEmail != null) {
+            return currentEmail;
+        }
+
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "buyer_email_required");
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+        String normalized = email.trim();
+        return normalized.isBlank() ? null : normalized;
     }
 
     private static String toJson(Object value) {

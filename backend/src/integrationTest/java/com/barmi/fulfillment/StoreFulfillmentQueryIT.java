@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -32,6 +33,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -54,6 +57,7 @@ class StoreFulfillmentQueryIT extends PostgresIntegrationTestBase {
     private final UserRepository userRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     private Store store;
     private Store otherStore;
@@ -73,7 +77,8 @@ class StoreFulfillmentQueryIT extends PostgresIntegrationTestBase {
             StoreOrderRepository storeOrderRepository,
             UserRepository userRepository,
             RefreshTokenRepository refreshTokenRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            JdbcTemplate jdbcTemplate
     ) {
         this.mockMvc = mockMvc;
         this.api = new ApiTestClient(mockMvc);
@@ -84,6 +89,7 @@ class StoreFulfillmentQueryIT extends PostgresIntegrationTestBase {
         this.userRepository = userRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @BeforeEach
@@ -201,6 +207,26 @@ class StoreFulfillmentQueryIT extends PostgresIntegrationTestBase {
 
         assertThat(response.status()).isEqualTo(400);
         assertThat(errorCode(response)).isEqualTo("store_context_required");
+    }
+
+    @Test
+    void listSupportsCreatedAtDrillDownFilters() throws Exception {
+        Instant now = Instant.now();
+        jdbcTemplate.update("update store_fulfillments set created_at = ? where id = ?", Timestamp.from(now.minusSeconds(3 * 24L * 60L * 60L)), newestFulfillment.getId());
+        jdbcTemplate.update("update store_fulfillments set created_at = ? where id = ?", Timestamp.from(now.minusSeconds(10 * 24L * 60L * 60L)), olderFulfillment.getId());
+
+        MvcResult result = mockMvc.perform(get("/api/store/fulfillments?createdFrom=%s&createdTo=%s".formatted(
+                now.minusSeconds(7 * 24L * 60L * 60L),
+                now
+        )).headers(authHeaders(staffEmail, store.getSlug()))).andReturn();
+
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+        List<Map<String, Object>> fulfillments = MAPPER.readValue(
+                result.getResponse().getContentAsString(StandardCharsets.UTF_8),
+                new TypeReference<>() {}
+        );
+        assertThat(fulfillments).extracting(item -> item.get("fulfillmentId").toString())
+                .containsExactly(newestFulfillment.getId().toString());
     }
 
     private void createUserAndMembership(String email, StoreMemberRole role) {

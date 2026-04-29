@@ -1,5 +1,8 @@
 {
   "totalAmount": 390.00,
+  "originalAmount": 390.00,
+  "discountAmount": 0.00,
+  "appliedCouponCode": null,
   "createdAt": "2026-03-01T14:00:48.264040699Z",
   "shippingZoneId": "44444444-4444-4444-4444-444444444444",
   "orderId": "ce0a6d48-564c-4340-ab9d-e3d2339eb4f9",

@@ -4,6 +4,9 @@
   "createdAt": "2026-03-01T14:00:48.264041Z",
   "currency": "ARS",
   "subtotalAmount": 390.00,
+  "originalAmount": 430.00,
+  "discountAmount": 40.00,
+  "appliedCouponCode": "BIENVENIDA10",
   "shippingCostAmount": 0.00,
   "totalAmount": 390.00,
   "items": [
@@ -28,5 +31,30 @@
     "zoneId": "44444444-4444-4444-4444-444444444444",
     "postalCode": "1900"
   },
-  "payment": null
+  "payment": {
+    "status": "CONFIRMED",
+    "provider": "MERCADOPAGO",
+    "providerPaymentId": "mp_conflict_visible",
+    "confirmedAt": "2026-03-01T14:05:00Z"
+  },
+  "fulfillment": {
+    "fulfillmentId": "55555555-5555-5555-5555-555555555555",
+    "status": "DISPATCHED",
+    "method": "STANDARD",
+    "createdAt": "2026-03-01T14:10:00Z"
+  },
+  "operationalIssue": {
+    "code": "STOCK_CONFLICT",
+    "title": "Conflicto de stock post-pago",
+    "message": "El pago fue confirmado, pero no se pudo completar la orden porque el stock ya no alcanzaba al momento del procesamiento.",
+    "detectedAt": "2026-03-01T14:05:30Z",
+    "items": [
+      {
+        "productId": "22222222-2222-2222-2222-222222222222",
+        "sku": "SKU-APPLE",
+        "availableQuantity": 0,
+        "requestedQuantity": 1
+      }
+    ]
+  }
 }

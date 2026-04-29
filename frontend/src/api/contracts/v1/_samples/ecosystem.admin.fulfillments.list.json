@@ -1,0 +1,18 @@
+[
+  {
+    "fulfillmentId": "f1111111-1111-1111-1111-111111111111",
+    "ecosystemOrderId": "o1111111-1111-1111-1111-111111111111",
+    "ecosystemId": "e1111111-1111-1111-1111-111111111111",
+    "status": "PENDING",
+    "method": "DELIVERY",
+    "createdAt": "2026-03-13T12:00:00Z"
+  },
+  {
+    "fulfillmentId": "f2222222-2222-2222-2222-222222222222",
+    "ecosystemOrderId": "o2222222-2222-2222-2222-222222222222",
+    "ecosystemId": "e1111111-1111-1111-1111-111111111111",
+    "status": "DELIVERED",
+    "method": "DELIVERY",
+    "createdAt": "2026-03-13T12:05:00Z"
+  }
+]

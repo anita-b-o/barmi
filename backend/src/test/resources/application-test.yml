@@ -14,3 +14,6 @@ spring:
 app:
   security:
     jwtSecret: test-secret-please-change-32-bytes-minimum
+  notifications:
+    email:
+      mode: logging

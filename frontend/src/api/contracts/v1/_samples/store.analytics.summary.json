@@ -1,0 +1,20 @@
+{
+  "storeId": "11111111-1111-1111-1111-111111111111",
+  "storeSlug": "demo-store",
+  "totalOrders": 12,
+  "ordersByStatus": {
+    "PENDING_PAYMENT": 4,
+    "PAID": 6,
+    "CANCELLED": 2
+  },
+  "confirmedSalesTotalAmount": 15200,
+  "confirmedSalesCurrency": "ARS",
+  "fulfillmentsByStatus": {
+    "PENDING": 1,
+    "DISPATCHED": 2,
+    "DELIVERED": 3,
+    "CANCELLED": 0
+  },
+  "activeProducts": 8,
+  "inactiveProducts": 3
+}

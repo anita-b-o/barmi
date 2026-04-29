@@ -75,7 +75,7 @@ public class EcosystemExternalProductAdminService {
     @Transactional(readOnly = true)
     public List<EcosystemExternalProduct> list(UUID ecosystemId, boolean activeOnly, String query) {
         requireActiveEcosystem(ecosystemId);
-        String normalizedQuery = (query == null || query.isBlank()) ? null : query.trim();
+        String normalizedQuery = (query == null || query.isBlank()) ? "" : query.trim();
         return ecosystemExternalProductRepository.findByEcosystemWithFilters(ecosystemId, activeOnly, normalizedQuery);
     }
 

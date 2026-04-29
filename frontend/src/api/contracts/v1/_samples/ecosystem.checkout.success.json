@@ -4,7 +4,13 @@
   "status": "PENDING_PAYMENT",
   "currency": "ARS",
   "subtotalAmount": 150.00,
+  "originalAmount": 150.00,
+  "discountAmount": 15.00,
+  "appliedCouponCode": "BIENVENIDA10",
   "shippingCostAmount": 0.00,
-  "totalAmount": 150.00,
+  "shippingCurrency": "",
+  "shippingZoneId": null,
+  "shippingPostalCode": null,
+  "totalAmount": 135.00,
   "createdAt": "2026-03-05T10:55:11.432438372Z"
 }

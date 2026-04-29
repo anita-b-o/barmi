@@ -1,0 +1,7 @@
+UPDATE stores
+SET ecosystem_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+WHERE id IN (
+    '11111111-1111-1111-1111-111111111111',
+    '11111111-1111-1111-1111-111111111112',
+    '11111111-1111-1111-1111-111111111113'
+);

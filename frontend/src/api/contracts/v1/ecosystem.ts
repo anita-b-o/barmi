@@ -14,16 +14,28 @@ export type EcosystemCheckoutReq = {
   ecosystemId: string
   items: Array<{ externalProductId: string; qty: number }>
   shipping?: { postalCode: string }
+  couponCode?: string | null
 }
 
-export type EcosystemCheckoutRes = {
+export type EcosystemCheckoutTotals = {
+  subtotalAmount: number
+  originalAmount: number
+  discountAmount: number
+  appliedCouponCode: string | null
+  currency: string
+  shippingCostAmount: number
+  shippingCurrency: string
+  shippingZoneId: string | null
+  shippingPostalCode: string | null
+  totalAmount: number
+}
+
+export type EcosystemCheckoutPreviewRes = EcosystemCheckoutTotals
+
+export type EcosystemCheckoutRes = EcosystemCheckoutTotals & {
   id: string
   ecosystemId: string
   status: EcosystemOrderStatus
-  currency: string
-  subtotalAmount: number
-  shippingCostAmount: number
-  totalAmount: number
   createdAt: string
 }
 

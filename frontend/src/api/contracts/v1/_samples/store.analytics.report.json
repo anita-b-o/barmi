@@ -1,0 +1,27 @@
+{
+  "storeId": "11111111-1111-1111-1111-111111111111",
+  "storeSlug": "demo-store",
+  "rangeKey": "7d",
+  "rangeLabel": "Ultimos 7 dias",
+  "from": "2026-03-12T00:00:00.000Z",
+  "to": "2026-03-19T00:00:00.000Z",
+  "timezone": "America/Argentina/Buenos_Aires",
+  "periodMetrics": {
+    "ordersCreated": 9,
+    "paymentsConfirmed": 5,
+    "ordersPaid": 5,
+    "manualCancellations": 1,
+    "stockConflicts": 2,
+    "fulfillmentsCreated": 4,
+    "confirmedSalesTotalAmount": 4500,
+    "confirmedSalesCurrency": "ARS"
+  },
+  "currentSnapshot": {
+    "fulfillmentsByStatus": {
+      "PENDING": 1,
+      "DISPATCHED": 2,
+      "DELIVERED": 2,
+      "CANCELLED": 0
+    }
+  }
+}

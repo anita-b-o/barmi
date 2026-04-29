@@ -8,6 +8,15 @@ Architecture Decision Records must be stored in `/docs/adr`.
 
 Format: `ADR-XXX-title.md`
 
+# Production / Launch
+
+Operational launch material should live in `/docs/production`.
+
+Useful starting points:
+- `CONFIGURATION.md`
+- `RUNBOOK.md`
+- `MVP_LAUNCH_CHECKLIST.md`
+
 # Definition of Done
 
 - Every DB change requires Flyway migration

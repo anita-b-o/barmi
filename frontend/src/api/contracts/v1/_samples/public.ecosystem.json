@@ -1,5 +1,14 @@
 {
   "id": "33333333-3333-3333-3333-333333333333",
   "slug": "demo-ecosystem",
-  "name": "Demo Ecosystem"
+  "name": "Demo Ecosystem",
+  "promotions": [
+    {
+      "code": "BIENVENIDA10",
+      "type": "PERCENTAGE",
+      "value": 10,
+      "shortLabel": "BIENVENIDA10 · 10% OFF",
+      "expirationDate": "2026-12-31T23:59:59Z"
+    }
+  ]
 }

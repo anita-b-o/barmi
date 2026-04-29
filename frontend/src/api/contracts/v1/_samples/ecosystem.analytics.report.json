@@ -1,0 +1,24 @@
+{
+  "ecosystemId": "22222222-2222-2222-2222-222222222222",
+  "ecosystemSlug": "demo-ecosystem",
+  "rangeKey": "7d",
+  "rangeLabel": "Ultimos 7 dias",
+  "from": "2026-03-12T00:00:00.000Z",
+  "to": "2026-03-19T00:00:00.000Z",
+  "timezone": "America/Argentina/Buenos_Aires",
+  "periodMetrics": {
+    "ordersCreated": 9,
+    "paymentsConfirmed": 5,
+    "fulfillmentsCreated": 4,
+    "confirmedSalesTotalAmount": 4500,
+    "confirmedSalesCurrency": "ARS"
+  },
+  "currentSnapshot": {
+    "fulfillmentsByStatus": {
+      "PENDING": 1,
+      "DISPATCHED": 2,
+      "DELIVERED": 5,
+      "CANCELLED": 0
+    }
+  }
+}

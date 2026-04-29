@@ -1,0 +1,32 @@
+{
+  "storeId": "11111111-1111-1111-1111-111111111111",
+  "storeSlug": "demo-store",
+  "storeName": "Demo Store Barmi",
+  "actorRole": "OWNER",
+  "ecosystem": {
+    "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+    "slug": "demo-ecosystem",
+    "name": "Demo Ecosystem"
+  },
+  "publicCategoryKey": "cafeteria",
+  "publicLocationLabel": "La Plata Centro",
+  "publicLatitude": -34.920494,
+  "publicLongitude": -57.953565,
+  "ecosystems": [
+    {
+      "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "slug": "demo-ecosystem",
+      "name": "Demo Ecosystem"
+    },
+    {
+      "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "slug": "other-ecosystem",
+      "name": "Other Ecosystem"
+    }
+  ],
+  "categories": [
+    { "key": "almacen", "label": "Almacen" },
+    { "key": "panaderia", "label": "Panaderia" },
+    { "key": "cafeteria", "label": "Cafeteria" }
+  ]
+}

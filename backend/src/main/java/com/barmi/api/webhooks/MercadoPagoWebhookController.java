@@ -1,6 +1,8 @@
 package com.barmi.api.webhooks;
 
 import com.barmi.app.payments.StorePaymentConfirmationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +23,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/webhooks/mercadopago")
 public class MercadoPagoWebhookController {
+    private static final Logger log = LoggerFactory.getLogger(MercadoPagoWebhookController.class);
 
     private final String secret;
     private final StorePaymentConfirmationService storePaymentConfirmationService;
@@ -39,6 +42,7 @@ public class MercadoPagoWebhookController {
             @RequestBody Map<String, Object> payload
     ) {
         if (headerSecret == null || !headerSecret.equals(secret)) {
+            log.warn("mercadopago_webhook_invalid_secret");
             throw new ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "invalid_secret");
         }
 

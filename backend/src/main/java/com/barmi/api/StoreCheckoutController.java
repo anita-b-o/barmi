@@ -3,6 +3,7 @@ package com.barmi.api;
 import com.barmi.app.orders.CheckoutStoreOrderService;
 import com.barmi.domain.orders.StoreOrder;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -36,8 +37,25 @@ public class StoreCheckoutController {
 
     public record CheckoutReq(
             @NotEmpty @Valid List<CheckoutItemReq> items,
-            ShippingReq shipping
+            ShippingReq shipping,
+            String couponCode,
+            @Email String buyerEmail
     ) {}
+
+    @PostMapping("/checkout/preview")
+    public ResponseEntity<?> preview(@Valid @RequestBody CheckoutReq req) {
+        List<CheckoutStoreOrderService.CheckoutItem> items = req.items().stream()
+                .map(i -> new CheckoutStoreOrderService.CheckoutItem(i.productId(), i.qty()))
+                .toList();
+
+        CheckoutStoreOrderService.ShippingRequest shipping = null;
+        if (req.shipping() != null) {
+            shipping = new CheckoutStoreOrderService.ShippingRequest(req.shipping().postalCode());
+        }
+
+        CheckoutStoreOrderService.CheckoutAmounts amounts = checkoutStoreOrderService.preview(items, shipping, req.couponCode());
+        return ResponseEntity.ok(buildCheckoutAmountsBody(amounts));
+    }
 
     @PostMapping("/checkout")
     public ResponseEntity<?> checkout(@Valid @RequestBody CheckoutReq req) {
@@ -50,20 +68,43 @@ public class StoreCheckoutController {
             shipping = new CheckoutStoreOrderService.ShippingRequest(req.shipping().postalCode());
         }
 
-        StoreOrder order = checkoutStoreOrderService.checkout(items, shipping);
+        StoreOrder order = checkoutStoreOrderService.checkout(items, shipping, req.couponCode(), req.buyerEmail());
 
         Map<String, Object> body = new java.util.HashMap<>();
+        body.putAll(buildCheckoutAmountsBody(
+                new CheckoutStoreOrderService.CheckoutAmounts(
+                        order.getCurrency(),
+                        order.getSubtotalAmount(),
+                        order.getShippingCostAmount(),
+                        order.getShippingCurrency(),
+                        order.getShippingZoneId(),
+                        order.getShippingPostalCode(),
+                        order.getOriginalAmount(),
+                        order.getDiscountAmount(),
+                        order.getTotalAmount(),
+                        order.getAppliedPromotionId(),
+                        order.getAppliedCouponCode()
+                )
+        ));
         body.put("orderId", order.getId());
         body.put("status", order.getStatus());
-        body.put("currency", order.getCurrency());
-        body.put("subtotalAmount", order.getSubtotalAmount());
-        body.put("totalAmount", order.getTotalAmount());
-        body.put("shippingCostAmount", order.getShippingCostAmount());
-        body.put("shippingCurrency", order.getShippingCurrency());
-        body.put("shippingZoneId", order.getShippingZoneId());
-        body.put("shippingPostalCode", order.getShippingPostalCode());
         body.put("createdAt", order.getCreatedAt());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(body);
+    }
+
+    private Map<String, Object> buildCheckoutAmountsBody(CheckoutStoreOrderService.CheckoutAmounts amounts) {
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("subtotalAmount", amounts.subtotalAmount());
+        body.put("originalAmount", amounts.originalAmount());
+        body.put("discountAmount", amounts.discountAmount());
+        body.put("appliedCouponCode", amounts.appliedCouponCode());
+        body.put("totalAmount", amounts.totalAmount());
+        body.put("currency", amounts.currency());
+        body.put("shippingCostAmount", amounts.shippingCostAmount());
+        body.put("shippingCurrency", amounts.shippingCurrency());
+        body.put("shippingZoneId", amounts.shippingZoneId());
+        body.put("shippingPostalCode", amounts.shippingPostalCode());
+        return body;
     }
 }

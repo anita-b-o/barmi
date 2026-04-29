@@ -49,6 +49,21 @@ CREATE TABLE ecosystem_external_products (
   created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE ecosystem_promotions (
+  id               UUID PRIMARY KEY,
+  ecosystem_id     UUID NOT NULL REFERENCES ecosystems(id),
+  code             TEXT NOT NULL,
+  type             TEXT NOT NULL,
+  value_amount     NUMERIC(19, 2) NOT NULL CHECK (value_amount > 0),
+  active           BOOLEAN NOT NULL DEFAULT TRUE,
+  expiration_date  TIMESTAMP NULL,
+  usage_limit      BIGINT NULL,
+  usage_count      BIGINT NOT NULL DEFAULT 0,
+  created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT chk_ecosystem_promotions_usage_limit CHECK (usage_limit IS NULL OR usage_limit >= 0),
+  UNIQUE (ecosystem_id, code)
+);
+
 CREATE TABLE outbox_events (
   event_id        UUID PRIMARY KEY,
   event_type      TEXT NOT NULL,
@@ -63,3 +78,40 @@ CREATE TABLE processed_events (
   event_id        UUID PRIMARY KEY,
   processed_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE stores
+  ADD COLUMN ecosystem_id UUID NULL REFERENCES ecosystems(id);
+
+ALTER TABLE stores
+  ADD COLUMN public_location_label TEXT NULL;
+
+ALTER TABLE stores
+  ADD COLUMN public_latitude NUMERIC(9, 6) NULL;
+
+ALTER TABLE stores
+  ADD COLUMN public_longitude NUMERIC(9, 6) NULL;
+
+ALTER TABLE stores
+  ADD COLUMN public_category_key TEXT NULL;
+
+ALTER TABLE stores
+  ADD CONSTRAINT chk_stores_public_coordinates
+  CHECK (
+    (public_latitude IS NULL AND public_longitude IS NULL)
+    OR (public_latitude IS NOT NULL AND public_longitude IS NOT NULL)
+  );
+
+ALTER TABLE stores
+  ADD CONSTRAINT chk_stores_public_category_key
+  CHECK (
+    public_category_key IS NULL OR public_category_key IN (
+      'almacen',
+      'panaderia',
+      'verduleria',
+      'kiosco',
+      'carniceria',
+      'farmacia',
+      'libreria',
+      'cafeteria'
+    )
+  );

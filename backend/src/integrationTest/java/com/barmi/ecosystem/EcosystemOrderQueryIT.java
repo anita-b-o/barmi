@@ -7,9 +7,11 @@ import com.barmi.domain.ecosystem.Ecosystem;
 import com.barmi.domain.ecosystem.EcosystemExternalProduct;
 import com.barmi.domain.orders.EcosystemOrder;
 import com.barmi.domain.orders.EcosystemOrderStatus;
+import com.barmi.domain.payments.PaymentStatus;
 import com.barmi.infra.repo.EcosystemExternalProductRepository;
 import com.barmi.infra.repo.EcosystemOrderRepository;
 import com.barmi.infra.repo.EcosystemRepository;
+import com.barmi.infra.repo.PaymentRepository;
 import com.barmi.testsupport.ApiTestClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -68,6 +70,7 @@ class EcosystemOrderQueryIT {
     private final EcosystemOrderRepository ecosystemOrderRepository;
     private final EcosystemCheckoutService ecosystemCheckoutService;
     private final EcosystemPaymentConfirmationService ecosystemPaymentConfirmationService;
+    private final PaymentRepository paymentRepository;
     private final ApiTestClient api;
 
     @Autowired
@@ -77,6 +80,7 @@ class EcosystemOrderQueryIT {
             EcosystemOrderRepository ecosystemOrderRepository,
             EcosystemCheckoutService ecosystemCheckoutService,
             EcosystemPaymentConfirmationService ecosystemPaymentConfirmationService,
+            PaymentRepository paymentRepository,
             MockMvc mockMvc
     ) {
         this.ecosystemRepository = ecosystemRepository;
@@ -84,6 +88,7 @@ class EcosystemOrderQueryIT {
         this.ecosystemOrderRepository = ecosystemOrderRepository;
         this.ecosystemCheckoutService = ecosystemCheckoutService;
         this.ecosystemPaymentConfirmationService = ecosystemPaymentConfirmationService;
+        this.paymentRepository = paymentRepository;
         this.api = new ApiTestClient(mockMvc);
     }
 
@@ -192,5 +197,59 @@ class EcosystemOrderQueryIT {
         assertThat(filteredContent).hasSize(1);
         assertThat(filteredContent.get(0).get("status")).isEqualTo("PAID");
         assertThat(filteredContent.get(0).get("orderId").toString()).isEqualTo(paid.getId().toString());
+    }
+
+    @Test
+    void listSupportsCreatedAndPaidFilters() throws Exception {
+        Ecosystem ecosystem = ecosystemRepository.save(new Ecosystem(UUID.randomUUID(), "Eco Drill", "eco-drill"));
+        EcosystemExternalProduct product = ecosystemExternalProductRepository.save(
+                new EcosystemExternalProduct(UUID.randomUUID(), ecosystem, "Mate", new BigDecimal("8.00"), "ARS", true)
+        );
+
+        EcosystemOrder createdOrder = ecosystemCheckoutService.checkout(
+                ecosystem.getId(),
+                List.of(new CheckoutItem(product.getId(), 1)),
+                null
+        );
+        EcosystemOrder paidOrder = ecosystemCheckoutService.checkout(
+                ecosystem.getId(),
+                List.of(new CheckoutItem(product.getId(), 1)),
+                null
+        );
+        ecosystemPaymentConfirmationService.confirmEcosystemPayment(
+                UUID.randomUUID(),
+                paidOrder.getId(),
+                "mp_eco_paid_" + UUID.randomUUID(),
+                paidOrder.getTotalAmount(),
+                paidOrder.getCurrency()
+        );
+
+        EcosystemOrder createdReloaded = ecosystemOrderRepository.findById(createdOrder.getId()).orElseThrow();
+        var paidPayment = paymentRepository.findFirstByScopeAndOperationIdAndStatus(
+                com.barmi.domain.enums.PaymentScope.ECOSYSTEM,
+                paidOrder.getId(),
+                PaymentStatus.CONFIRMED
+        ).orElseThrow();
+
+        ApiTestClient.ApiTestResponse createdFiltered = api.get(
+                "/api/ecosystem/orders?ecosystemId=" + ecosystem.getId()
+                        + "&createdFrom=" + createdReloaded.getCreatedAt().minusSeconds(1)
+                        + "&createdTo=" + createdReloaded.getCreatedAt().plusSeconds(1),
+                null
+        );
+        assertThat(createdFiltered.status()).isEqualTo(200);
+        List<Map<String, Object>> createdContent = (List<Map<String, Object>>) createdFiltered.body().get("content");
+        assertThat(createdContent).extracting(item -> item.get("orderId").toString()).contains(createdOrder.getId().toString());
+
+        ApiTestClient.ApiTestResponse paidFiltered = api.get(
+                "/api/ecosystem/orders?ecosystemId=" + ecosystem.getId()
+                        + "&paidFrom=" + paidPayment.getConfirmedAt().minusSeconds(1)
+                        + "&paidTo=" + paidPayment.getConfirmedAt().plusSeconds(1),
+                null
+        );
+        assertThat(paidFiltered.status()).isEqualTo(200);
+        List<Map<String, Object>> paidContent = (List<Map<String, Object>>) paidFiltered.body().get("content");
+        assertThat(paidContent).hasSize(1);
+        assertThat(paidContent.get(0).get("orderId").toString()).isEqualTo(paidOrder.getId().toString());
     }
 }

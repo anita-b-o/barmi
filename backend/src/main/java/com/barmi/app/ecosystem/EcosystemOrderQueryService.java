@@ -18,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -76,14 +77,66 @@ public class EcosystemOrderQueryService {
         );
     }
 
-    public PageResult<OrderSummaryView> listOrders(EcosystemOrderStatus status, int page, int size, String sort) {
+    public PageResult<OrderSummaryView> listOrders(
+            UUID ecosystemId,
+            EcosystemOrderStatus status,
+            int page,
+            int size,
+            String sort,
+            Instant createdFrom,
+            Instant createdTo,
+            Instant paidFrom,
+            Instant paidTo
+    ) {
         PageRequest pageRequest = PageRequest.of(page, size, parseSort(sort));
-        Page<EcosystemOrder> result = status == null
-                ? ecosystemOrderRepository.findAll(pageRequest)
-                : ecosystemOrderRepository.findByStatus(status, pageRequest);
+        boolean applyPaidFilter = paidFrom != null || paidTo != null;
+        boolean applyCreatedFrom = createdFrom != null;
+        boolean applyCreatedTo = createdTo != null;
+        Instant createdFromInclusive = createdFrom == null ? Instant.EPOCH : createdFrom;
+        Instant createdToExclusive = createdTo == null ? Instant.parse("9999-12-31T00:00:00Z") : createdTo;
+        Instant paidFromInclusive = paidFrom == null ? Instant.EPOCH : paidFrom;
+        Instant paidToExclusive = paidTo == null ? Instant.parse("9999-12-31T00:00:00Z") : paidTo;
+        Set<UUID> paidOrderIds = applyPaidFilter
+                ? paymentRepository.findConfirmedEcosystemOperationIdsInRange(
+                        PaymentScope.ECOSYSTEM,
+                        PaymentStatus.CONFIRMED,
+                        ecosystemId,
+                        paidFromInclusive,
+                        paidToExclusive
+                )
+                : Collections.singleton(UUID.randomUUID());
+
+        if (applyPaidFilter && paidOrderIds.isEmpty()) {
+            return new PageResult<>(0, 0, page, size, List.of());
+        }
+
+        Page<EcosystemOrder> result = ecosystemOrderRepository.searchForAdmin(
+                ecosystemId,
+                status,
+                applyCreatedFrom,
+                createdFromInclusive,
+                applyCreatedTo,
+                createdToExclusive,
+                applyPaidFilter,
+                paidOrderIds,
+                pageRequest
+        );
 
         List<OrderSummaryView> content = result.getContent().stream()
-                .map(o -> new OrderSummaryView(o.getId(), o.getStatus(), o.getCreatedAt(), o.getTotalAmount(), o.getCurrency()))
+                .map(o -> new OrderSummaryView(
+                        o.getId(),
+                        o.getStatus(),
+                        o.getCreatedAt(),
+                        paymentRepository.findFirstByScopeAndOperationIdAndStatus(
+                                        PaymentScope.ECOSYSTEM,
+                                        o.getId(),
+                                        PaymentStatus.CONFIRMED
+                                )
+                                .map(Payment::getConfirmedAt)
+                                .orElse(null),
+                        o.getTotalAmount(),
+                        o.getCurrency()
+                ))
                 .toList();
 
         return new PageResult<>(
@@ -168,6 +221,7 @@ public class EcosystemOrderQueryService {
             UUID orderId,
             EcosystemOrderStatus status,
             Instant createdAt,
+            Instant paidAt,
             BigDecimal totalAmount,
             String currency
     ) {}

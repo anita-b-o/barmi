@@ -46,7 +46,7 @@ class StoreOrderTest {
     }
 
     @Test
-    void invalidTransitionFails() {
+    void cancellingCancelledOrderFails() {
         StoreOrder order = StoreOrder.create(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
@@ -60,7 +60,7 @@ class StoreOrderTest {
                 List.of(validItem())
         );
 
-        order.markPaid();
+        order.cancel();
         assertThrows(IllegalStateException.class, order::cancel);
     }
 
@@ -81,6 +81,27 @@ class StoreOrderTest {
 
         order.markPaid();
         assertEquals(StoreOrderStatus.PAID, order.getStatus());
+    }
+
+    @Test
+    void paidOrderCanBeCancelled() {
+        StoreOrder order = StoreOrder.create(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "USD",
+                new BigDecimal("10.00"),
+                new BigDecimal("10.00"),
+                BigDecimal.ZERO,
+                "",
+                null,
+                null,
+                List.of(validItem())
+        );
+
+        order.markPaid();
+        order.cancel();
+
+        assertEquals(StoreOrderStatus.CANCELLED, order.getStatus());
     }
 
     private StoreOrderItem validItem() {

@@ -1,0 +1,75 @@
+{
+  "ecosystem": {
+    "id": "33333333-3333-3333-3333-333333333333",
+    "slug": "demo-ecosystem",
+    "name": "Demo Ecosystem",
+    "promotions": [
+      {
+        "code": "BIENVENIDA10",
+        "type": "PERCENTAGE",
+        "value": 10,
+        "shortLabel": "BIENVENIDA10 · 10% OFF",
+        "expirationDate": "2026-12-31T23:59:59Z"
+      }
+    ]
+  },
+  "newStores": [
+    {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "slug": "new-store",
+      "name": "New Store",
+      "category": {
+        "key": "almacen",
+        "label": "Almacen"
+      },
+      "createdAt": "2026-03-19T12:00:00Z"
+    },
+    {
+      "id": "66666666-6666-6666-6666-666666666666",
+      "slug": "older-store",
+      "name": "Older Store",
+      "category": {
+        "key": "panaderia",
+        "label": "Panaderia"
+      },
+      "createdAt": "2026-03-10T12:00:00Z"
+    }
+  ],
+  "storeCategories": [
+    {
+      "key": "almacen",
+      "label": "Almacen",
+      "storeCount": 1
+    },
+    {
+      "key": "panaderia",
+      "label": "Panaderia",
+      "storeCount": 1
+    }
+  ],
+  "promotionProducts": [
+    {
+      "id": "77777777-7777-7777-7777-777777777777",
+      "name": "External Banana",
+      "priceAmount": 120,
+      "currency": "ARS",
+      "deliverySupported": false
+    },
+    {
+      "id": "88888888-8888-8888-8888-888888888888",
+      "name": "External Apple",
+      "priceAmount": 150,
+      "currency": "ARS",
+      "deliverySupported": true
+    }
+  ],
+  "deliveryProducts": [
+    {
+      "id": "88888888-8888-8888-8888-888888888888",
+      "name": "External Apple",
+      "priceAmount": 150,
+      "currency": "ARS",
+      "deliverySupported": true
+    }
+  ]
+}

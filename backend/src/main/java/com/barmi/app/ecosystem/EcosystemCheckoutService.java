@@ -2,6 +2,7 @@ package com.barmi.app.ecosystem;
 
 import com.barmi.domain.ecosystem.Ecosystem;
 import com.barmi.domain.ecosystem.EcosystemExternalProduct;
+import com.barmi.domain.ecosystem.EcosystemPromotionType;
 import com.barmi.domain.events.OutboxEvent;
 import com.barmi.domain.orders.EcosystemOrder;
 import com.barmi.domain.orders.EcosystemOrderItem;
@@ -36,26 +37,119 @@ public class EcosystemCheckoutService {
     private final EcosystemOrderRepository ecosystemOrderRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final EcosystemShippingResolver ecosystemShippingResolver;
+    private final EcosystemPromotionService ecosystemPromotionService;
 
     public EcosystemCheckoutService(
             EcosystemRepository ecosystemRepository,
             EcosystemExternalProductRepository ecosystemExternalProductRepository,
             EcosystemOrderRepository ecosystemOrderRepository,
             OutboxEventRepository outboxEventRepository,
-            EcosystemShippingResolver ecosystemShippingResolver
+            EcosystemShippingResolver ecosystemShippingResolver,
+            EcosystemPromotionService ecosystemPromotionService
     ) {
         this.ecosystemRepository = ecosystemRepository;
         this.ecosystemExternalProductRepository = ecosystemExternalProductRepository;
         this.ecosystemOrderRepository = ecosystemOrderRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.ecosystemShippingResolver = ecosystemShippingResolver;
+        this.ecosystemPromotionService = ecosystemPromotionService;
     }
 
     public record CheckoutItem(UUID externalProductId, int qty) {}
     public record ShippingRequest(String postalCode) {}
+    public record CheckoutAmounts(
+            String currency,
+            BigDecimal subtotalAmount,
+            BigDecimal shippingCostAmount,
+            String shippingCurrency,
+            UUID shippingZoneId,
+            String shippingPostalCode,
+            BigDecimal originalAmount,
+            BigDecimal discountAmount,
+            BigDecimal totalAmount,
+            UUID appliedPromotionId,
+            String appliedCouponCode
+    ) {}
 
     @Transactional
     public EcosystemOrder checkout(
+            UUID ecosystemId,
+            List<CheckoutItem> items,
+            ShippingRequest shipping
+    ) {
+        return checkout(ecosystemId, items, shipping, null);
+    }
+
+    @Transactional
+    public EcosystemOrder checkout(
+            UUID ecosystemId,
+            List<CheckoutItem> items,
+            ShippingRequest shipping,
+            String couponCode
+    ) {
+        CheckoutContext context = buildCheckoutContext(ecosystemId, items, shipping);
+        CheckoutAmounts amounts = calculateAmounts(context, couponCode);
+
+        EcosystemOrder order = EcosystemOrder.create(
+                context.orderId(),
+                context.ecosystem(),
+                context.currency(),
+                context.subtotalAmount(),
+                context.shippingCostAmount(),
+                context.shippingCurrency(),
+                context.shippingZoneId(),
+                context.shippingPostalCode(),
+                amounts.originalAmount(),
+                amounts.discountAmount(),
+                amounts.appliedPromotionId(),
+                amounts.appliedCouponCode(),
+                amounts.totalAmount(),
+                context.orderItems()
+        );
+
+        ecosystemOrderRepository.save(order);
+
+        // Outbox write is in same transaction as order persist to ensure atomic publish
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("ecosystemOrderId", context.orderId());
+        payload.put("ecosystemId", context.ecosystem().getId());
+        payload.put("subtotalAmount", amounts.subtotalAmount());
+        payload.put("originalAmount", amounts.originalAmount());
+        payload.put("discountAmount", amounts.discountAmount());
+        payload.put("shippingCostAmount", amounts.shippingCostAmount());
+        payload.put("totalAmount", amounts.totalAmount());
+        payload.put("currency", amounts.currency());
+        if (amounts.appliedCouponCode() != null) {
+            payload.put("promotion", Map.of(
+                    "promotionId", amounts.appliedPromotionId(),
+                    "couponCode", amounts.appliedCouponCode()
+            ));
+        }
+
+        OutboxEvent event = new OutboxEvent(
+                UUID.randomUUID(),
+                EVENT_TYPE,
+                "ECOSYSTEM",
+                context.orderId(),
+                toJson(payload)
+        );
+        outboxEventRepository.save(event);
+
+        return order;
+    }
+
+    @Transactional(readOnly = true)
+    public CheckoutAmounts preview(
+            UUID ecosystemId,
+            List<CheckoutItem> items,
+            ShippingRequest shipping,
+            String couponCode
+    ) {
+        CheckoutContext context = buildCheckoutContext(ecosystemId, items, shipping);
+        return calculateAmounts(context, couponCode);
+    }
+
+    private CheckoutContext buildCheckoutContext(
             UUID ecosystemId,
             List<CheckoutItem> items,
             ShippingRequest shipping
@@ -89,7 +183,6 @@ public class EcosystemCheckoutService {
         }
 
         List<UUID> requestedIds = qtyByProductId.keySet().stream().toList();
-
         List<EcosystemExternalProduct> products = ecosystemExternalProductRepository.findAllById(requestedIds);
         if (products.size() != requestedIds.size()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "external_product_not_found");
@@ -152,8 +245,8 @@ public class EcosystemCheckoutService {
             orderItems.add(orderItem);
             subtotal = subtotal.add(lineTotal);
         }
-        subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
 
+        subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
         if (subtotal.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_subtotal");
         }
@@ -163,10 +256,7 @@ public class EcosystemCheckoutService {
         String shippingCurrency = "";
         String shippingPostalCode = null;
         UUID shippingZoneId = null;
-        if (shipping != null) {
-            if (shipping.postalCode() == null || shipping.postalCode().isBlank()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_postal_code");
-            }
+        if (shipping != null && shipping.postalCode() != null && !shipping.postalCode().isBlank()) {
             if (!allDeliverySupported) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "shipping_not_supported");
             }
@@ -182,57 +272,61 @@ public class EcosystemCheckoutService {
         }
 
         shippingCost = shippingCost.setScale(2, RoundingMode.HALF_UP);
-        subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
         if (shippingCost.compareTo(BigDecimal.ZERO) <= 0) {
             shippingCurrency = "";
         }
 
-        BigDecimal total = subtotal.add(shippingCost).setScale(2, RoundingMode.HALF_UP);
-        if (total.compareTo(subtotal.add(shippingCost)) != 0) {
-            throw new IllegalStateException("total_calculation_error");
-        }
-
-        EcosystemOrder order = EcosystemOrder.create(
-                orderId,
+        return new CheckoutContext(
                 ecosystem,
+                orderId,
                 currency,
+                orderItems,
                 subtotal,
                 shippingCost,
                 shippingCurrency,
                 shippingZoneId,
-                shippingPostalCode,
-                total,
-                orderItems
+                shippingPostalCode
         );
+    }
 
-        ecosystemOrderRepository.save(order);
-
-        // Outbox write is in same transaction as order persist to ensure atomic publish
-        Map<String, Object> payload = Map.of(
-                "ecosystemOrderId", orderId,
-                "ecosystemId", ecosystem.getId(),
-                "subtotalAmount", subtotal,
-                "shippingCostAmount", shippingCost,
-                "totalAmount", total,
-                "currency", currency
+    private CheckoutAmounts calculateAmounts(CheckoutContext context, String couponCode) {
+        BigDecimal originalAmount = context.subtotalAmount().add(context.shippingCostAmount()).setScale(2, RoundingMode.HALF_UP);
+        EcosystemPromotionService.PromotionApplication promotion = ecosystemPromotionService.preview(
+                context.ecosystem().getId(),
+                couponCode,
+                originalAmount
         );
-
-        OutboxEvent event = new OutboxEvent(
-                UUID.randomUUID(),
-                EVENT_TYPE,
-                "ECOSYSTEM",
-                orderId,
-                toJson(payload)
+        return new CheckoutAmounts(
+                context.currency(),
+                context.subtotalAmount(),
+                context.shippingCostAmount(),
+                context.shippingCurrency(),
+                context.shippingZoneId(),
+                context.shippingPostalCode(),
+                promotion.originalAmount(),
+                promotion.discountAmount(),
+                promotion.finalAmount(),
+                promotion.promotionId(),
+                promotion.code()
         );
-        outboxEventRepository.save(event);
-
-        return order;
     }
 
     private EcosystemShippingZone resolveShippingRequired(UUID ecosystemId, String postalCode) {
         return ecosystemShippingResolver.resolve(ecosystemId, postalCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "shipping_not_available"));
     }
+
+    private record CheckoutContext(
+            Ecosystem ecosystem,
+            UUID orderId,
+            String currency,
+            List<EcosystemOrderItem> orderItems,
+            BigDecimal subtotalAmount,
+            BigDecimal shippingCostAmount,
+            String shippingCurrency,
+            UUID shippingZoneId,
+            String shippingPostalCode
+    ) {}
 
     private static String toJson(Object value) {
         try {

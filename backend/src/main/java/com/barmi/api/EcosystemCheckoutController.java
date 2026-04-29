@@ -38,19 +38,29 @@ public class EcosystemCheckoutController {
     public record CheckoutReq(
             @NotNull UUID ecosystemId,
             @NotEmpty @Valid List<CheckoutItemReq> items,
-            ShippingReq shipping
+            ShippingReq shipping,
+            String couponCode
     ) {}
 
-    public record CheckoutRes(
-            UUID id,
-            UUID ecosystemId,
-            EcosystemOrderStatus status,
-            String currency,
-            BigDecimal subtotalAmount,
-            BigDecimal shippingCostAmount,
-            BigDecimal totalAmount,
-            java.time.Instant createdAt
-    ) {}
+    @PostMapping("/checkout/preview")
+    public ResponseEntity<?> preview(@Valid @RequestBody CheckoutReq req) {
+        List<EcosystemCheckoutService.CheckoutItem> items = req.items().stream()
+                .map(i -> new EcosystemCheckoutService.CheckoutItem(i.externalProductId(), i.qty()))
+                .toList();
+
+        EcosystemCheckoutService.ShippingRequest shipping = null;
+        if (req.shipping() != null) {
+            shipping = new EcosystemCheckoutService.ShippingRequest(req.shipping().postalCode());
+        }
+
+        EcosystemCheckoutService.CheckoutAmounts amounts = ecosystemCheckoutService.preview(
+                req.ecosystemId(),
+                items,
+                shipping,
+                req.couponCode()
+        );
+        return ResponseEntity.ok(buildCheckoutAmountsBody(amounts));
+    }
 
     @PostMapping("/checkout")
     public ResponseEntity<?> checkout(@Valid @RequestBody CheckoutReq req) {
@@ -66,20 +76,46 @@ public class EcosystemCheckoutController {
         EcosystemOrder order = ecosystemCheckoutService.checkout(
                 req.ecosystemId(),
                 items,
-                shipping
+                shipping,
+                req.couponCode()
         );
 
-        CheckoutRes res = new CheckoutRes(
-                order.getId(),
-                order.getEcosystem().getId(),
-                order.getStatus(),
-                order.getCurrency(),
-                order.getSubtotalAmount(),
-                order.getShippingCostAmount(),
-                order.getTotalAmount(),
-                order.getCreatedAt()
-        );
+        java.util.Map<String, Object> body = new java.util.HashMap<>();
+        body.putAll(buildCheckoutAmountsBody(
+                new EcosystemCheckoutService.CheckoutAmounts(
+                        order.getCurrency(),
+                        order.getSubtotalAmount(),
+                        order.getShippingCostAmount(),
+                        order.getShippingCurrency(),
+                        order.getShippingZoneId(),
+                        order.getShippingPostalCode(),
+                        order.getOriginalAmount(),
+                        order.getDiscountAmount(),
+                        order.getTotalAmount(),
+                        order.getAppliedPromotionId(),
+                        order.getAppliedCouponCode()
+                )
+        ));
+        body.put("id", order.getId());
+        body.put("ecosystemId", order.getEcosystem().getId());
+        body.put("status", order.getStatus());
+        body.put("createdAt", order.getCreatedAt());
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(res);
+        return ResponseEntity.status(HttpStatus.CREATED).body(body);
+    }
+
+    private java.util.Map<String, Object> buildCheckoutAmountsBody(EcosystemCheckoutService.CheckoutAmounts amounts) {
+        java.util.Map<String, Object> body = new java.util.HashMap<>();
+        body.put("subtotalAmount", amounts.subtotalAmount());
+        body.put("originalAmount", amounts.originalAmount());
+        body.put("discountAmount", amounts.discountAmount());
+        body.put("appliedCouponCode", amounts.appliedCouponCode());
+        body.put("totalAmount", amounts.totalAmount());
+        body.put("currency", amounts.currency());
+        body.put("shippingCostAmount", amounts.shippingCostAmount());
+        body.put("shippingCurrency", amounts.shippingCurrency());
+        body.put("shippingZoneId", amounts.shippingZoneId());
+        body.put("shippingPostalCode", amounts.shippingPostalCode());
+        return body;
     }
 }

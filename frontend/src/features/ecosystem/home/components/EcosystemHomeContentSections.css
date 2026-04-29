@@ -1,0 +1,18 @@
+.ecosystem-home-content {
+  background: #1f2a44;
+}
+
+.ecosystem-home-content__container {
+  display: grid;
+  gap: 0;
+}
+
+.ecosystem-home-content .ecosystem-product-rails,
+.ecosystem-home-content .ecosystem-store-rails {
+  padding-top: 0;
+}
+
+.ecosystem-home-content .ecosystem-product-rails__container,
+.ecosystem-home-content .ecosystem-store-rails__container {
+  gap: 0;
+}

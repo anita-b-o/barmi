@@ -157,7 +157,11 @@ public class EcosystemFulfillmentService {
             return fulfillment;
         }
 
-        fulfillment.changeStatus(status);
+        try {
+            fulfillment.changeStatus(status);
+        } catch (IllegalStateException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, ex.getMessage());
+        }
         ecosystemFulfillmentRepository.save(fulfillment);
 
         Map<String, Object> payload = Map.of(

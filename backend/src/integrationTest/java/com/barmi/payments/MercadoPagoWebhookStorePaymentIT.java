@@ -3,6 +3,8 @@ package com.barmi.payments;
 import com.barmi.app.orders.CheckoutStoreOrderService;
 import com.barmi.app.orders.CheckoutStoreOrderService.CheckoutItem;
 import com.barmi.domain.catalog.Product;
+import com.barmi.domain.catalog.StorePromotion;
+import com.barmi.domain.catalog.StorePromotionType;
 import com.barmi.domain.enums.PaymentScope;
 import com.barmi.domain.orders.StoreOrder;
 import com.barmi.domain.orders.StoreOrderStatus;
@@ -13,6 +15,7 @@ import com.barmi.infra.repo.ProcessedEventRepository;
 import com.barmi.infra.repo.ProductRepository;
 import com.barmi.infra.repo.StoreFulfillmentRepository;
 import com.barmi.infra.repo.StoreOrderRepository;
+import com.barmi.infra.repo.StorePromotionRepository;
 import com.barmi.infra.repo.StoreRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -77,6 +80,7 @@ class MercadoPagoWebhookStorePaymentIT {
     private final ProcessedEventRepository processedEventRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final StoreFulfillmentRepository storeFulfillmentRepository;
+    private final StorePromotionRepository storePromotionRepository;
     private final org.springframework.boot.test.web.client.TestRestTemplate restTemplate;
 
     @org.springframework.boot.test.web.server.LocalServerPort
@@ -92,6 +96,7 @@ class MercadoPagoWebhookStorePaymentIT {
             ProcessedEventRepository processedEventRepository,
             OutboxEventRepository outboxEventRepository,
             StoreFulfillmentRepository storeFulfillmentRepository,
+            StorePromotionRepository storePromotionRepository,
             org.springframework.boot.test.web.client.TestRestTemplate restTemplate
     ) {
         this.checkoutService = checkoutService;
@@ -102,13 +107,14 @@ class MercadoPagoWebhookStorePaymentIT {
         this.processedEventRepository = processedEventRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.storeFulfillmentRepository = storeFulfillmentRepository;
+        this.storePromotionRepository = storePromotionRepository;
         this.restTemplate = restTemplate;
     }
 
     @Test
     void webhookConfirmsPaymentAndIsIdempotent() {
         Store store = storeRepository.save(new Store(UUID.randomUUID(), "cafe", "Cafe"));
-        Product p1 = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU1", "Latte", 500));
+        Product p1 = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU1", "Latte", 500, 5));
 
         com.barmi.app.tenant.TenantContext.setStoreSlug("cafe");
         StoreOrder order;
@@ -146,6 +152,7 @@ class MercadoPagoWebhookStorePaymentIT {
 
         StoreOrder updated = storeOrderRepository.findById(order.getId()).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo(StoreOrderStatus.PAID);
+        assertThat(productRepository.findById(p1.getId()).orElseThrow().getStockQuantity()).isEqualTo(4);
 
         assertThat(paymentRepository.findByProviderAndProviderPaymentId("MERCADOPAGO", providerPaymentId))
                 .isPresent();
@@ -163,23 +170,145 @@ class MercadoPagoWebhookStorePaymentIT {
         long paymentCount = paymentRepository.count();
         long fulfillmentCount = storeFulfillmentRepository.count();
         long fulfillmentEventCount = outboxEventRepository.findByAggregateIdAndEventType(fulfillment.getId(), "STORE_FULFILLMENT_CREATED").size();
+        long stockAfterFirstConfirmation = productRepository.findById(p1.getId()).orElseThrow().getStockQuantity();
 
+        Map<String, Object> duplicatePayload = Map.of(
+                "event_id", UUID.randomUUID().toString(),
+                "scope", PaymentScope.STORE.name(),
+                "operation_id", order.getId().toString(),
+                "provider_payment_id", providerPaymentId,
+                "status", "approved",
+                "amount", new BigDecimal("5.00"),
+                "currency", "ARS"
+        );
+        HttpEntity<Map<String, Object>> duplicateRequest = new HttpEntity<>(duplicatePayload, headers);
         ResponseEntity<Map> dupResponse = restTemplate.exchange(
                 "http://localhost:" + port + "/api/webhooks/mercadopago",
                 HttpMethod.POST,
-                request,
+                duplicateRequest,
                 Map.class
         );
         assertThat(dupResponse.getStatusCode().value()).isEqualTo(200);
 
         long processedCountAfter = processedEventRepository.count();
-        assertThat(processedCountAfter).isEqualTo(processedCount);
+        assertThat(processedCountAfter).isEqualTo(processedCount + 1);
         assertThat(paymentRepository.count()).isEqualTo(paymentCount);
         assertThat(storeFulfillmentRepository.count()).isEqualTo(fulfillmentCount);
+        assertThat(productRepository.findById(p1.getId()).orElseThrow().getStockQuantity()).isEqualTo(stockAfterFirstConfirmation);
         assertThat(outboxEventRepository.findByAggregateIdAndEventType(fulfillment.getId(), "STORE_FULFILLMENT_CREATED").size())
                 .isEqualTo(fulfillmentEventCount);
         assertThat(outboxEventRepository.findByAggregateIdAndEventType(order.getId(), "STORE_ORDER_PAID"))
                 .hasSize(1);
+    }
+
+    @Test
+    void couponUsageIsConsumedOnPaymentConfirmationAndNotOnCheckout() {
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), "cafe-promo", "Cafe Promo"));
+        Product p1 = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-PROMO", "Latte", 500, 5));
+        StorePromotion promotion = storePromotionRepository.save(new StorePromotion(
+                UUID.randomUUID(),
+                store.getId(),
+                "PROMO10",
+                StorePromotionType.PERCENTAGE,
+                new BigDecimal("10.00"),
+                true,
+                null,
+                5L
+        ));
+
+        com.barmi.app.tenant.TenantContext.setStoreSlug("cafe-promo");
+        StoreOrder order;
+        try {
+            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 2)), null, "PROMO10");
+        } finally {
+            com.barmi.app.tenant.TenantContext.clear();
+        }
+
+        assertThat(storePromotionRepository.findById(promotion.getId()).orElseThrow().getUsageCount()).isZero();
+        assertThat(storeOrderRepository.findById(order.getId()).orElseThrow().getPromotionConsumedAt()).isNull();
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Barmi-Webhook-Secret", "secret");
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(Map.of(
+                "event_id", UUID.randomUUID().toString(),
+                "scope", PaymentScope.STORE.name(),
+                "operation_id", order.getId().toString(),
+                "provider_payment_id", "mp_coupon_confirmed",
+                "status", "approved",
+                "amount", new BigDecimal("9.00"),
+                "currency", "ARS"
+        ), headers);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "http://localhost:" + port + "/api/webhooks/mercadopago",
+                HttpMethod.POST,
+                request,
+                Map.class
+        );
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+
+        assertThat(storePromotionRepository.findById(promotion.getId()).orElseThrow().getUsageCount()).isEqualTo(1);
+        assertThat(storeOrderRepository.findById(order.getId()).orElseThrow().getPromotionConsumedAt()).isNotNull();
+    }
+
+    @Test
+    void duplicateWebhookDoesNotConsumeCouponTwice() {
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), "cafe-promo-dup", "Cafe Promo Dup"));
+        Product p1 = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-PROMO-DUP", "Latte", 500, 5));
+        StorePromotion promotion = storePromotionRepository.save(new StorePromotion(
+                UUID.randomUUID(),
+                store.getId(),
+                "PROMODUP",
+                StorePromotionType.FIXED,
+                new BigDecimal("1.00"),
+                true,
+                null,
+                5L
+        ));
+
+        com.barmi.app.tenant.TenantContext.setStoreSlug("cafe-promo-dup");
+        StoreOrder order;
+        try {
+            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 1)), null, "PROMODUP");
+        } finally {
+            com.barmi.app.tenant.TenantContext.clear();
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Barmi-Webhook-Secret", "secret");
+
+        restTemplate.exchange(
+                "http://localhost:" + port + "/api/webhooks/mercadopago",
+                HttpMethod.POST,
+                new HttpEntity<>(Map.of(
+                        "event_id", UUID.randomUUID().toString(),
+                        "scope", PaymentScope.STORE.name(),
+                        "operation_id", order.getId().toString(),
+                        "provider_payment_id", "mp_coupon_dup",
+                        "status", "approved",
+                        "amount", new BigDecimal("4.00"),
+                        "currency", "ARS"
+                ), headers),
+                Map.class
+        );
+
+        restTemplate.exchange(
+                "http://localhost:" + port + "/api/webhooks/mercadopago",
+                HttpMethod.POST,
+                new HttpEntity<>(Map.of(
+                        "event_id", UUID.randomUUID().toString(),
+                        "scope", PaymentScope.STORE.name(),
+                        "operation_id", order.getId().toString(),
+                        "provider_payment_id", "mp_coupon_dup",
+                        "status", "approved",
+                        "amount", new BigDecimal("4.00"),
+                        "currency", "ARS"
+                ), headers),
+                Map.class
+        );
+
+        assertThat(storePromotionRepository.findById(promotion.getId()).orElseThrow().getUsageCount()).isEqualTo(1);
+        assertThat(storeOrderRepository.findById(order.getId()).orElseThrow().getPromotionConsumedAt()).isNotNull();
     }
 
     @Test
@@ -230,5 +359,55 @@ class MercadoPagoWebhookStorePaymentIT {
 
         assertThat(outboxEventRepository.findByAggregateIdAndEventType(order.getId(), "STORE_ORDER_PAYMENT_MISMATCH"))
                 .hasSize(1);
+    }
+
+    @Test
+    void webhookWithInsufficientStockDoesNotMarkPaidAndDoesNotGoNegative() {
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), "cafe3", "Cafe3"));
+        Product p1 = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU3", "Flat White", 900, 1));
+
+        com.barmi.app.tenant.TenantContext.setStoreSlug("cafe3");
+        StoreOrder order;
+        try {
+            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 1)), null);
+        } finally {
+            com.barmi.app.tenant.TenantContext.clear();
+        }
+
+        p1.updateStockQuantity(0);
+        productRepository.save(p1);
+
+        Map<String, Object> payload = Map.of(
+                "event_id", UUID.randomUUID().toString(),
+                "scope", PaymentScope.STORE.name(),
+                "operation_id", order.getId().toString(),
+                "provider_payment_id", "mp_stock_conflict",
+                "status", "approved",
+                "amount", new BigDecimal("9.00"),
+                "currency", "ARS"
+        );
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-Barmi-Webhook-Secret", "secret");
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(payload, headers);
+
+        ResponseEntity<Map> response = restTemplate.exchange(
+                "http://localhost:" + port + "/api/webhooks/mercadopago",
+                HttpMethod.POST,
+                request,
+                Map.class
+        );
+        assertThat(response.getStatusCode().value()).isEqualTo(200);
+
+        StoreOrder updated = storeOrderRepository.findById(order.getId()).orElseThrow();
+        assertThat(updated.getStatus()).isEqualTo(StoreOrderStatus.PENDING_PAYMENT);
+        assertThat(paymentRepository.findByProviderAndProviderPaymentId("MERCADOPAGO", "mp_stock_conflict"))
+                .isPresent();
+        assertThat(productRepository.findById(p1.getId()).orElseThrow().getStockQuantity()).isZero();
+        assertThat(storeFulfillmentRepository.findByStoreOrderId(order.getId())).isEmpty();
+        assertThat(outboxEventRepository.findByAggregateIdAndEventType(order.getId(), "STORE_ORDER_STOCK_CONFLICT"))
+                .hasSize(1);
+        assertThat(outboxEventRepository.findByAggregateIdAndEventType(order.getId(), "STORE_ORDER_PAID"))
+                .isEmpty();
     }
 }

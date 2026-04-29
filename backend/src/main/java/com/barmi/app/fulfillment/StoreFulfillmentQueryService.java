@@ -36,7 +36,32 @@ public class StoreFulfillmentQueryService {
     public List<StoreFulfillmentDto> list() {
         storeAuthorizationService.requireStaff();
         Store store = resolveStore();
-        return storeFulfillmentRepository.findAllByStoreIdOrderByCreatedAtDesc(store.getId()).stream()
+        return listForStore(store, null, null);
+    }
+
+    public List<StoreFulfillmentDto> list(Instant createdFrom, Instant createdTo) {
+        storeAuthorizationService.requireStaff();
+        Store store = resolveStore();
+        return listForStore(store, createdFrom, createdTo);
+    }
+
+    private List<StoreFulfillmentDto> listForStore(Store store, Instant createdFrom, Instant createdTo) {
+        List<StoreFulfillment> fulfillments;
+        if (createdFrom != null && createdTo != null) {
+            fulfillments = storeFulfillmentRepository.findAllByStoreIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+                    store.getId(),
+                    createdFrom,
+                    createdTo
+            );
+        } else if (createdFrom != null) {
+            fulfillments = storeFulfillmentRepository.findAllByStoreIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(store.getId(), createdFrom);
+        } else if (createdTo != null) {
+            fulfillments = storeFulfillmentRepository.findAllByStoreIdAndCreatedAtLessThanOrderByCreatedAtDesc(store.getId(), createdTo);
+        } else {
+            fulfillments = storeFulfillmentRepository.findAllByStoreIdOrderByCreatedAtDesc(store.getId());
+        }
+
+        return fulfillments.stream()
                 .map(this::toDto)
                 .toList();
     }

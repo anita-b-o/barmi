@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.time.Instant;
 import java.util.UUID;
 
 @RestController
@@ -40,8 +41,11 @@ public class StoreFulfillmentController {
     public record UpdateStatusReq(@NotNull String status) {}
 
     @GetMapping("/fulfillments")
-    public ResponseEntity<List<StoreFulfillmentDto>> list() {
-        return ResponseEntity.ok(storeFulfillmentQueryService.list());
+    public ResponseEntity<List<StoreFulfillmentDto>> list(
+            @RequestParam(required = false) Instant createdFrom,
+            @RequestParam(required = false) Instant createdTo
+    ) {
+        return ResponseEntity.ok(storeFulfillmentQueryService.list(createdFrom, createdTo));
     }
 
     @GetMapping("/fulfillments/{fulfillmentId}")

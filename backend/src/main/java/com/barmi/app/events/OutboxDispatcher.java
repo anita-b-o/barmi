@@ -1,6 +1,7 @@
 package com.barmi.app.events;
 
 import com.barmi.app.ecosystem.EcosystemFulfillmentService;
+import com.barmi.app.notifications.StoreOrderNotificationService;
 import com.barmi.domain.events.OutboxEvent;
 import com.barmi.infra.repo.OutboxEventRepository;
 import jakarta.transaction.Transactional;
@@ -29,10 +30,16 @@ public class OutboxDispatcher {
 
     private final OutboxEventRepository repo;
     private final EcosystemFulfillmentService ecosystemFulfillmentService;
+    private final StoreOrderNotificationService storeOrderNotificationService;
 
-    public OutboxDispatcher(OutboxEventRepository repo, EcosystemFulfillmentService ecosystemFulfillmentService) {
+    public OutboxDispatcher(
+            OutboxEventRepository repo,
+            EcosystemFulfillmentService ecosystemFulfillmentService,
+            StoreOrderNotificationService storeOrderNotificationService
+    ) {
         this.repo = repo;
         this.ecosystemFulfillmentService = ecosystemFulfillmentService;
+        this.storeOrderNotificationService = storeOrderNotificationService;
     }
 
     @Scheduled(fixedDelayString = "PT5S")
@@ -44,12 +51,15 @@ public class OutboxDispatcher {
                 if ("ECOSYSTEM_ORDER_PAID".equals(e.getEventType())) {
                     ecosystemFulfillmentService.createForPaidOrder(e.getAggregateId());
                 }
-                // "Publish" placeholder
-                log.info("OUTBOX publish event_id={} type={} scope={} payload={}",
-                        e.getEventId(), e.getEventType(), e.getScope(), e.getPayloadJson());
+                if ("STORE".equals(e.getScope())) {
+                    storeOrderNotificationService.handle(e);
+                }
+                log.info("OUTBOX publish event_id={} type={} scope={} aggregate_id={}",
+                        e.getEventId(), e.getEventType(), e.getScope(), e.getAggregateId());
                 e.markPublishedNow();
             } catch (Exception ex) {
-                log.error("OUTBOX handler failed event_id={} type={}", e.getEventId(), e.getEventType(), ex);
+                log.error("OUTBOX handler failed event_id={} type={} scope={} aggregate_id={}",
+                        e.getEventId(), e.getEventType(), e.getScope(), e.getAggregateId(), ex);
             }
         }
         // JPA will flush published_at due to @Transactional

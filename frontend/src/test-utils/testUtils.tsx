@@ -1,8 +1,9 @@
 import React, { act } from 'react'
 import ReactDOM from 'react-dom/client'
+import { QueryClient } from '@tanstack/react-query'
 import { vi } from 'vitest'
-import App from '../app/App'
-import { AppProviders } from '../app/providers'
+import App from '@/app/App'
+import { AppProviders } from '@/app/providers'
 
 export type MockRoute =
   | { status?: number; body?: unknown }
@@ -29,18 +30,34 @@ export function mockFetch(routes: Record<string, MockRoute>) {
   return handler
 }
 
-export async function renderAppAt(path: string) {
-  window.history.pushState({}, '', path)
+export function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false
+      },
+      mutations: {
+        retry: false
+      }
+    }
+  })
+}
+
+export async function renderWithProviders(node: React.ReactElement, options?: { queryClient?: QueryClient; withStrictMode?: boolean }) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = ReactDOM.createRoot(container)
 
   await act(async () => {
     root.render(
-      <AppProviders>
-        <App />
+      <AppProviders
+        queryClient={options?.queryClient ?? createTestQueryClient()}
+        withStrictMode={options?.withStrictMode ?? false}
+      >
+        {node}
       </AppProviders>
     )
+    await Promise.resolve()
   })
 
   return {
@@ -48,15 +65,49 @@ export async function renderAppAt(path: string) {
     cleanup: async () => {
       await act(async () => {
         root.unmount()
+        await Promise.resolve()
       })
       container.remove()
     }
   }
 }
 
+export async function renderAppAt(path: string) {
+  window.history.pushState({}, '', path)
+  return renderWithProviders(<App />)
+}
+
 export async function flush() {
   await act(async () => {
+    await Promise.resolve()
     await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+}
+
+export async function clickElement(element: Element | null | undefined) {
+  if (!element) return
+  await act(async () => {
+    element.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await Promise.resolve()
+  })
+}
+
+export async function setInputElementValue(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
+  await act(async () => {
+    setter?.call(input, value)
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    await Promise.resolve()
+  })
+}
+
+export async function setSelectElementValue(select: HTMLSelectElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value')?.set
+  await act(async () => {
+    setter?.call(select, value)
+    select.dispatchEvent(new Event('change', { bubbles: true }))
+    await Promise.resolve()
   })
 }
 

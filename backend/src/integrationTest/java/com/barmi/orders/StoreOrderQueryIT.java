@@ -5,6 +5,7 @@ import com.barmi.app.orders.CheckoutStoreOrderService.CheckoutItem;
 import com.barmi.app.tenant.TenantContext;
 import com.barmi.domain.catalog.Product;
 import com.barmi.domain.enums.PaymentScope;
+import com.barmi.domain.events.OutboxEvent;
 import com.barmi.domain.orders.StoreOrder;
 import com.barmi.domain.payments.Payment;
 import com.barmi.domain.payments.PaymentStatus;
@@ -13,6 +14,7 @@ import com.barmi.domain.shipping.ShippingZoneType;
 import com.barmi.domain.store.Store;
 import com.barmi.infra.repo.PaymentRepository;
 import com.barmi.infra.repo.ProductRepository;
+import com.barmi.infra.repo.OutboxEventRepository;
 import com.barmi.infra.repo.StoreOrderRepository;
 import com.barmi.infra.repo.StoreRepository;
 import com.barmi.infra.repo.StoreShippingZoneRepository;
@@ -75,6 +77,7 @@ class StoreOrderQueryIT {
     private final StoreShippingZoneRepository storeShippingZoneRepository;
     private final CheckoutStoreOrderService checkoutStoreOrderService;
     private final PaymentRepository paymentRepository;
+    private final OutboxEventRepository outboxEventRepository;
     private final ApiTestClient api;
 
     @Autowired
@@ -85,6 +88,7 @@ class StoreOrderQueryIT {
             StoreShippingZoneRepository storeShippingZoneRepository,
             CheckoutStoreOrderService checkoutStoreOrderService,
             PaymentRepository paymentRepository,
+            OutboxEventRepository outboxEventRepository,
             MockMvc mockMvc
     ) {
         this.storeRepository = storeRepository;
@@ -93,6 +97,7 @@ class StoreOrderQueryIT {
         this.storeShippingZoneRepository = storeShippingZoneRepository;
         this.checkoutStoreOrderService = checkoutStoreOrderService;
         this.paymentRepository = paymentRepository;
+        this.outboxEventRepository = outboxEventRepository;
         this.api = new ApiTestClient(mockMvc);
     }
 
@@ -233,5 +238,66 @@ class StoreOrderQueryIT {
         Map<String, Object> paymentBody = (Map<String, Object>) after.body().get("payment");
         assertThat(paymentBody.get("status")).isEqualTo("CONFIRMED");
         assertThat(paymentBody.get("providerPaymentId")).isEqualTo("mp_store_confirmed");
+    }
+
+    @Test
+    void stockConflictIsVisibleInAdminListAndDetail() throws Exception {
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), "store-conflict", "Store Conflict"));
+        Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-C", "Conflict Product", 600));
+
+        StoreOrder order;
+        try {
+            TenantContext.setStoreSlug("store-conflict");
+            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
+        } finally {
+            TenantContext.clear();
+        }
+
+        Payment payment = new Payment(
+                UUID.randomUUID(),
+                PaymentScope.STORE,
+                order.getId(),
+                "MERCADOPAGO",
+                "mp_conflict_visible",
+                PaymentStatus.PENDING,
+                order.getTotalAmount(),
+                order.getCurrency()
+        );
+        payment.markConfirmed();
+        paymentRepository.save(payment);
+        outboxEventRepository.save(new OutboxEvent(
+                UUID.randomUUID(),
+                "STORE_ORDER_STOCK_CONFLICT",
+                PaymentScope.STORE.name(),
+                order.getId(),
+                """
+                {"storeOrderId":"%s","storeId":"%s","paymentId":"mp_conflict_visible","conflicts":[{"productId":"%s","sku":"SKU-C","availableQuantity":0,"requestedQuantity":1}]}
+                """.formatted(order.getId(), store.getId(), product.getId())
+        ));
+
+        ApiTestClient.ApiTestResponse list = api.get(
+                "/api/store/orders?page=0&size=20",
+                api.storeHostHeaders("store-conflict")
+        );
+        assertThat(list.status()).isEqualTo(200);
+        List<Map<String, Object>> content = (List<Map<String, Object>>) list.body().get("content");
+        assertThat(content).hasSize(1);
+        Map<String, Object> issue = (Map<String, Object>) content.get(0).get("operationalIssue");
+        assertThat(issue.get("code")).isEqualTo("STOCK_CONFLICT");
+        assertThat(issue.get("title")).isEqualTo("Conflicto de stock post-pago");
+
+        ApiTestClient.ApiTestResponse detail = api.get(
+                "/api/store/orders/" + order.getId(),
+                api.storeHostHeaders("store-conflict")
+        );
+        assertThat(detail.status()).isEqualTo(200);
+        Map<String, Object> detailIssue = (Map<String, Object>) detail.body().get("operationalIssue");
+        assertThat(detailIssue.get("code")).isEqualTo("STOCK_CONFLICT");
+        assertThat(detailIssue.get("message")).toString().contains("stock");
+        List<Map<String, Object>> items = (List<Map<String, Object>>) detailIssue.get("items");
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).get("sku")).isEqualTo("SKU-C");
+        assertThat(items.get(0).get("availableQuantity")).isEqualTo(0);
+        assertThat(items.get(0).get("requestedQuantity")).isEqualTo(1);
     }
 }

@@ -1,20 +1,47 @@
 export type StoreOrderStatus = 'PENDING_PAYMENT' | 'PAID' | 'CANCELLED'
 
+export type StoreOrderOperationalIssueItem = {
+  productId: string | null
+  sku: string | null
+  availableQuantity: number
+  requestedQuantity: number
+}
+
+export type StoreOrderOperationalIssue = {
+  code: 'STOCK_CONFLICT'
+  title: string
+  message: string
+  detectedAt: string | null
+  items: StoreOrderOperationalIssueItem[]
+}
+
 export type StoreCheckoutReq = {
   items: Array<{ productId: string; qty: number }>
   shipping: { postalCode: string }
+  couponCode?: string | null
+  buyerEmail?: string | null
 }
 
-export type StoreCheckoutRes = {
-  totalAmount: number
-  createdAt: string
-  shippingZoneId: string
-  orderId: string
-  shippingCurrency: string
-  shippingCostAmount: number
-  currency: string
-  shippingPostalCode: string
+export type StoreCheckoutTotals = {
   subtotalAmount: number
+  originalAmount: number
+  discountAmount: number
+  appliedCouponCode: string | null
+  totalAmount: number
+  shippingCostAmount: number
+  shippingCurrency: string
+  shippingZoneId: string | null
+  shippingPostalCode: string | null
+}
+
+export type StoreCheckoutPreviewRes = StoreCheckoutTotals & {
+  currency: string
+}
+
+export type StoreCheckoutRes = StoreCheckoutTotals & {
+  createdAt: string
+  orderId: string
+  currency: string
   status: StoreOrderStatus
 }
 
@@ -32,6 +59,7 @@ export type StoreOrderSummary = {
   createdAt: string
   totalAmount: number
   currency: string
+  operationalIssue: StoreOrderOperationalIssue | null
 }
 
 export type StoreOrdersPage = {
@@ -40,6 +68,28 @@ export type StoreOrdersPage = {
   page: number
   size: number
   content: StoreOrderSummary[]
+}
+
+export type StoreAdminOrderSummary = {
+  orderId: string
+  status: StoreOrderStatus
+  createdAt: string
+  totalAmount: number
+  currency: string
+  operationalIssue: StoreOrderOperationalIssue | null
+  hasFulfillment: boolean
+  paymentConfirmed: boolean
+  manuallyCancelled: boolean
+  canCancel: boolean
+  canRetryProcessing: boolean
+}
+
+export type StoreAdminOrdersPage = {
+  totalElements: number
+  totalPages: number
+  page: number
+  size: number
+  content: StoreAdminOrderSummary[]
 }
 
 export type StoreOrderItem = {
@@ -63,15 +113,56 @@ export type StoreOrderPayment = {
   confirmedAt: string
 }
 
+export type StoreOrderFulfillment = {
+  fulfillmentId: string
+  status: string
+  method: string
+  createdAt: string
+}
+
+export type StoreOrderTimelineEvent = {
+  code: string
+  title: string
+  description: string
+  occurredAt: string
+}
+
+export type StoreAdminOrderOperationalSummary = {
+  status: StoreOrderStatus
+  paymentConfirmed: boolean
+  hasOperationalConflict: boolean
+  hasFulfillment: boolean
+  manuallyCancelled: boolean
+  canCancel: boolean
+  canRetryProcessing: boolean
+}
+
+export type StoreOrderRetryProcessingResult = {
+  status: StoreOrderStatus
+  resolved: boolean
+  stillConflicted: boolean
+  fulfillmentId: string | null
+}
+
 export type StoreOrderDetail = {
   orderId: string
   status: StoreOrderStatus
   createdAt: string
   currency: string
   subtotalAmount: number
+  originalAmount: number
+  discountAmount: number
+  appliedCouponCode: string | null
   shippingCostAmount: number
   totalAmount: number
   items: StoreOrderItem[]
   shipping: StoreOrderShipping | null
   payment: StoreOrderPayment | null
+  fulfillment: StoreOrderFulfillment | null
+  operationalIssue: StoreOrderOperationalIssue | null
+}
+
+export type StoreAdminOrderDetail = StoreOrderDetail & {
+  operationalSummary: StoreAdminOrderOperationalSummary
+  timeline: StoreOrderTimelineEvent[]
 }

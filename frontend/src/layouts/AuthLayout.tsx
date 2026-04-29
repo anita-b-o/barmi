@@ -1,6 +1,6 @@
 import React from 'react'
 import PlatformLayout from './PlatformLayout'
-import { theme } from '../app/theme'
+import { theme } from '@/app/theme'
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (

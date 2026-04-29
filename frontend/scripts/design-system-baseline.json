@@ -1,0 +1,43 @@
+{
+  "discouragedLegacyAliasCounts": {
+    "components/commerce/CheckoutOrderSummary/index.tsx": 2,
+    "components/commerce/ProductRail/index.tsx": 6,
+    "components/forms/FilterBar/index.tsx": 1,
+    "components/navigation/AccessDeniedState.tsx": 2,
+    "components/navigation/MarketplaceTopbar.tsx": 9,
+    "components/navigation/SectionCard/index.tsx": 2,
+    "components/navigation/SectionHeader/index.tsx": 2,
+    "features/admin-dashboard/components/AdminHomeScreen.tsx": 4,
+    "features/checkout/store/components/StoreCheckoutShippingForm.tsx": 1,
+    "features/ecosystem/admin-promotions/components/AdminEcosystemPromotionsScreen.tsx": 1,
+    "features/ecosystem/admin/components/AdminEcosystemScreen.tsx": 2,
+    "features/ecosystem/checkout/components/EcosystemCheckoutOrderSummary.tsx": 1,
+    "features/ecosystem/components/EcosystemExperience.tsx": 11,
+    "features/ecosystem/home/components/QuickAccessCard.tsx": 4,
+    "features/ecosystem/home/components/QuickAccessSection.tsx": 6,
+    "features/ecosystem/orders/components/AdminEcosystemOrdersListScreen.tsx": 1,
+    "features/ecosystem/orders/components/EcosystemOrdersTable.tsx": 1,
+    "features/ecosystem/stores-map/components/StoreListItem.tsx": 5,
+    "features/fulfillment/ecosystem/components/EcosystemFulfillmentDetailCard.tsx": 1,
+    "features/fulfillment/store/components/StoreFulfillmentDetailCard.tsx": 1,
+    "features/orders/public/components/PublicOrdersListScreen.tsx": 1,
+    "features/store/admin-promotions/components/AdminStorePromotionsScreen.tsx": 1,
+    "features/store/components/AdminStoreScreen.tsx": 2,
+    "pages/admin/AdminStoreOrdersListScreen.tsx": 1,
+    "pages/ecosystem/EcosystemCatalogScreen.tsx": 7,
+    "pages/ecosystem/EcosystemCheckoutScreen.tsx": 4,
+    "pages/ecosystem/EcosystemHomeScreen.tsx": 15,
+    "pages/ecosystem/EcosystemStoresMapScreen.tsx": 1,
+    "pages/public/CheckoutScreen.tsx": 13,
+    "pages/public/OrderDetailScreen.tsx": 3
+  },
+  "rgbColorCounts": {
+    "components/commerce/ProductRail/index.tsx": 2,
+    "components/forms/FilterBar/index.tsx": 1,
+    "features/ecosystem/admin/components/AdminEcosystemScreen.tsx": 2,
+    "features/store/components/AdminStoreScreen.tsx": 1,
+    "pages/ecosystem/EcosystemCatalogScreen.tsx": 5,
+    "pages/ecosystem/EcosystemCheckoutScreen.tsx": 1,
+    "pages/public/CheckoutScreen.tsx": 6
+  }
+}

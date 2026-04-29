@@ -4,6 +4,7 @@ import checkoutSample from '../_samples/ecosystem.checkout.success.json'
 import ordersPageSample from '../_samples/ecosystem.orders.page.json'
 import orderDetailSample from '../_samples/ecosystem.order.detail.json'
 import {
+  parseEcosystemCheckoutPreview,
   parseEcosystemCheckoutRes,
   parseEcosystemOrderDetail,
   parseEcosystemOrdersPage,
@@ -22,7 +23,15 @@ describe('ecosystem contracts parsing', () => {
     const res = parseEcosystemCheckoutRes(checkoutSample)
     expect(res.id).toBe('22430d7b-7ac1-4774-b806-61a91bbbdda0')
     expect(res.status).toBe('PENDING_PAYMENT')
-    expect(res.totalAmount).toBe(150.0)
+    expect(res.totalAmount).toBe(135.0)
+    expect(res.discountAmount).toBe(15)
+    expect(res.appliedCouponCode).toBe('BIENVENIDA10')
+  })
+
+  it('parses checkout preview from checkout sample', () => {
+    const res = parseEcosystemCheckoutPreview(checkoutSample)
+    expect(res.originalAmount).toBe(150)
+    expect(res.discountAmount).toBe(15)
   })
 
   it('parses orders page sample', () => {

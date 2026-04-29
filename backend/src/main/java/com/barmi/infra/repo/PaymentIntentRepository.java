@@ -6,9 +6,15 @@ import com.barmi.domain.payments.PaymentStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 public interface PaymentIntentRepository extends JpaRepository<PaymentIntent, UUID> {
+    List<PaymentIntent> findByScopeAndStoreOrderIdOrderByCreatedAtAsc(
+            PaymentScope scope,
+            UUID storeOrderId
+    );
+
     Optional<PaymentIntent> findFirstByScopeAndStoreOrderIdAndProviderAndStatus(
             PaymentScope scope,
             UUID storeOrderId,

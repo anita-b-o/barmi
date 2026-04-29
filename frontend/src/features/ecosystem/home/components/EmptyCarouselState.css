@@ -1,0 +1,39 @@
+.ecosystem-empty-carousel {
+  min-height: 132px;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  border: 1px dashed rgba(237, 242, 250, 0.2);
+  border-radius: 6px;
+  background: rgba(31, 42, 68, 0.28);
+  color: #c6cfdb;
+  text-align: center;
+}
+
+.ecosystem-empty-carousel__icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid rgba(253, 116, 107, 0.38);
+  background:
+    linear-gradient(135deg, rgba(253, 116, 107, 0.16), rgba(64, 149, 232, 0.12));
+}
+
+.ecosystem-empty-carousel__message {
+  max-width: 420px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ecosystem-empty-carousel__cta {
+  color: #4095e8;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ecosystem-empty-carousel__cta:focus-visible {
+  outline: 3px solid rgba(253, 116, 107, 0.58);
+  outline-offset: 4px;
+}

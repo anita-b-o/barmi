@@ -1,0 +1,20 @@
+{
+  "ecosystemId": "22222222-2222-2222-2222-222222222222",
+  "ecosystemSlug": "demo-ecosystem",
+  "totalOrders": 20,
+  "ordersByStatus": {
+    "PENDING_PAYMENT": 5,
+    "PAID": 12,
+    "CANCELLED": 3
+  },
+  "confirmedSalesTotalAmount": 9876.5,
+  "confirmedSalesCurrency": "ARS",
+  "fulfillmentsByStatus": {
+    "PENDING": 2,
+    "DISPATCHED": 4,
+    "DELIVERED": 6,
+    "CANCELLED": 1
+  },
+  "activeExternalProducts": 14,
+  "inactiveExternalProducts": 2
+}

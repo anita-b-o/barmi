@@ -3,11 +3,14 @@ package com.barmi.ecosystem;
 import com.barmi.app.ecosystem.EcosystemFulfillmentService;
 import com.barmi.domain.ecosystem.Ecosystem;
 import com.barmi.domain.ecosystem.EcosystemExternalProduct;
+import com.barmi.domain.ecosystem.EcosystemPromotion;
+import com.barmi.domain.ecosystem.EcosystemPromotionType;
 import com.barmi.domain.orders.EcosystemOrder;
 import com.barmi.domain.orders.EcosystemOrderStatus;
 import com.barmi.infra.repo.EcosystemExternalProductRepository;
 import com.barmi.infra.repo.EcosystemFulfillmentRepository;
 import com.barmi.infra.repo.EcosystemOrderRepository;
+import com.barmi.infra.repo.EcosystemPromotionRepository;
 import com.barmi.infra.repo.EcosystemRepository;
 import com.barmi.infra.repo.OutboxEventRepository;
 import com.barmi.infra.repo.PaymentRepository;
@@ -70,6 +73,7 @@ class EcosystemPaymentFlowIT {
     private final EcosystemRepository ecosystemRepository;
     private final EcosystemExternalProductRepository ecosystemExternalProductRepository;
     private final EcosystemOrderRepository ecosystemOrderRepository;
+    private final EcosystemPromotionRepository ecosystemPromotionRepository;
     private final PaymentRepository paymentRepository;
     private final ProcessedEventRepository processedEventRepository;
     private final OutboxEventRepository outboxEventRepository;
@@ -82,6 +86,7 @@ class EcosystemPaymentFlowIT {
             EcosystemRepository ecosystemRepository,
             EcosystemExternalProductRepository ecosystemExternalProductRepository,
             EcosystemOrderRepository ecosystemOrderRepository,
+            EcosystemPromotionRepository ecosystemPromotionRepository,
             PaymentRepository paymentRepository,
             ProcessedEventRepository processedEventRepository,
             OutboxEventRepository outboxEventRepository,
@@ -92,6 +97,7 @@ class EcosystemPaymentFlowIT {
         this.ecosystemRepository = ecosystemRepository;
         this.ecosystemExternalProductRepository = ecosystemExternalProductRepository;
         this.ecosystemOrderRepository = ecosystemOrderRepository;
+        this.ecosystemPromotionRepository = ecosystemPromotionRepository;
         this.paymentRepository = paymentRepository;
         this.processedEventRepository = processedEventRepository;
         this.outboxEventRepository = outboxEventRepository;
@@ -309,5 +315,176 @@ class EcosystemPaymentFlowIT {
                 .isEmpty();
         assertThat(outboxEventRepository.findByAggregateIdAndEventType(orderId, "ECOSYSTEM_ORDER_PAID"))
                 .isEmpty();
+    }
+
+    @Test
+    void checkoutWithCouponPersistsDiscountAndUsageIsConsumedOnlyOnPaymentConfirmation() throws Exception {
+        Ecosystem ecosystem = ecosystemRepository.save(new Ecosystem(UUID.randomUUID(), "Eco Promo", "eco-promo"));
+        EcosystemExternalProduct product = ecosystemExternalProductRepository.save(
+                new EcosystemExternalProduct(UUID.randomUUID(), ecosystem, "Coffee", new BigDecimal("10.00"), "ARS", true)
+        );
+        EcosystemPromotion promotion = ecosystemPromotionRepository.save(new EcosystemPromotion(
+                UUID.randomUUID(),
+                ecosystem.getId(),
+                "PROMO10",
+                EcosystemPromotionType.PERCENTAGE,
+                new BigDecimal("10.00"),
+                true,
+                null,
+                5L
+        ));
+
+        ApiTestClient.ApiTestResponse previewResponse = api.postJson(
+                "/api/ecosystem/checkout/preview",
+                Map.of(
+                        "ecosystemId", ecosystem.getId().toString(),
+                        "items", List.of(Map.of("externalProductId", product.getId().toString(), "qty", 1)),
+                        "couponCode", "promo10"
+                ),
+                null
+        );
+        assertThat(previewResponse.status()).isEqualTo(200);
+        assertThat(new BigDecimal(previewResponse.body().get("discountAmount").toString()))
+                .isEqualByComparingTo("1.00");
+        assertThat(previewResponse.body().get("appliedCouponCode")).isEqualTo("PROMO10");
+
+        ApiTestClient.ApiTestResponse checkoutResponse = api.postJson(
+                "/api/ecosystem/checkout",
+                Map.of(
+                        "ecosystemId", ecosystem.getId().toString(),
+                        "items", List.of(Map.of("externalProductId", product.getId().toString(), "qty", 1)),
+                        "couponCode", "promo10"
+                ),
+                null
+        );
+        assertThat(checkoutResponse.status()).isEqualTo(201);
+        UUID orderId = UUID.fromString(checkoutResponse.body().get("id").toString());
+
+        EcosystemOrder createdOrder = ecosystemOrderRepository.findById(orderId).orElseThrow();
+        assertThat(createdOrder.getOriginalAmount()).isEqualByComparingTo("10.00");
+        assertThat(createdOrder.getDiscountAmount()).isEqualByComparingTo("1.00");
+        assertThat(createdOrder.getTotalAmount()).isEqualByComparingTo("9.00");
+        assertThat(createdOrder.getAppliedCouponCode()).isEqualTo("PROMO10");
+        assertThat(createdOrder.getPromotionConsumedAt()).isNull();
+        assertThat(ecosystemPromotionRepository.findById(promotion.getId()).orElseThrow().getUsageCount()).isZero();
+
+        HttpHeaders headers = api.withWebhookSecret(new HttpHeaders(), "secret");
+        ApiTestClient.ApiTestResponse webhookResponse = api.postJson(
+                "/api/payments/mercadopago/ecosystem/webhook",
+                Map.of(
+                        "eventId", UUID.randomUUID().toString(),
+                        "ecosystemOrderId", orderId.toString(),
+                        "providerPaymentId", "mp_ecosystem_coupon_1",
+                        "amount", new BigDecimal("9.00"),
+                        "currency", "ARS"
+                ),
+                headers
+        );
+        assertThat(webhookResponse.status()).isEqualTo(200);
+
+        assertThat(ecosystemPromotionRepository.findById(promotion.getId()).orElseThrow().getUsageCount()).isEqualTo(1);
+        assertThat(ecosystemOrderRepository.findById(orderId).orElseThrow().getPromotionConsumedAt()).isNotNull();
+    }
+
+    @Test
+    void duplicateWebhookDoesNotConsumeEcosystemCouponTwiceAndInvalidCouponsAreRejected() throws Exception {
+        Ecosystem ecosystem = ecosystemRepository.save(new Ecosystem(UUID.randomUUID(), "Eco Promo Dup", "eco-promo-dup"));
+        EcosystemExternalProduct product = ecosystemExternalProductRepository.save(
+                new EcosystemExternalProduct(UUID.randomUUID(), ecosystem, "Tea", new BigDecimal("5.00"), "ARS", true)
+        );
+        EcosystemPromotion promotion = ecosystemPromotionRepository.save(new EcosystemPromotion(
+                UUID.randomUUID(),
+                ecosystem.getId(),
+                "PROMODUP",
+                EcosystemPromotionType.FIXED,
+                new BigDecimal("1.00"),
+                true,
+                null,
+                1L
+        ));
+
+        ApiTestClient.ApiTestResponse checkoutResponse = api.postJson(
+                "/api/ecosystem/checkout",
+                Map.of(
+                        "ecosystemId", ecosystem.getId().toString(),
+                        "items", List.of(Map.of("externalProductId", product.getId().toString(), "qty", 1)),
+                        "couponCode", "PROMODUP"
+                ),
+                null
+        );
+        assertThat(checkoutResponse.status()).isEqualTo(201);
+        UUID orderId = UUID.fromString(checkoutResponse.body().get("id").toString());
+
+        HttpHeaders headers = api.withWebhookSecret(new HttpHeaders(), "secret");
+        api.postJson(
+                "/api/payments/mercadopago/ecosystem/webhook",
+                Map.of(
+                        "eventId", UUID.randomUUID().toString(),
+                        "ecosystemOrderId", orderId.toString(),
+                        "providerPaymentId", "mp_ecosystem_coupon_dup",
+                        "amount", new BigDecimal("4.00"),
+                        "currency", "ARS"
+                ),
+                headers
+        );
+        api.postJson(
+                "/api/payments/mercadopago/ecosystem/webhook",
+                Map.of(
+                        "eventId", UUID.randomUUID().toString(),
+                        "ecosystemOrderId", orderId.toString(),
+                        "providerPaymentId", "mp_ecosystem_coupon_dup",
+                        "amount", new BigDecimal("4.00"),
+                        "currency", "ARS"
+                ),
+                headers
+        );
+
+        assertThat(ecosystemPromotionRepository.findById(promotion.getId()).orElseThrow().getUsageCount()).isEqualTo(1);
+
+        ecosystemPromotionRepository.save(new EcosystemPromotion(
+                UUID.randomUUID(),
+                ecosystem.getId(),
+                "VENCIDO",
+                EcosystemPromotionType.FIXED,
+                new BigDecimal("1.00"),
+                true,
+                java.time.Instant.parse("2026-03-01T00:00:00Z"),
+                null
+        ));
+
+        ApiTestClient.ApiTestResponse expiredResponse = api.postJson(
+                "/api/ecosystem/checkout/preview",
+                Map.of(
+                        "ecosystemId", ecosystem.getId().toString(),
+                        "items", List.of(Map.of("externalProductId", product.getId().toString(), "qty", 1)),
+                        "couponCode", "VENCIDO"
+                ),
+                null
+        );
+        assertThat(expiredResponse.status()).isEqualTo(409);
+
+        EcosystemPromotion limitedPromotion = ecosystemPromotionRepository.save(new EcosystemPromotion(
+                UUID.randomUUID(),
+                ecosystem.getId(),
+                "LIMITADO",
+                EcosystemPromotionType.FIXED,
+                new BigDecimal("1.00"),
+                true,
+                null,
+                1L
+        ));
+        limitedPromotion.incrementUsage();
+        ecosystemPromotionRepository.save(limitedPromotion);
+
+        ApiTestClient.ApiTestResponse limitResponse = api.postJson(
+                "/api/ecosystem/checkout/preview",
+                Map.of(
+                        "ecosystemId", ecosystem.getId().toString(),
+                        "items", List.of(Map.of("externalProductId", product.getId().toString(), "qty", 1)),
+                        "couponCode", "LIMITADO"
+                ),
+                null
+        );
+        assertThat(limitResponse.status()).isEqualTo(409);
     }
 }
