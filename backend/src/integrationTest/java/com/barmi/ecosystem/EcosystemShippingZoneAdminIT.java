@@ -12,7 +12,6 @@ import com.barmi.domain.users.UserStatus;
 import com.barmi.infra.repo.EcosystemMemberRepository;
 import com.barmi.infra.repo.EcosystemRepository;
 import com.barmi.infra.repo.EcosystemShippingZoneRepository;
-import com.barmi.infra.repo.RefreshTokenRepository;
 import com.barmi.infra.repo.UserRepository;
 import com.barmi.testsupport.ApiTestClient;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -23,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -48,8 +48,8 @@ class EcosystemShippingZoneAdminIT extends PostgresIntegrationTestBase {
     private final EcosystemMemberRepository ecosystemMemberRepository;
     private final EcosystemShippingZoneRepository ecosystemShippingZoneRepository;
     private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     private Ecosystem ecosystem;
     private Ecosystem otherEcosystem;
@@ -63,8 +63,8 @@ class EcosystemShippingZoneAdminIT extends PostgresIntegrationTestBase {
             EcosystemMemberRepository ecosystemMemberRepository,
             EcosystemShippingZoneRepository ecosystemShippingZoneRepository,
             UserRepository userRepository,
-            RefreshTokenRepository refreshTokenRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            JdbcTemplate jdbcTemplate
     ) {
         this.mockMvc = mockMvc;
         this.api = new ApiTestClient(mockMvc);
@@ -72,17 +72,13 @@ class EcosystemShippingZoneAdminIT extends PostgresIntegrationTestBase {
         this.ecosystemMemberRepository = ecosystemMemberRepository;
         this.ecosystemShippingZoneRepository = ecosystemShippingZoneRepository;
         this.userRepository = userRepository;
-        this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @BeforeEach
     void setup() {
-        refreshTokenRepository.deleteAll();
-        ecosystemMemberRepository.deleteAll();
-        ecosystemShippingZoneRepository.deleteAll();
-        userRepository.deleteAll();
-        ecosystemRepository.deleteAll();
+        truncateAllTables(jdbcTemplate);
 
         ecosystem = ecosystemRepository.save(new Ecosystem(UUID.randomUUID(), "Eco Admin", "eco-admin-" + UUID.randomUUID()));
         otherEcosystem = ecosystemRepository.save(new Ecosystem(UUID.randomUUID(), "Other Eco", "other-eco-" + UUID.randomUUID()));

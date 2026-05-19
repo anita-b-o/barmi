@@ -28,6 +28,7 @@ import com.barmi.infra.repo.StoreRepository;
 import com.barmi.infra.repo.StoreShippingZoneRepository;
 import com.barmi.infra.repo.UserRepository;
 import com.barmi.testsupport.ApiTestClient;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -122,23 +123,7 @@ class AuthIntegrationTest extends PostgresIntegrationTestBase {
 
     @BeforeEach
     void setup() {
-        refreshTokenRepository.deleteAll();
-        paymentIntentRepository.deleteAll();
-        paymentRepository.deleteAll();
-        ecosystemFulfillmentRepository.deleteAll();
-        storeFulfillmentRepository.deleteAll();
-        jdbcTemplate.update("DELETE FROM ecosystem_order_items");
-        storeOrderItemRepository.deleteAll();
-        ecosystemOrderRepository.deleteAll();
-        storeOrderRepository.deleteAll();
-        ecosystemMemberRepository.deleteAll();
-        storeMemberRepository.deleteAll();
-        ecosystemShippingZoneRepository.deleteAll();
-        ecosystemExternalProductRepository.deleteAll();
-        storeShippingZoneRepository.deleteAll();
-        ecosystemRepository.deleteAll();
-        storeRepository.deleteAll();
-        userRepository.deleteAll();
+        truncateAllTables(jdbcTemplate);
 
         activeEmail = "admin-" + UUID.randomUUID() + "@example.com";
         inactiveEmail = "inactive-" + UUID.randomUUID() + "@example.com";
@@ -193,8 +178,19 @@ class AuthIntegrationTest extends PostgresIntegrationTestBase {
 
         ApiTestClient.ApiTestResponse response = api.postJson("/api/auth/login", payload, null);
         assertThat(response.status()).isEqualTo(200);
-        assertThat(response.body()).containsKeys("accessToken", "refreshToken", "tokenType", "expiresAt");
+        assertThat(response.body()).containsKeys("accessToken", "tokenType", "expiresAt");
+        assertThat(response.body()).doesNotContainKey("refreshToken");
         assertThat(response.body().get("tokenType")).isEqualTo("Bearer");
+        assertThat(refreshTokenRepository.findAll()).hasSize(1);
+        String refreshCookieHeader = requireRefreshCookieHeader(response);
+        assertThat(refreshCookieHeader).contains("HttpOnly");
+        assertThat(refreshCookieHeader).contains("Path=/api/auth");
+        assertThat(refreshCookieHeader).contains("SameSite=Lax");
+        assertThat(refreshCookieHeader).contains("Max-Age=");
+        assertThat(refreshCookieHeader).doesNotContain("Secure");
+        Cookie refreshCookie = requireRefreshCookie(response);
+        assertThat(refreshTokenRepository.findAll().get(0).getTokenDigest()).isNotEqualTo(refreshCookie.getValue());
+        assertThat(refreshTokenRepository.findAll().get(0).getTokenHash()).isNotBlank();
     }
 
     @Test
@@ -229,28 +225,106 @@ class AuthIntegrationTest extends PostgresIntegrationTestBase {
         );
 
         ApiTestClient.ApiTestResponse login = api.postJson("/api/auth/login", payload, null);
-        String refreshToken = login.body().get("refreshToken").toString();
+        Cookie refreshCookie = requireRefreshCookie(login);
 
         ApiTestClient.ApiTestResponse refreshed = api.postJson(
                 "/api/auth/refresh",
-                Map.of("refreshToken", refreshToken),
-                null
+                Map.of(),
+                null,
+                refreshCookie
         );
 
         assertThat(refreshed.status()).isEqualTo(200);
-        assertThat(refreshed.body()).containsKeys("accessToken", "refreshToken", "tokenType", "expiresAt");
+        assertThat(refreshed.body()).containsKeys("accessToken", "tokenType", "expiresAt");
+        Cookie rotatedCookie = requireRefreshCookie(refreshed);
+        assertThat(rotatedCookie.getValue()).isNotEqualTo(refreshCookie.getValue());
+        ApiTestClient.ApiTestResponse reused = api.postJson(
+                "/api/auth/refresh",
+                Map.of(),
+                null,
+                refreshCookie
+        );
+        assertThat(reused.status()).isEqualTo(401);
     }
 
     @Test
     void refreshInvalidToken() throws Exception {
         ApiTestClient.ApiTestResponse refreshed = api.postJson(
                 "/api/auth/refresh",
-                Map.of("refreshToken", "invalid"),
+                null,
+                null,
+                new Cookie("barmi_refresh_token", "invalid")
+        );
+
+        assertThat(refreshed.status()).isEqualTo(401);
+        assertThat(((Map<String, Object>) refreshed.body().get("error")).get("code")).isEqualTo("invalid_refresh_token");
+        String clearedCookieHeader = requireRefreshCookieHeader(refreshed);
+        assertThat(clearedCookieHeader).contains("Max-Age=0");
+        assertThat(clearedCookieHeader).contains("Path=/api/auth");
+        assertThat(clearedCookieHeader).contains("SameSite=Lax");
+    }
+
+    @Test
+    void refreshExpiredTokenReturnsRefreshTokenExpired() throws Exception {
+        ApiTestClient.ApiTestResponse login = api.postJson(
+                "/api/auth/login",
+                Map.of("email", activeUser.getEmail(), "password", "secret"),
+                null
+        );
+        Cookie refreshCookie = requireRefreshCookie(login);
+        UUID tokenId = refreshTokenRepository.findAll().get(0).getId();
+        jdbcTemplate.update("update refresh_tokens set expires_at = now() - interval '1 second' where id = ?", tokenId);
+
+        ApiTestClient.ApiTestResponse refreshed = api.postJson(
+                "/api/auth/refresh",
+                Map.of(),
+                null,
+                refreshCookie
+        );
+
+        assertThat(refreshed.status()).isEqualTo(401);
+        assertThat(((Map<String, Object>) refreshed.body().get("error")).get("code")).isEqualTo("refresh_token_expired");
+        String clearedCookieHeader = requireRefreshCookieHeader(refreshed);
+        assertThat(clearedCookieHeader).contains("Max-Age=0");
+    }
+
+    @Test
+    void logoutRevokesRefreshCookieAndReturnsOkEvenWithoutCookie() throws Exception {
+        ApiTestClient.ApiTestResponse login = api.postJson(
+                "/api/auth/login",
+                Map.of("email", activeUser.getEmail(), "password", "secret"),
+                null
+        );
+        Cookie refreshCookie = requireRefreshCookie(login);
+
+        ApiTestClient.ApiTestResponse logout = api.postJson("/api/auth/logout", Map.of(), null, refreshCookie);
+        assertThat(logout.status()).isEqualTo(200);
+        String clearedCookieHeader = requireRefreshCookieHeader(logout);
+        assertThat(clearedCookieHeader).contains("Max-Age=0");
+        assertThat(clearedCookieHeader).contains("Path=/api/auth");
+        assertThat(clearedCookieHeader).contains("SameSite=Lax");
+
+        ApiTestClient.ApiTestResponse refreshed = api.postJson("/api/auth/refresh", Map.of(), null, refreshCookie);
+        assertThat(refreshed.status()).isEqualTo(401);
+
+        ApiTestClient.ApiTestResponse logoutWithoutCookie = api.postJson("/api/auth/logout", Map.of(), null);
+        assertThat(logoutWithoutCookie.status()).isEqualTo(200);
+    }
+
+    @Test
+    void refreshRejectsLegacyRequestBodyWithoutCookie() throws Exception {
+        ApiTestClient.ApiTestResponse refreshed = api.postJson(
+                "/api/auth/refresh",
+                Map.of("refreshToken", "legacy-body-token"),
                 null
         );
 
         assertThat(refreshed.status()).isEqualTo(401);
         assertThat(((Map<String, Object>) refreshed.body().get("error")).get("code")).isEqualTo("invalid_refresh_token");
+        String clearedCookieHeader = requireRefreshCookieHeader(refreshed);
+        assertThat(clearedCookieHeader).contains("Max-Age=0");
+        assertThat(clearedCookieHeader).contains("Path=/api/auth");
+        assertThat(clearedCookieHeader).contains("SameSite=Lax");
     }
 
     @Test
@@ -286,5 +360,19 @@ class AuthIntegrationTest extends PostgresIntegrationTestBase {
                 null
         );
         return login.body().get("accessToken").toString();
+    }
+
+    private Cookie requireRefreshCookie(ApiTestClient.ApiTestResponse response) {
+        String header = requireRefreshCookieHeader(response);
+        String[] parts = header.split(";", 2);
+        String[] nameValue = parts[0].split("=", 2);
+        return new Cookie(nameValue[0], nameValue.length > 1 ? nameValue[1] : "");
+    }
+
+    private String requireRefreshCookieHeader(ApiTestClient.ApiTestResponse response) {
+        return response.headers().getOrEmpty(HttpHeaders.SET_COOKIE).stream()
+                .filter(value -> value.startsWith("barmi_refresh_token="))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("refresh cookie header missing"));
     }
 }

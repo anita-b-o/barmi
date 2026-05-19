@@ -1,5 +1,6 @@
 export const routes = {
   root: '/',
+  observabilitySmoke: '/__observability',
   login: '/auth/login',
   publicStorePattern: '/public/:slug',
   publicStore: (slug: string) => `/public/${slug}`,

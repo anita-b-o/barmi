@@ -2,6 +2,15 @@ logging:
   level:
     root: INFO
 
+app:
+  release:
+    version: ${APP_VERSION:prod}
+    commitSha: ${APP_COMMIT_SHA:unknown}
+    buildTimestamp: ${APP_BUILD_TIMESTAMP:unknown}
+  security:
+    refreshCookie:
+      secure: ${REFRESH_COOKIE_SECURE:true}
+
 spring:
   data:
     redis:
@@ -17,13 +26,13 @@ management:
         enabled: true
       group:
         default:
-          include: readinessState,db,redis
+          include: readinessState,db,outboxBacklog
         liveness:
           include: livenessState
         readiness:
-          include: readinessState,db,redis
+          include: readinessState,db,outboxBacklog
         health:
-          include: readinessState,db,redis
+          include: readinessState,db,redis,outboxBacklog
   endpoints:
     web:
       exposure:

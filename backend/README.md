@@ -71,14 +71,27 @@ POST /api/auth/login
 }
 ```
 
+Response body returns only the short-lived access token. The refresh token is stored in an `HttpOnly` cookie on `/api/auth`.
+
 Refresh:
 
 ```bash
 POST /api/auth/refresh
-{
-  "refreshToken": "<token>"
-}
+Cookie: barmi_refresh_token=<refresh-token>
 ```
+
+Refresh rotates the cookie and returns a new access token. Reused or revoked refresh tokens return `401 invalid_refresh_token`. Expired refresh tokens return `401 refresh_token_expired`.
+
+Logout:
+
+```bash
+POST /api/auth/logout
+Cookie: barmi_refresh_token=<refresh-token>
+```
+
+Logout always returns `200 OK`, revokes the refresh token server-side when present, and clears the cookie with the same attributes.
+
+Refresh token cleanup is not part of the login/refresh/logout request path. Expired or revoked rows are purged by a scheduled cleanup job controlled by `REFRESH_CLEANUP_INITIAL_DELAY` and `REFRESH_CLEANUP_FIXED_DELAY`.
 
 Me:
 

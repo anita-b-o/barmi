@@ -16,6 +16,7 @@ export default function Topbar({ title, subtitle, actions, eyebrow, tone = 'admi
     <header
       style={{
         display: 'flex',
+        flexWrap: 'wrap',
         alignItems: 'center',
         justifyContent: 'space-between',
         gap: theme.spacing.lg,
@@ -28,12 +29,12 @@ export default function Topbar({ title, subtitle, actions, eyebrow, tone = 'admi
         zIndex: 10
       }}
     >
-      <div>
+      <div style={{ minWidth: 0, flex: '1 1 320px' }}>
         {eyebrow ? <div style={{ color: palette.accent, fontSize: theme.typography.small.size, fontWeight: 700, letterSpacing: 0, textTransform: 'uppercase', marginBottom: 4 }}>{eyebrow}</div> : null}
         <div style={{ fontWeight: 700, fontSize: theme.typography.title.size, color: theme.colors.textPrimary }}>{title}</div>
         {subtitle ? <div style={{ color: theme.colors.textMuted, marginTop: 4, fontSize: theme.typography.small.size }}>{subtitle}</div> : null}
       </div>
-      {actions ? <div style={{ display: 'flex', gap: theme.spacing.md }}>{actions}</div> : null}
+      {actions ? <div style={{ display: 'flex', gap: theme.spacing.md, flex: '1 1 240px', justifyContent: 'flex-end', minWidth: 0 }}>{actions}</div> : null}
     </header>
   )
 }

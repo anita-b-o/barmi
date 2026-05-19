@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setInputElementValue } from '../test-utils/testUtils'
+import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setInputElementValue, waitForMs } from '../test-utils/testUtils'
 
 const storesMapResponse = {
   ecosystem: {
@@ -83,7 +83,7 @@ describe('ecosystem stores map', () => {
     const input = document.querySelector('input[aria-label="Buscar tiendas en mapa"]') as HTMLInputElement
     expect(input).toBeTruthy()
     await setInputElementValue(input, 'Casa')
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    await waitForMs(300)
     await flush()
     await flush()
 
@@ -153,7 +153,7 @@ describe('ecosystem stores map', () => {
     const input = document.querySelector('input[aria-label="Buscar tiendas en mapa"]') as HTMLInputElement
     expect(input).toBeTruthy()
     await setInputElementValue(input, 'zzz')
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    await waitForMs(300)
     await flush()
 
     expect(document.body.textContent).toContain('No encontramos tiendas con esos filtros')
@@ -230,7 +230,7 @@ describe('ecosystem stores map', () => {
     const input = document.querySelector('input[aria-label="Buscar tiendas en mapa"]') as HTMLInputElement
     expect(input).toBeTruthy()
     await setInputElementValue(input, 'Casa')
-    await new Promise((resolve) => setTimeout(resolve, 300))
+    await waitForMs(300)
     await flush()
     await flush()
 

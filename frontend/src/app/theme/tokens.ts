@@ -1,9 +1,9 @@
 export const breakpoints = {
   xs: 0,
   sm: 600,
-  md: 900,
-  lg: 1200,
-  xl: 1536
+  md: 768,
+  lg: 1280,
+  xl: 1440
 } as const
 
 const rawColors = {
@@ -107,17 +107,21 @@ export const colors = {
 } as const
 
 export const radius = {
-  sm: 0,
-  md: 0,
-  lg: 0,
-  xl: 0,
-  pill: 0
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  pill: 999
 } as const
 
 export const shadows = {
-  soft: 'none',
-  medium: 'none',
-  glass: 'none'
+  surface: '0 10px 24px rgba(8, 16, 32, 0.10)',
+  elevated: '0 18px 36px rgba(8, 16, 32, 0.16)',
+  overlay: '0 28px 72px rgba(8, 16, 32, 0.24)',
+  soft: '0 10px 24px rgba(8, 16, 32, 0.10)',
+  medium: '0 18px 36px rgba(8, 16, 32, 0.16)',
+  glass: '0 28px 72px rgba(8, 16, 32, 0.24)'
 } as const
 
 export const spacing = {
@@ -125,28 +129,51 @@ export const spacing = {
   sm: 8,
   md: 12,
   lg: 16,
-  xl: 24,
-  xxl: 32,
-  xxxl: 48
+  xl: 20,
+  xxl: 24,
+  xxxl: 32,
+  section: 40,
+  hero: 48,
+  page: 64
 } as const
 
 export const typography = {
-  fontFamily: 'Arial, sans-serif',
+  fontFamily: '"Plus Jakarta Sans", "Aptos", "Segoe UI", sans-serif',
   display: {
-    size: 32,
+    size: 48,
     weight: 700
   },
-  title: {
-    size: 22,
+  h1: {
+    size: 36,
+    weight: 700
+  },
+  h2: {
+    size: 28,
+    weight: 700
+  },
+  h3: {
+    size: 20,
     weight: 600
+  },
+  title: {
+    size: 28,
+    weight: 700
   },
   body: {
     size: 15,
     weight: 400
   },
+  label: {
+    size: 13,
+    weight: 600
+  },
+  caption: {
+    size: 12,
+    weight: 500
+  },
   small: {
     size: 12,
-    weight: 400
+    weight: 500
   }
 } as const
 

@@ -1,14 +1,19 @@
 # Build stage
-FROM eclipse-temurin:21-jdk-jammy AS build
-WORKDIR /app
-
-COPY backend/ /app/backend/
-
+FROM gradle:8.10.2-jdk21 AS build
 WORKDIR /app/backend
-RUN ./gradlew bootJar --no-daemon
+
+COPY --chown=gradle:gradle backend/ ./
+RUN gradle bootJar --no-daemon
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-jammy
+ARG APP_VERSION=unknown
+ARG APP_COMMIT_SHA=unknown
+ARG APP_BUILD_TIMESTAMP=unknown
+LABEL org.opencontainers.image.title="barmi-api"
+LABEL org.opencontainers.image.version="$APP_VERSION"
+LABEL org.opencontainers.image.revision="$APP_COMMIT_SHA"
+LABEL org.opencontainers.image.created="$APP_BUILD_TIMESTAMP"
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \

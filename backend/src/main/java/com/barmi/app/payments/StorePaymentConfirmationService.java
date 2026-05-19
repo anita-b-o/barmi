@@ -21,6 +21,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -119,14 +120,16 @@ public class StorePaymentConfirmationService {
             try {
                 paymentRepository.save(payment);
                 paymentsConfirmedCounter.increment();
-                log.info("payment_confirmed scope=STORE operation_id={} provider_payment_id={}", storeOrderId, providerPaymentId);
+                log.info("payment_confirmed scope=STORE request_id={} store_id={} operation_id={} provider_payment_id={}",
+                        MDC.get("requestId"), order.getStoreId(), storeOrderId, providerPaymentId);
             } catch (DataIntegrityViolationException ex) {
                 if (paymentRepository.findFirstByScopeAndOperationIdAndStatus(
                         PaymentScope.STORE,
                         storeOrderId,
                         PaymentStatus.CONFIRMED
                 ).isPresent()) {
-                    log.info("payment_confirm_noop_race scope=STORE operation_id={} provider_payment_id={}", storeOrderId, providerPaymentId);
+                    log.info("payment_confirm_noop_race scope=STORE request_id={} store_id={} operation_id={} provider_payment_id={}",
+                            MDC.get("requestId"), order.getStoreId(), storeOrderId, providerPaymentId);
                     saveProcessedEvent(webhookEventId);
                     return;
                 }
@@ -158,7 +161,8 @@ public class StorePaymentConfirmationService {
             );
             outboxEventRepository.save(event);
             paymentsMismatchCounter.increment();
-            log.warn("payment_mismatch scope=STORE operation_id={} provider_payment_id={} received_amount={} received_currency={} expected_amount={} expected_currency={}", order.getId(), providerPaymentId, amount, currency, order.getTotalAmount(), order.getCurrency());
+            log.warn("checkout_failure category=api_error_checkout_failure request_id={} store_id={} order_id={} provider={} failure_reason=payment_mismatch received_amount={} received_currency={} expected_amount={} expected_currency={}",
+                    MDC.get("requestId"), order.getStoreId(), order.getId(), PROVIDER, amount, currency, order.getTotalAmount(), order.getCurrency());
             saveProcessedEvent(webhookEventId);
             return;
         }
@@ -189,7 +193,8 @@ public class StorePaymentConfirmationService {
                         toJson(payload)
                 );
                 outboxEventRepository.save(event);
-                log.warn("payment_stock_conflict scope=STORE operation_id={} provider_payment_id={}", order.getId(), providerPaymentId);
+                log.warn("checkout_failure category=api_error_checkout_failure request_id={} store_id={} order_id={} provider={} failure_reason=stock_conflict",
+                        MDC.get("requestId"), order.getStoreId(), order.getId(), PROVIDER);
                 saveProcessedEvent(webhookEventId);
                 return;
             }

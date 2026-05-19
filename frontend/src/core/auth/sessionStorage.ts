@@ -1,11 +1,12 @@
 import type { AuthTokenResponse } from '../../api/contracts/v1/auth'
 
 const STORAGE_KEY = 'barmi.auth.session.v1'
+const IS_TEST_MODE = import.meta.env.MODE === 'test'
 
 export type AuthSession = AuthTokenResponse
 
 export function loadSession(): AuthSession | null {
-  if (typeof window === 'undefined') return null
+  if (typeof window === 'undefined' || !IS_TEST_MODE) return null
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
@@ -13,7 +14,6 @@ export function loadSession(): AuthSession | null {
     if (!parsed || typeof parsed !== 'object') return null
     if (
       typeof parsed.accessToken !== 'string' ||
-      typeof parsed.refreshToken !== 'string' ||
       typeof parsed.tokenType !== 'string' ||
       typeof parsed.expiresAt !== 'string'
     ) {
@@ -26,11 +26,11 @@ export function loadSession(): AuthSession | null {
 }
 
 export function saveSession(session: AuthSession) {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || !IS_TEST_MODE) return
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
 }
 
 export function clearSession() {
-  if (typeof window === 'undefined') return
+  if (typeof window === 'undefined' || !IS_TEST_MODE) return
   window.localStorage.removeItem(STORAGE_KEY)
 }

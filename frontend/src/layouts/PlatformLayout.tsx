@@ -1,5 +1,6 @@
 import React from 'react'
 import { getContextPalette, theme, type VisualContext } from '@/app/theme'
+import { BetaFeedbackWidget } from '@/features/beta'
 
 type PlatformLayoutProps = {
   children: React.ReactNode
@@ -12,6 +13,9 @@ type PlatformLayoutProps = {
   headerActions?: React.ReactNode
   context?: VisualContext
   contentPaddingTop?: string
+  feedbackStoreId?: string
+  feedbackStoreSlug?: string
+  feedbackEcosystemSlug?: string
 }
 
 export default function PlatformLayout({
@@ -24,7 +28,10 @@ export default function PlatformLayout({
   headerMeta,
   headerActions,
   context = 'neutral',
-  contentPaddingTop = `clamp(${theme.spacing.lg}px, 2.2vw, ${theme.spacing.xl}px)`
+  contentPaddingTop = `clamp(${theme.spacing.lg}px, 2.2vw, ${theme.spacing.xl}px)`,
+  feedbackStoreId,
+  feedbackStoreSlug,
+  feedbackEcosystemSlug
 }: PlatformLayoutProps) {
   const palette = getContextPalette(context)
 
@@ -133,6 +140,11 @@ export default function PlatformLayout({
       >
         {children}
       </main>
+      <BetaFeedbackWidget
+        storeId={feedbackStoreId}
+        storeSlug={feedbackStoreSlug}
+        ecosystemSlug={feedbackEcosystemSlug}
+      />
     </div>
   )
 }

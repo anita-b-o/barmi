@@ -14,6 +14,9 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const CommonStatuses: Story = {
+  args: {
+    status: 'PAID'
+  },
   render: () => (
     <ShowcasePage title="StatusBadge" description="Common operational statuses mapped to the shared badge semantics.">
       <ShowcaseSection title="Examples">

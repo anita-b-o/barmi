@@ -9,19 +9,19 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const baseStyle: React.CSSProperties = {
   fontFamily: theme.typography.fontFamily,
-  fontSize: theme.typography.body.size,
+  fontSize: theme.typography.label.size,
   fontWeight: 600,
   borderRadius: theme.radius.md,
-  padding: '12px 18px',
+  padding: '11px 16px',
   border: '1px solid transparent',
   cursor: 'pointer',
-  transition: 'none',
+  transition: 'background 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease, transform 160ms ease',
   display: 'inline-flex',
   alignItems: 'center',
   justifyContent: 'center',
   gap: 8,
   letterSpacing: 0,
-  minHeight: 46,
+  minHeight: 44,
   textDecoration: 'none',
   whiteSpace: 'normal',
   textAlign: 'center',
@@ -31,7 +31,7 @@ const baseStyle: React.CSSProperties = {
 const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
   primary: {
     background: theme.colors.actionPrimary,
-    color: theme.colors.bgSurfaceAlt,
+    color: theme.mode === 'dark' ? theme.colors.textPrimary : theme.colors.bgSurfaceAlt,
     borderColor: theme.colors.actionPrimary
   },
   secondary: {
@@ -66,18 +66,18 @@ export default function Button({ variant = 'secondary', style, ...props }: Butto
   const hoverStyle: React.CSSProperties = props.disabled
     ? {}
     : {
-      primary: { background: theme.colors.actionHover, borderColor: theme.colors.actionHover },
+      primary: { background: theme.colors.actionHover, borderColor: theme.colors.actionHover, boxShadow: theme.shadows.surface },
       secondary: { background: theme.colors.bgHover, borderColor: theme.colors.borderHover, color: theme.colors.textPrimary },
       ghost: { background: theme.colors.bgAccentSoft, color: theme.colors.brand }
     }[variant]
 
   const focusStyle: React.CSSProperties = isFocused
-    ? { boxShadow: 'none' }
+    ? { boxShadow: `0 0 0 3px ${theme.colors.focusRing}` }
     : {}
 
   const activeStyle: React.CSSProperties = isPressed && !props.disabled
     ? {
-      transform: 'translateY(0)',
+      transform: 'translateY(1px)',
       background: variant === 'primary' ? theme.colors.actionHover : undefined,
       boxShadow: 'none'
     }

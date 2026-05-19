@@ -7,6 +7,7 @@ import { getBrowserTenantContext } from '@/core/tenant'
 import { extractBackendErrorMessage } from '@/core/errors'
 import { storeAdapter } from '../api'
 import type { StoreCartItemViewModel, StoreCheckoutPreview, StoreCheckoutSuccessState, StoreCouponPreviewState } from '../types'
+import { trackBetaEvent } from '@/features/beta'
 
 function buildStoreContextMessage() {
   const tenant = getBrowserTenantContext()
@@ -108,6 +109,7 @@ export function useStoreCheckout() {
       return response
     },
     onSuccess: (order) => {
+      const currentStoreSlug = cart.storeSlug
       const state: StoreCheckoutSuccessState = {
         order,
         quote,
@@ -115,10 +117,26 @@ export function useStoreCheckout() {
       }
       setSuccessState(state)
       setError(null)
+      trackBetaEvent({
+        eventName: 'checkout_success',
+        storeSlug: currentStoreSlug ?? undefined,
+        metadata: {
+          surface: 'store_checkout',
+          status: order.status
+        }
+      })
       cart.clear()
     },
     onError: (mutationError) => {
       setError(mapErrorMessage(mutationError))
+      trackBetaEvent({
+        eventName: 'checkout_failure',
+        storeSlug: cart.storeSlug ?? undefined,
+        metadata: {
+          surface: 'store_checkout',
+          reason: mapErrorMessage(mutationError)
+        }
+      })
     }
   })
 

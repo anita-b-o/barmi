@@ -5,8 +5,8 @@ type InputProps = React.InputHTMLAttributes<HTMLInputElement>
 
 const baseStyle: React.CSSProperties = {
   width: '100%',
-  minHeight: 46,
-  padding: '12px 14px',
+  minHeight: 44,
+  padding: '11px 14px',
   borderRadius: theme.radius.md,
   border: `1px solid ${theme.colors.borderDefault}`,
   background: theme.colors.bgSurfaceAlt,
@@ -14,7 +14,7 @@ const baseStyle: React.CSSProperties = {
   fontFamily: theme.typography.fontFamily,
   fontSize: theme.typography.body.size,
   outline: 'none',
-  transition: 'none',
+  transition: 'border-color 160ms ease, box-shadow 160ms ease, background 160ms ease',
   boxSizing: 'border-box'
 }
 
@@ -28,7 +28,7 @@ export default function Input({ style, ...props }: InputProps) {
     : isFocused
       ? {
         borderColor: theme.colors.actionPrimary,
-        boxShadow: 'none',
+        boxShadow: `0 0 0 3px ${theme.colors.focusRing}`,
         background: theme.colors.bgSurfaceAlt
       }
       : isHovered

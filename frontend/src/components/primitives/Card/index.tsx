@@ -2,12 +2,20 @@ import React from 'react'
 import { theme } from '@/app/theme'
 
 type CardProps = React.HTMLAttributes<HTMLDivElement> & {
-  variant?: 'surface' | 'soft'
+  variant?: 'surface' | 'soft' | 'inverse'
 }
 
 export default function Card({ variant = 'surface', style, ...props }: CardProps) {
-  const background = variant === 'soft' ? theme.colors.bgSurfaceAlt : theme.colors.bgSurface
-  const borderColor = variant === 'soft' ? theme.colors.borderStrong : theme.colors.borderDefault
+  const background = variant === 'inverse'
+    ? theme.colors.bgSurface
+    : variant === 'soft'
+      ? theme.colors.bgHover
+      : theme.colors.bgSurfaceAlt
+  const borderColor = variant === 'inverse'
+    ? theme.colors.borderDefault
+    : variant === 'soft'
+      ? theme.colors.borderStrong
+      : theme.colors.borderDefault
 
   return (
     <div
@@ -17,9 +25,8 @@ export default function Card({ variant = 'surface', style, ...props }: CardProps
         border: `1px solid ${borderColor}`,
         borderRadius: theme.radius.lg,
         padding: theme.spacing.xl,
-        boxShadow: 'none',
-        transition: 'none',
-        transform: 'none',
+        boxShadow: theme.shadows.surface,
+        transition: 'border-color 160ms ease, box-shadow 160ms ease, background 160ms ease, transform 160ms ease',
         position: 'relative',
         overflow: 'hidden',
         ...style

@@ -157,7 +157,7 @@ describe('ecosystem home', () => {
     expect(document.body.textContent).toContain('Mapa')
     expect(document.body.textContent).toContain('Tiendas')
     expect(document.body.textContent).toContain('Productos')
-    expect(document.body.textContent).toContain('Categorias')
+    expect(document.body.textContent).toContain('Categorías')
     expect(document.body.textContent).toContain('Ir a mapa')
     expect(document.body.textContent).toContain('Ir a tiendas')
     expect(document.body.textContent).toContain('Ir a productos')
@@ -170,7 +170,6 @@ describe('ecosystem home', () => {
     expect(document.body.textContent).toContain('External Apple')
     expect(document.body.textContent).toContain('External Orange')
     expect(document.body.textContent).toContain('External Bread')
-    expect(document.body.textContent).toContain('No hay nada para mostrar en esta categoría')
     expect(document.body.textContent).not.toContain('Tiendas destacadas para explorar')
     expect(document.body.textContent).not.toContain('Explorá productos desde una entrada simple')
 
@@ -255,7 +254,7 @@ describe('ecosystem home', () => {
           value: originalScrollBy
         })
       } else {
-        delete HTMLElement.prototype.scrollBy
+        delete (HTMLElement.prototype as Partial<typeof HTMLElement.prototype>).scrollBy
       }
     }
   })

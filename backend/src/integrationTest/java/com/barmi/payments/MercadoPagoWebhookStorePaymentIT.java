@@ -119,7 +119,7 @@ class MercadoPagoWebhookStorePaymentIT {
         com.barmi.app.tenant.TenantContext.setStoreSlug("cafe");
         StoreOrder order;
         try {
-            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 1)), null);
+            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 1)), null, null, "webhook@example.com");
         } finally {
             com.barmi.app.tenant.TenantContext.clear();
         }
@@ -219,7 +219,7 @@ class MercadoPagoWebhookStorePaymentIT {
         com.barmi.app.tenant.TenantContext.setStoreSlug("cafe-promo");
         StoreOrder order;
         try {
-            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 2)), null, "PROMO10");
+            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 2)), null, "PROMO10", "coupon@example.com");
         } finally {
             com.barmi.app.tenant.TenantContext.clear();
         }
@@ -269,7 +269,7 @@ class MercadoPagoWebhookStorePaymentIT {
         com.barmi.app.tenant.TenantContext.setStoreSlug("cafe-promo-dup");
         StoreOrder order;
         try {
-            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 1)), null, "PROMODUP");
+            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 1)), null, "PROMODUP", "coupon-dup@example.com");
         } finally {
             com.barmi.app.tenant.TenantContext.clear();
         }
@@ -319,7 +319,7 @@ class MercadoPagoWebhookStorePaymentIT {
         com.barmi.app.tenant.TenantContext.setStoreSlug("cafe2");
         StoreOrder order;
         try {
-            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 1)), null);
+            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 1)), null, null, "mismatch@example.com");
         } finally {
             com.barmi.app.tenant.TenantContext.clear();
         }
@@ -369,7 +369,7 @@ class MercadoPagoWebhookStorePaymentIT {
         com.barmi.app.tenant.TenantContext.setStoreSlug("cafe3");
         StoreOrder order;
         try {
-            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 1)), null);
+            order = checkoutService.checkout(List.of(new CheckoutItem(p1.getId(), 1)), null, null, "stock-conflict@example.com");
         } finally {
             com.barmi.app.tenant.TenantContext.clear();
         }

@@ -14,6 +14,10 @@ import com.barmi.infra.repo.EcosystemOrderRepository;
 import com.barmi.infra.repo.PaymentIntentRepository;
 import com.barmi.infra.repo.StoreOrderRepository;
 import com.barmi.infra.repo.StoreRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -30,24 +34,28 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 
 @Service
 public class PaymentInitiationService {
+    private static final Logger log = LoggerFactory.getLogger(PaymentInitiationService.class);
     private final StoreRepository storeRepository;
     private final StoreOrderRepository storeOrderRepository;
     private final EcosystemOrderRepository ecosystemOrderRepository;
     private final PaymentIntentRepository paymentIntentRepository;
     private final PaymentProviderRegistry paymentProviderRegistry;
+    private final String mercadoPagoPublicBaseUrl;
 
     public PaymentInitiationService(
             StoreRepository storeRepository,
             StoreOrderRepository storeOrderRepository,
             EcosystemOrderRepository ecosystemOrderRepository,
             PaymentIntentRepository paymentIntentRepository,
-            PaymentProviderRegistry paymentProviderRegistry
+            PaymentProviderRegistry paymentProviderRegistry,
+            @Value("${app.mercadoPago.publicBaseUrl:}") String mercadoPagoPublicBaseUrl
     ) {
         this.storeRepository = storeRepository;
         this.storeOrderRepository = storeOrderRepository;
         this.ecosystemOrderRepository = ecosystemOrderRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.paymentProviderRegistry = paymentProviderRegistry;
+        this.mercadoPagoPublicBaseUrl = mercadoPagoPublicBaseUrl == null ? "" : mercadoPagoPublicBaseUrl.trim();
     }
 
     public PaymentIntent initiateStorePayment(UUID orderId, String provider, String returnUrl) {
@@ -102,9 +110,13 @@ public class PaymentInitiationService {
                         order.getTotalAmount(),
                         order.getCurrency(),
                         returnUrl,
+                        resolveNotificationUrl(PaymentScope.STORE),
+                        buildExternalReference(PaymentScope.STORE, order.getId()),
                         metadata
                 )
         ));
+        log.info("payment_initiation_created request_id={} scope=STORE store_id={} order_id={} provider={}",
+                MDC.get("requestId"), storeId, order.getId(), normalizedProvider);
 
         PaymentIntent intent = new PaymentIntent(
                 intentId,
@@ -178,9 +190,13 @@ public class PaymentInitiationService {
                         order.getTotalAmount(),
                         order.getCurrency(),
                         returnUrl,
+                        resolveNotificationUrl(PaymentScope.ECOSYSTEM),
+                        buildExternalReference(PaymentScope.ECOSYSTEM, order.getId()),
                         metadata
                 )
         ));
+        log.info("payment_initiation_created request_id={} scope=ECOSYSTEM ecosystem_id={} order_id={} provider={}",
+                MDC.get("requestId"), ecosystemId, order.getId(), normalizedProvider);
 
         PaymentIntent intent = new PaymentIntent(
                 intentId,
@@ -231,6 +247,7 @@ public class PaymentInitiationService {
 
     private PaymentProviderClient.CheckoutResponse requireCheckout(PaymentProviderClient.CheckoutResponse checkout) {
         if (checkout == null || checkout.checkoutUrl() == null || checkout.checkoutUrl().isBlank()) {
+            log.warn("checkout_failure category=api_error_vendor_timeout request_id={} failure_reason=payment_provider_unavailable", MDC.get("requestId"));
             throw new ResponseStatusException(SERVICE_UNAVAILABLE, "payment_provider_unavailable");
         }
         return checkout;
@@ -250,5 +267,23 @@ public class PaymentInitiationService {
         }
 
         return store.getId();
+    }
+
+    private String resolveNotificationUrl(PaymentScope scope) {
+        if (mercadoPagoPublicBaseUrl.isBlank()) {
+            return "";
+        }
+        String base = mercadoPagoPublicBaseUrl.endsWith("/")
+                ? mercadoPagoPublicBaseUrl.substring(0, mercadoPagoPublicBaseUrl.length() - 1)
+                : mercadoPagoPublicBaseUrl;
+        return switch (scope) {
+            case STORE -> base + "/api/webhooks/mercadopago?source_news=webhooks";
+            case ECOSYSTEM -> base + "/api/payments/mercadopago/ecosystem/webhook?source_news=webhooks";
+            default -> "";
+        };
+    }
+
+    private String buildExternalReference(PaymentScope scope, UUID orderId) {
+        return scope.name() + ":" + orderId;
     }
 }

@@ -16,7 +16,7 @@ describe('auth contracts parsing', () => {
   it('parses refresh response sample', () => {
     const res = parseAuthTokenResponse(refreshSample)
     expect(res.accessToken).toContain('refresh')
-    expect(res.refreshToken).toContain('rt-')
+    expect('refreshToken' in res).toBe(false)
   })
 
   it('parses me response sample', () => {

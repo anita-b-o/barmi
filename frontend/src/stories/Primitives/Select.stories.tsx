@@ -20,6 +20,10 @@ const options = [
 ]
 
 export const States: Story = {
+  args: {
+    options,
+    'aria-label': 'Select'
+  },
   render: () => (
     <ShowcasePage title="Select" description="Shared select primitive using the same focus and surface tokens as the app.">
       <ShowcaseSection title="Examples">

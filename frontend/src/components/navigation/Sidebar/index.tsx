@@ -1,7 +1,7 @@
 import React from 'react'
 import { theme } from '@/app/theme'
 
-export default function Sidebar({ children }: { children: React.ReactNode }) {
+export default function Sidebar({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <aside
       style={{
@@ -9,7 +9,8 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
         borderRight: `1px solid ${theme.colors.borderDefault}`,
         background: theme.colors.bgSurfaceAlt,
         color: theme.colors.bgSurfaceAlt,
-        boxShadow: 'none'
+        boxShadow: 'none',
+        ...style
       }}
     >
       {children}

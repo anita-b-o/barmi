@@ -35,14 +35,10 @@ afterEach(() => {
 })
 
 describe('admin dashboard', () => {
-  it('renders operational store summary without redirecting', async () => {
+  it('renders the store access hub and host-aware summary guidance without redirecting', async () => {
     setAuthSession()
     mockFetch({
-      '/api/auth/me': { body: authMeStore },
-      '/api/store/orders': { body: { totalElements: 3, totalPages: 3, page: 0, size: 1, content: [] } },
-      '/api/store/orders?status=PENDING_PAYMENT&page=0&size=1': { body: { totalElements: 1, totalPages: 1, page: 0, size: 1, content: [] } },
-      '/api/store/orders?status=PAID&page=0&size=1': { body: { totalElements: 2, totalPages: 1, page: 0, size: 1, content: [] } },
-      '/api/store/orders?status=CANCELLED&page=0&size=1': { body: { totalElements: 0, totalPages: 0, page: 0, size: 1, content: [] } }
+      '/api/auth/me': { body: authMeStore }
     })
 
     const { cleanup } = await renderAppAt('/admin')
@@ -50,9 +46,8 @@ describe('admin dashboard', () => {
     await flush()
     expect(document.body.textContent).toContain('Backoffice')
     expect(document.body.textContent).toContain('Store: resumen operativo')
-    expect(document.body.textContent).toContain('Ordenes totales')
-    expect(document.body.textContent).toContain('Pedidos pagados')
-    expect(document.body.textContent).toContain('Las ventas agregadas no se muestran aca')
+    expect(document.body.textContent).toContain('El resumen STORE sólo se carga dentro del host de una tienda')
+    expect(document.body.textContent).not.toContain('Ordenes totales')
     await cleanup()
   })
 
@@ -83,28 +78,19 @@ describe('admin dashboard', () => {
     await cleanup()
   })
 
-  it('shows a consistent store summary error when the backend context is missing', async () => {
+  it('keeps the store summary gated on the general host instead of firing store-scoped requests', async () => {
     setAuthSession()
-    mockFetch({
-      '/api/auth/me': { body: authMeStore },
-      '/api/store/orders': {
-        status: 400,
-        body: {
-          error: {
-            code: 'store_context_required',
-            message: 'Store context required.',
-            status: 400
-          }
-        }
-      }
+    const fetchSpy = mockFetch({
+      '/api/auth/me': { body: authMeStore }
     })
 
     const { cleanup } = await renderAppAt('/admin')
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Store context required. Abrí el FE en http://demo-store.example.com:5173')
     expect(document.body.textContent).toContain('Store: resumen operativo')
+    expect(document.body.textContent).toContain('El resumen STORE sólo se carga dentro del host de una tienda')
+    expect(fetchSpy.mock.calls.some(([url]) => String(url).includes('/api/store/orders'))).toBe(false)
     await cleanup()
   })
 })

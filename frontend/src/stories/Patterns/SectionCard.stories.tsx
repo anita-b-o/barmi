@@ -15,6 +15,10 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Default: Story = {
+  args: {
+    title: 'Resumen económico',
+    children: <div />
+  },
   render: () => (
     <ShowcasePage title="SectionCard" description="A representative shared section shell used in operational and checkout flows.">
       <SectionCard

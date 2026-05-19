@@ -2,6 +2,8 @@ export type ApiError = {
   code: string
   message: string
   status: number
+  requestId?: string
+  cause?: string
 }
 
 export function isApiError(value: unknown): value is ApiError {

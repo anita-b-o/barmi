@@ -1,6 +1,8 @@
 app:
   money:
     defaultCurrency: ARS
+  rateLimit:
+    enabled: false
   security:
     jwtSecret: this_is_a_super_long_test_secret_key_that_is_at_least_32_bytes_long
     allowDevIdentityHeader: true
@@ -11,6 +13,9 @@ app:
       mode: logging
   mercadoPago:
     webhookSecret: secret
+    stubEnabled: true
+    replayGuard:
+      enabled: false
   outbox:
     dispatcher:
       enabled: false

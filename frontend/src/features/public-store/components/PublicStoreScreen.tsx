@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { publicAdapter } from '../../../api/adapters/publicAdapter'
 import type { PublicProduct, PublicStore, PublicStoreCatalogSort, PublicStorePromotion } from '../../../api/contracts/v1/public'
@@ -19,6 +19,7 @@ import LoadingBlock from '@/components/feedback/LoadingState'
 import { theme } from '@/app/theme'
 import { useViewportMode } from '@/core/hooks/useViewportMode'
 import { EcosystemHeroBadge, EcosystemHeroSection, EcosystemSurfaceSection } from '@/features/ecosystem'
+import { trackBetaEvent } from '@/features/beta'
 
 const SORT_OPTIONS: Array<{ value: PublicStoreCatalogSort; label: string }> = [
   { value: 'default', label: 'Orden actual' },
@@ -48,6 +49,9 @@ export default function PublicStoreScreen() {
   const [availableOnly, setAvailableOnly] = useState(false)
   const [sort, setSort] = useState<PublicStoreCatalogSort>('default')
   const [categoryId, setCategoryId] = useState('')
+  const trackedStoreViewRef = useRef<string | null>(null)
+  const trackedSearchRef = useRef('')
+  const deferredSearchQuery = useDeferredValue(searchQuery)
 
   const loadStore = useCallback(() => {
     let active = true
@@ -57,7 +61,7 @@ export default function PublicStoreScreen() {
     Promise.all([
       publicAdapter.getStore(storeSlug),
       publicAdapter.getProducts(storeSlug, {
-        q: searchQuery,
+        q: deferredSearchQuery,
         availableOnly,
         sort,
         categoryId: categoryId || undefined
@@ -80,7 +84,7 @@ export default function PublicStoreScreen() {
     return () => {
       active = false
     }
-  }, [slug, searchQuery, availableOnly, sort, categoryId])
+  }, [slug, deferredSearchQuery, availableOnly, sort, categoryId])
 
   useEffect(() => {
     return loadStore()
@@ -91,6 +95,34 @@ export default function PublicStoreScreen() {
   const cartQtyByProductId = useMemo(() => Object.fromEntries(cart.items.map((item) => [item.productId, item.qty])), [cart.items])
   const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products])
   const isCurrentStoreCart = cart.storeSlug === slug || cart.storeSlug === null
+
+  useEffect(() => {
+    if (!store) return
+    if (trackedStoreViewRef.current === store.id) return
+    trackedStoreViewRef.current = store.id
+    trackBetaEvent({
+      eventName: 'store_view',
+      storeId: store.id,
+      storeSlug: store.slug,
+      storeName: store.name
+    })
+  }, [store])
+
+  useEffect(() => {
+    const normalized = deferredSearchQuery.trim().toLowerCase()
+    if (!normalized || !store || trackedSearchRef.current === normalized) return
+    trackedSearchRef.current = normalized
+    trackBetaEvent({
+      eventName: 'search_used',
+      storeId: store.id,
+      storeSlug: store.slug,
+      storeName: store.name,
+      searchTerm: normalized,
+      metadata: {
+        surface: 'public_store_catalog'
+      }
+    })
+  }, [deferredSearchQuery, store])
 
   if (!slug) return <PublicStoreLayout><ErrorAlert message="Slug requerido." /></PublicStoreLayout>
 
@@ -272,7 +304,7 @@ export default function PublicStoreScreen() {
                     <TextInput
                       value={searchQuery}
                       onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder="Buscar por nombre o SKU"
+                      placeholder="Ej. combo, café, SKU-123"
                       aria-label="Buscar productos"
                     />
                   </div>
@@ -288,7 +320,7 @@ export default function PublicStoreScreen() {
                 </div>
 
                 {store && store.categories.length > 0 ? (
-                  <div>
+                  <div style={{ display: 'grid', gap: theme.spacing.sm }}>
                     <div style={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>Categoría</div>
                     <SelectField
                       value={categoryId}
@@ -299,6 +331,21 @@ export default function PublicStoreScreen() {
                       ]}
                       aria-label="Filtrar por categoría"
                     />
+                    <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                      <Button type="button" variant={categoryId === '' ? 'primary' : 'secondary'} onClick={() => setCategoryId('')}>
+                        Todas
+                      </Button>
+                      {store.categories.slice(0, 4).map((category) => (
+                        <Button
+                          key={category.id}
+                          type="button"
+                          variant={categoryId === category.id ? 'primary' : 'secondary'}
+                          onClick={() => setCategoryId(category.id)}
+                        >
+                          {category.name}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 ) : null}
 
@@ -311,6 +358,10 @@ export default function PublicStoreScreen() {
                   />
                   Solo disponibles
                 </label>
+
+                <div style={{ color: theme.colors.textMuted, lineHeight: 1.5 }}>
+                  Si no encontrás algo, limpiá filtros o volvé al mapa para comparar otras tiendas del ecosystem.
+                </div>
               </div>
 
               {products.length === 0 ? (
@@ -319,8 +370,8 @@ export default function PublicStoreScreen() {
                     ? 'No hay productos para esos filtros'
                     : 'No hay productos disponibles'}
                   description={searchQuery.trim() || availableOnly || sort !== 'default' || categoryId
-                    ? 'Probá cambiar la búsqueda, mostrar productos sin stock o volver al orden actual.'
-                    : undefined}
+                    ? 'Probá otra búsqueda, quitá filtros o volvé al orden actual para no cortar la compra.'
+                    : 'Esta tienda todavía no publicó productos para compra directa. Podés dejar feedback o volver al mapa para seguir explorando.'}
                 />
               ) : (
                 <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
@@ -395,7 +446,19 @@ export default function PublicStoreScreen() {
                           <Button
                             variant="primary"
                             disabled={!product.isAvailable}
-                            onClick={() => cart.addItem(slug, { productId: product.id, name: product.name, priceCents: product.priceCents })}
+                            onClick={() => {
+                              trackBetaEvent({
+                                eventName: 'product_click',
+                                storeId: store?.id,
+                                storeSlug: store?.slug,
+                                storeName: store?.name,
+                                productId: product.id,
+                                metadata: {
+                                  surface: 'public_store_catalog'
+                                }
+                              })
+                              cart.addItem(slug, { productId: product.id, name: product.name, priceCents: product.priceCents })
+                            }}
                           >
                             {product.isAvailable ? 'Agregar' : 'Sin stock'}
                           </Button>

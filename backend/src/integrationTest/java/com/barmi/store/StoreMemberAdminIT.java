@@ -7,7 +7,6 @@ import com.barmi.domain.store.StoreMemberRole;
 import com.barmi.domain.store.StoreMemberStatus;
 import com.barmi.domain.users.User;
 import com.barmi.domain.users.UserStatus;
-import com.barmi.infra.repo.RefreshTokenRepository;
 import com.barmi.infra.repo.StoreMemberRepository;
 import com.barmi.infra.repo.StoreRepository;
 import com.barmi.infra.repo.UserRepository;
@@ -19,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.HttpHeaders;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -43,8 +43,8 @@ class StoreMemberAdminIT extends PostgresIntegrationTestBase {
     private final StoreRepository storeRepository;
     private final StoreMemberRepository storeMemberRepository;
     private final UserRepository userRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     private Store store;
     private String ownerEmail;
@@ -57,24 +57,21 @@ class StoreMemberAdminIT extends PostgresIntegrationTestBase {
             StoreRepository storeRepository,
             StoreMemberRepository storeMemberRepository,
             UserRepository userRepository,
-            RefreshTokenRepository refreshTokenRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            JdbcTemplate jdbcTemplate
     ) {
         this.mockMvc = mockMvc;
         this.api = new ApiTestClient(mockMvc);
         this.storeRepository = storeRepository;
         this.storeMemberRepository = storeMemberRepository;
         this.userRepository = userRepository;
-        this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @BeforeEach
     void setup() {
-        refreshTokenRepository.deleteAll();
-        storeMemberRepository.deleteAll();
-        userRepository.deleteAll();
-        storeRepository.deleteAll();
+        truncateAllTables(jdbcTemplate);
 
         store = storeRepository.save(new Store(UUID.randomUUID(), "members-" + UUID.randomUUID(), "Members Store"));
 
@@ -109,7 +106,9 @@ class StoreMemberAdminIT extends PostgresIntegrationTestBase {
         ApiTestClient.ApiTestResponse response = new ApiTestClient.ApiTestResponse(
                 result.getResponse().getStatus(),
                 MAPPER.readValue(result.getResponse().getContentAsString(StandardCharsets.UTF_8), new TypeReference<>() {}),
-                result.getResponse().getContentAsString(StandardCharsets.UTF_8)
+                result.getResponse().getContentAsString(StandardCharsets.UTF_8),
+                new HttpHeaders(),
+                result.getResponse().getCookies()
         );
 
         assertThat(response.status()).isEqualTo(403);

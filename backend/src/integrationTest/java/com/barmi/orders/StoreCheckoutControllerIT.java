@@ -1,5 +1,7 @@
 package com.barmi.orders;
 
+import com.barmi.PostgresIntegrationTestBase;
+import com.barmi.testsupport.ApiTestClient;
 import com.barmi.domain.catalog.Product;
 import com.barmi.domain.catalog.StorePromotion;
 import com.barmi.domain.catalog.StorePromotionType;
@@ -9,23 +11,15 @@ import com.barmi.infra.repo.ProductRepository;
 import com.barmi.infra.repo.StoreOrderRepository;
 import com.barmi.infra.repo.StorePromotionRepository;
 import com.barmi.infra.repo.StoreRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.client.TestRestTemplate;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.TestConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestConstructor;
+import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.Map;
@@ -35,65 +29,49 @@ import java.math.BigDecimal;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace.NONE;
 
-@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "jwt.secret=this_is_a_super_long_test_secret_key_that_is_at_least_32_bytes_long",
         "app.money.defaultCurrency=ARS"
 })
+@AutoConfigureMockMvc
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
-@ActiveProfiles("integrationtest")
-@AutoConfigureTestDatabase(replace = NONE)
-class StoreCheckoutControllerIT {
+class StoreCheckoutControllerIT extends PostgresIntegrationTestBase {
 
-    @Container
-    static PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("postgres:15.6")
-                    .withDatabaseName("barmi_test")
-                    .withUsername("test")
-                    .withPassword("test");
-
-    @DynamicPropertySource
-    static void registerProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-
-        registry.add("spring.flyway.url", postgres::getJdbcUrl);
-        registry.add("spring.flyway.user", postgres::getUsername);
-        registry.add("spring.flyway.password", postgres::getPassword);
-    }
-
-    private final TestRestTemplate restTemplate;
     private final StoreRepository storeRepository;
     private final ProductRepository productRepository;
     private final StoreOrderRepository storeOrderRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final StorePromotionRepository storePromotionRepository;
-
-    @LocalServerPort
-    private int port;
+    private final JdbcTemplate jdbcTemplate;
+    private final ApiTestClient api;
 
 @Autowired
     StoreCheckoutControllerIT(
-            TestRestTemplate restTemplate,
             StoreRepository storeRepository,
             ProductRepository productRepository,
             StoreOrderRepository storeOrderRepository,
             OutboxEventRepository outboxEventRepository,
-            StorePromotionRepository storePromotionRepository
+            StorePromotionRepository storePromotionRepository,
+            JdbcTemplate jdbcTemplate,
+            MockMvc mockMvc
     ) {
-        this.restTemplate = restTemplate;
         this.storeRepository = storeRepository;
         this.productRepository = productRepository;
         this.storeOrderRepository = storeOrderRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.storePromotionRepository = storePromotionRepository;
+        this.jdbcTemplate = jdbcTemplate;
+        this.api = new ApiTestClient(mockMvc);
+    }
+
+    @BeforeEach
+    void setup() {
+        truncateAllTables(jdbcTemplate);
     }
 
     @Test
-    void checkoutCreatesOrderAndOutbox() {
+    void checkoutCreatesOrderAndOutbox() throws Exception {
         Store store = storeRepository.save(new Store(UUID.randomUUID(), "cafe", "Cafe"));
         Product p1 = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU1", "Latte", 500));
         Product p2 = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU2", "Mocha", 700));
@@ -106,24 +84,14 @@ class StoreCheckoutControllerIT {
                 )
         );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Host", "cafe.example.com");
-        headers.set("X-Forwarded-Host", "cafe.example.com");
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        var response = api.postJson("/api/store/checkout", body, api.storeHostHeaders("cafe"));
 
-        ResponseEntity<Map> response = restTemplate.exchange(
-                "http://localhost:" + port + "/api/store/checkout",
-                HttpMethod.POST,
-                request,
-                Map.class
-        );
+        assertThat(response.status()).isEqualTo(201);
+        assertThat(response.body()).containsKeys("orderId", "subtotalAmount", "totalAmount");
+        assertThat(response.body().get("currency")).isEqualTo("ARS");
+        assertThat(response.body().get("shippingCostAmount").toString()).isEqualTo("0");
 
-        assertThat(response.getStatusCode().value()).isEqualTo(201);
-        assertThat(response.getBody()).containsKeys("orderId", "subtotalAmount", "totalAmount");
-        assertThat(response.getBody().get("currency")).isEqualTo("ARS");
-        assertThat(response.getBody().get("shippingCostAmount").toString()).isEqualTo("0");
-
-        String orderId = response.getBody().get("orderId").toString();
+        String orderId = response.body().get("orderId").toString();
         assertThat(storeOrderRepository.findById(UUID.fromString(orderId))).isPresent();
         assertThat(storeOrderRepository.findById(UUID.fromString(orderId)).orElseThrow().getBuyerEmail()).isEqualTo("guest@example.com");
         assertThat(outboxEventRepository.findByAggregateIdAndEventType(UUID.fromString(orderId), "STORE_ORDER_CREATED"))
@@ -131,67 +99,49 @@ class StoreCheckoutControllerIT {
     }
 
     @Test
-    void checkoutWithMissingProductReturnsNotFound() {
+    void checkoutWithMissingProductReturnsNotFound() throws Exception {
         Store store = storeRepository.save(new Store(UUID.randomUUID(), "cafe2", "Cafe2"));
         productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU9", "Cortado", 400));
 
         Map<String, Object> body = Map.of(
+                "buyerEmail", "missing@example.com",
                 "items", List.of(
                         Map.of("productId", UUID.randomUUID().toString(), "qty", 1)
                 )
         );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Host", "cafe2.example.com");
-        headers.set("X-Forwarded-Host", "cafe2.example.com");
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        var response = api.postJson("/api/store/checkout", body, api.storeHostHeaders("cafe2"));
 
-        ResponseEntity<Map> response = restTemplate.exchange(
-                "http://localhost:" + port + "/api/store/checkout",
-                HttpMethod.POST,
-                request,
-                Map.class
-        );
-
-        assertThat(response.getStatusCode().value()).isEqualTo(404);
-        assertThat(response.getBody()).containsKey("error");
-        Map<String, Object> error = (Map<String, Object>) response.getBody().get("error");
+        assertThat(response.status()).isEqualTo(404);
+        assertThat(response.body()).containsKey("error");
+        Map<String, Object> error = (Map<String, Object>) response.body().get("error");
         assertThat(error.get("code")).isEqualTo("product_not_found");
         assertThat(error.get("status")).isEqualTo(404);
     }
 
     @Test
-    void checkoutRejectsQuantityAboveStock() {
+    void checkoutRejectsQuantityAboveStock() throws Exception {
         Store store = storeRepository.save(new Store(UUID.randomUUID(), "cafe3", "Cafe3"));
         Product p1 = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-STOCK", "Latte", 500, 2));
 
         Map<String, Object> body = Map.of(
+                "buyerEmail", "stock@example.com",
                 "items", List.of(
                         Map.of("productId", p1.getId().toString(), "qty", 3)
                 )
         );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Host", "cafe3.example.com");
-        headers.set("X-Forwarded-Host", "cafe3.example.com");
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        var response = api.postJson("/api/store/checkout", body, api.storeHostHeaders("cafe3"));
 
-        ResponseEntity<Map> response = restTemplate.exchange(
-                "http://localhost:" + port + "/api/store/checkout",
-                HttpMethod.POST,
-                request,
-                Map.class
-        );
-
-        assertThat(response.getStatusCode().value()).isEqualTo(409);
-        assertThat(response.getBody()).containsKey("error");
-        Map<String, Object> error = (Map<String, Object>) response.getBody().get("error");
+        assertThat(response.status()).isEqualTo(409);
+        assertThat(response.body()).containsKey("error");
+        Map<String, Object> error = (Map<String, Object>) response.body().get("error");
         assertThat(error.get("code")).isEqualTo("product_out_of_stock");
         assertThat(error.get("status")).isEqualTo(409);
     }
 
     @Test
-    void checkoutAppliesCouponAndPersistsDiscountAmounts() {
+    void checkoutAppliesCouponAndPersistsDiscountAmounts() throws Exception {
         String slug = "promo-store-" + UUID.randomUUID();
         Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Promo Store"));
         Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-PROMO", "Promo", 1000));
@@ -212,25 +162,16 @@ class StoreCheckoutControllerIT {
                 "couponCode", "bienvenida10"
         );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Host", slug + ".example.com");
-        headers.set("X-Forwarded-Host", slug + ".example.com");
+        var response = api.postJson("/api/store/checkout", body, api.storeHostHeaders(slug));
 
-        ResponseEntity<Map> response = restTemplate.exchange(
-                "http://localhost:" + port + "/api/store/checkout",
-                HttpMethod.POST,
-                new HttpEntity<>(body, headers),
-                Map.class
-        );
+        assertThat(response.status()).isEqualTo(201);
+        assertThat(new BigDecimal(response.body().get("subtotalAmount").toString())).isEqualByComparingTo("20.00");
+        assertThat(new BigDecimal(response.body().get("originalAmount").toString())).isEqualByComparingTo("20.00");
+        assertThat(new BigDecimal(response.body().get("discountAmount").toString())).isEqualByComparingTo("2.00");
+        assertThat(new BigDecimal(response.body().get("totalAmount").toString())).isEqualByComparingTo("18.00");
+        assertThat(response.body().get("appliedCouponCode")).isEqualTo("BIENVENIDA10");
 
-        assertThat(response.getStatusCode().value()).isEqualTo(201);
-        assertThat(new BigDecimal(response.getBody().get("subtotalAmount").toString())).isEqualByComparingTo("20.00");
-        assertThat(new BigDecimal(response.getBody().get("originalAmount").toString())).isEqualByComparingTo("20.00");
-        assertThat(new BigDecimal(response.getBody().get("discountAmount").toString())).isEqualByComparingTo("2.00");
-        assertThat(new BigDecimal(response.getBody().get("totalAmount").toString())).isEqualByComparingTo("18.00");
-        assertThat(response.getBody().get("appliedCouponCode")).isEqualTo("BIENVENIDA10");
-
-        UUID orderId = UUID.fromString(response.getBody().get("orderId").toString());
+        UUID orderId = UUID.fromString(response.body().get("orderId").toString());
         var storedOrder = storeOrderRepository.findById(orderId).orElseThrow();
         assertThat(storedOrder.getOriginalAmount()).isEqualByComparingTo("20.00");
         assertThat(storedOrder.getDiscountAmount()).isEqualByComparingTo("2.00");
@@ -242,7 +183,7 @@ class StoreCheckoutControllerIT {
     }
 
     @Test
-    void checkoutRejectsExpiredCoupon() {
+    void checkoutRejectsExpiredCoupon() throws Exception {
         String slug = "expired-coupon-store-" + UUID.randomUUID();
         Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Expired Coupon Store"));
         Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-EXP", "Promo", 1000));
@@ -258,28 +199,20 @@ class StoreCheckoutControllerIT {
         ));
 
         Map<String, Object> body = Map.of(
+                "buyerEmail", "expired@example.com",
                 "items", List.of(Map.of("productId", product.getId().toString(), "qty", 1)),
                 "couponCode", "VENCIDO"
         );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Host", slug + ".example.com");
-        headers.set("X-Forwarded-Host", slug + ".example.com");
+        var response = api.postJson("/api/store/checkout", body, api.storeHostHeaders(slug));
 
-        ResponseEntity<Map> response = restTemplate.exchange(
-                "http://localhost:" + port + "/api/store/checkout",
-                HttpMethod.POST,
-                new HttpEntity<>(body, headers),
-                Map.class
-        );
-
-        assertThat(response.getStatusCode().value()).isEqualTo(409);
-        Map<String, Object> error = (Map<String, Object>) response.getBody().get("error");
+        assertThat(response.status()).isEqualTo(409);
+        Map<String, Object> error = (Map<String, Object>) response.body().get("error");
         assertThat(error.get("code")).isEqualTo("coupon_expired");
     }
 
     @Test
-    void checkoutRejectsCouponWhenUsageLimitReached() {
+    void checkoutRejectsCouponWhenUsageLimitReached() throws Exception {
         String slug = "limited-coupon-store-" + UUID.randomUUID();
         Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Limited Coupon Store"));
         Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-LIMIT", "Promo", 1000));
@@ -297,23 +230,15 @@ class StoreCheckoutControllerIT {
         storePromotionRepository.save(promotion);
 
         Map<String, Object> body = Map.of(
+                "buyerEmail", "limit@example.com",
                 "items", List.of(Map.of("productId", product.getId().toString(), "qty", 1)),
                 "couponCode", "LIMITADO"
         );
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Host", slug + ".example.com");
-        headers.set("X-Forwarded-Host", slug + ".example.com");
+        var response = api.postJson("/api/store/checkout", body, api.storeHostHeaders(slug));
 
-        ResponseEntity<Map> response = restTemplate.exchange(
-                "http://localhost:" + port + "/api/store/checkout",
-                HttpMethod.POST,
-                new HttpEntity<>(body, headers),
-                Map.class
-        );
-
-        assertThat(response.getStatusCode().value()).isEqualTo(409);
-        Map<String, Object> error = (Map<String, Object>) response.getBody().get("error");
+        assertThat(response.status()).isEqualTo(409);
+        Map<String, Object> error = (Map<String, Object>) response.body().get("error");
         assertThat(error.get("code")).isEqualTo("coupon_usage_limit_reached");
     }
 }

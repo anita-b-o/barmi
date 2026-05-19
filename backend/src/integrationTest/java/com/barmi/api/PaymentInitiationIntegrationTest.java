@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -48,6 +49,9 @@ class PaymentInitiationIntegrationTest extends PostgresIntegrationTestBase {
     @Autowired
     private PaymentIntentRepository paymentIntentRepository;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private Store store;
     private StoreOrder storeOrder;
     private Ecosystem ecosystem;
@@ -57,11 +61,7 @@ class PaymentInitiationIntegrationTest extends PostgresIntegrationTestBase {
 
     @BeforeEach
     void setup() {
-        paymentIntentRepository.deleteAll();
-        ecosystemOrderRepository.deleteAll();
-        storeOrderRepository.deleteAll();
-        ecosystemRepository.deleteAll();
-        storeRepository.deleteAll();
+        truncateAllTables(jdbcTemplate);
 
         storeSlug = "demo-" + UUID.randomUUID();
         ecosystemSlug = "demo-eco-" + UUID.randomUUID();

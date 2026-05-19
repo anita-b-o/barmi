@@ -13,7 +13,7 @@ type SelectProps = React.SelectHTMLAttributes<HTMLSelectElement> & {
 const baseStyle: React.CSSProperties = {
   width: '100%',
   minHeight: 44,
-  padding: '10px 12px',
+  padding: '11px 12px',
   borderRadius: theme.radius.md,
   border: `1px solid ${theme.colors.borderDefault}`,
   background: theme.colors.bgSurfaceAlt,
@@ -21,7 +21,7 @@ const baseStyle: React.CSSProperties = {
   fontFamily: theme.typography.fontFamily,
   fontSize: theme.typography.body.size,
   outline: 'none',
-  transition: 'none',
+  transition: 'border-color 160ms ease, box-shadow 160ms ease',
   boxSizing: 'border-box'
 }
 
@@ -33,7 +33,7 @@ export default function Select({ options, style, ...props }: SelectProps) {
   const stateStyle: React.CSSProperties = isDisabled
     ? { background: theme.colors.bgSurface, color: theme.colors.textMuted, cursor: 'not-allowed' }
     : isFocused
-      ? { borderColor: theme.colors.actionPrimary, boxShadow: 'none' }
+      ? { borderColor: theme.colors.actionPrimary, boxShadow: `0 0 0 3px ${theme.colors.focusRing}` }
       : isHovered
         ? { borderColor: theme.colors.borderStrong }
         : {}

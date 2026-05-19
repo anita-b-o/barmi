@@ -6,7 +6,8 @@ import { theme } from '@/app/theme'
 type ConfirmDialogProps = {
   open: boolean
   title: string
-  message: string
+  message?: string
+  description?: string
   confirmLabel?: string
   cancelLabel?: string
   onConfirm: () => void
@@ -18,12 +19,15 @@ export default function ConfirmDialog({
   open,
   title,
   message,
+  description,
   confirmLabel = 'Confirmar',
   cancelLabel = 'Cancelar',
   onConfirm,
   onCancel,
   confirmDisabled
 }: ConfirmDialogProps) {
+  const bodyMessage = description ?? message ?? ''
+
   if (!open) return null
 
   return (
@@ -42,7 +46,7 @@ export default function ConfirmDialog({
       <div onClick={(event) => event.stopPropagation()} style={{ width: '100%', maxWidth: 420 }}>
         <Card>
           <div style={{ fontSize: theme.typography.title.size, fontWeight: 600 }}>{title}</div>
-          <div style={{ marginTop: 8, color: theme.colors.textMuted }}>{message}</div>
+          <div style={{ marginTop: 8, color: theme.colors.textMuted }}>{bodyMessage}</div>
           <div style={{ marginTop: theme.spacing.lg, display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
             <Button variant="secondary" onClick={onCancel}>{cancelLabel}</Button>
             <Button variant="primary" onClick={onConfirm} disabled={confirmDisabled}>{confirmLabel}</Button>

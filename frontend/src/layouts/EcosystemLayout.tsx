@@ -1,6 +1,8 @@
 import React from 'react'
-import EcosystemTopbar from '@/components/navigation/EcosystemTopbar'
+import MarketplaceTopbar from '@/components/navigation/MarketplaceTopbar'
 import { useEcosystemCart } from '@/features/ecosystem/cart/ecosystemCartContext'
+import { appConfig } from '@/app/config/env'
+import { BetaFeedbackWidget } from '@/features/beta'
 
 export default function EcosystemLayout({
   children
@@ -13,7 +15,8 @@ export default function EcosystemLayout({
 
   return (
     <>
-      <EcosystemTopbar cartCount={cartCount} />
+      <MarketplaceTopbar cartCount={cartCount} />
+      <BetaFeedbackWidget ecosystemSlug={appConfig.publicEcosystemSlug} />
       {children}
     </>
   )

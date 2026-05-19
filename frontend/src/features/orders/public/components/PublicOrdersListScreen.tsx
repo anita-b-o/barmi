@@ -122,7 +122,14 @@ export default function OrdersListScreen() {
 
         {data && !error ? (
           <EcosystemSurfaceSection tone="warm">
-            {data.content.length === 0 && <EmptyState title="No hay órdenes." />}
+            {data.content.length === 0 && (
+              <EmptyState
+                title="Todavía no tenés órdenes"
+                description="Cuando cierres una compra vas a poder volver acá para seguir pago, estado y entrega sin perderte."
+                actionLabel="Volver a la tienda"
+                onAction={() => window.location.assign(routes.publicStore('demo-store'))}
+              />
+            )}
             <div style={{ display: 'grid', gap: theme.spacing.lg }}>
               {data.content.map((order) => (
                 <DetailCard key={order.orderId}>

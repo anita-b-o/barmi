@@ -46,6 +46,34 @@ npm run dev
 
 Frontend URL: http://localhost:5173
 
+Variables públicas de frontend:
+
+- `VITE_API_BASE_URL`
+- `VITE_PUBLIC_STORE_HOST`
+- `VITE_PUBLIC_ECOSYSTEM_SLUG`
+- `VITE_APP_ENV`
+- `VITE_APP_VERSION`
+- `VITE_APP_COMMIT_SHA`
+- `VITE_APP_BUILD_TIMESTAMP`
+- `VITE_APP_RELEASE_ID` opcional
+- `VITE_SENTRY_DSN` opcional para capturar errores reales en Sentry
+- `VITE_OBSERVABILITY_INGEST_URL` opcional para forwardear errores runtime/API a una herramienta externa
+
+Scripts operativos principales:
+
+- `scripts/staging-up.sh`
+- `scripts/smoke-staging.sh`
+- `scripts/smoke-post-deploy.sh`
+- `scripts/backup-postgres.sh`
+- `scripts/restore-postgres.sh`
+
+Guía operativa de beta privada:
+
+- `docs/production/BETA_OPERATIONS_GUIDE.md`
+- `docs/production/BETA_DAILY_MONITORING.md`
+- `docs/production/BETA_FEEDBACK_TRIAGE.md`
+- `docs/production/BETA_PRIVATE_GO_NO_GO.md`
+
 ### 4) Validación mínima del baseline
 
 Desde la raíz del repo:
@@ -61,6 +89,14 @@ Validación más completa:
 ```
 
 `fast` está pensada para desarrollo diario. `full` agrega build frontend e integration tests backend.
+
+Validación frontend reproducible en serie:
+
+```bash
+./scripts/validate-frontend-serial.sh
+```
+
+Esto evita el caso inestable de correr `vite build` y `vitest` en paralelo sobre la misma máquina.
 
 ### 5) Demo data local / QA manual
 
@@ -185,6 +221,127 @@ Esta baseline prioriza flujos operativos reales y analytics administrativos simp
 Use `docker compose --profile prod up -d` and point your domain(s) to the VPS.
 See `infra/README.md` for the Nginx reverse-proxy template.
 
+## Staging (compose real)
+
+Para un staging mínimo, reproducible y cercano a producción:
+
+```bash
+export JWT_SECRET='replace-with-a-real-staging-secret-32-bytes-min'
+export MP_WEBHOOK_SECRET='replace-with-a-real-staging-webhook-secret'
+export STORE_BASE_DOMAIN='staging.barmi.local'
+export ALLOWED_ORIGINS='http://localhost:8088,http://staging.barmi.local:8088'
+export STORE_PUBLIC_SCHEME='http'
+export REFRESH_COOKIE_SECURE='false'
+export VITE_PUBLIC_STORE_HOST='demo-store.staging.barmi.local'
+export VITE_PUBLIC_ECOSYSTEM_SLUG='demo-ecosystem'
+export VITE_APP_ENV='staging'
+export VITE_APP_VERSION='staging-local'
+export STAGING_HTTP_PORT=8088
+export STAGING_DB_PORT=5435
+
+./scripts/validate-env.sh staging
+docker compose -f docker-compose.staging.yml config
+docker compose -f docker-compose.staging.yml up --build
+set -a && source .env && set +a
+DB_PORT=${STAGING_DB_PORT:-5435} ./scripts/load-demo-data.sh
+BASE_URL=http://localhost:${STAGING_HTTP_PORT:-8088} \
+STORE_HOST=${VITE_PUBLIC_STORE_HOST} \
+./scripts/smoke-staging.sh
+
+EXPECT_FRONTEND_RELEASE_ID=${VITE_APP_RELEASE_ID} \
+EXPECT_FRONTEND_COMMIT_SHA=${VITE_APP_COMMIT_SHA} \
+EXPECT_FRONTEND_BUILD_TIMESTAMP=${VITE_APP_BUILD_TIMESTAMP} \
+EXPECT_FRONTEND_ENV=${VITE_APP_ENV} \
+./scripts/smoke-post-deploy.sh
+```
+
+Esto levanta:
+
+- `postgres`
+- `redis`
+- `api` Spring Boot
+- `web` estático de Vite/Nginx
+- `nginx` reverse proxy
+
+El compose de staging vive en `docker-compose.staging.yml`.
+
+Notas de staging:
+
+- `docker-compose.staging.yml` usa `SPRING_PROFILES_ACTIVE=staging`; no debe arrancar con `prod`.
+- `STORE_BASE_DOMAIN` no puede quedar en `example.com`; staging y prod exigen dominio explícito.
+- `ALLOWED_ORIGINS` es la variable canónica del backend para CORS. `BACKEND_CORS_ALLOWED_ORIGINS` se acepta como alias si necesitás compatibilidad.
+- staging local permite orígenes controlados de `localhost` y/o `.local`; prod los rechaza.
+- `VITE_PUBLIC_STORE_HOST` debe ser un subdominio real de `STORE_BASE_DOMAIN`.
+- `STORE_PUBLIC_SCHEME=http` y `REFRESH_COOKIE_SECURE=false` son la combinación levantable para staging local sin TLS. Para un staging con HTTPS real, subí ambos a `https`/`true`.
+- el smoke test ataca el stack vía `nginx`, no directo a los contenedores internos.
+- si querés probar la ruta técnica de observability, habilitá explícitamente `APP_OBSERVABILITY_SMOKE_ENABLED=true` y `VITE_OBSERVABILITY_SMOKE_ENABLED=true`; no forman parte del smoke normal de post-deploy.
+
+## Profiles
+
+- `local`: backend/SPA de desarrollo. Permite `localhost`, puede usar `allowDevIdentityHeader`, no exige Redis ni secretos de staging/prod.
+- `staging`: ambiente técnico cercano a producción. Exige secretos no-default, dominio base explícito y CORS explícito; acepta orígenes controlados `localhost`/`.local` para levantar staging local.
+- `prod`: ambiente público real. Rechaza `localhost`, `.local`, secrets default, `allowDevIdentityHeader=false` obligatorio, `STORE_PUBLIC_SCHEME=https` y `REFRESH_COOKIE_SECURE=true`.
+
+## Observability / production readiness
+
+Backend:
+
+- `/actuator/health`, `/actuator/health/liveness`, `/actuator/health/readiness`
+- métricas expuestas por actuator
+- health indicator de backlog del outbox
+- correlación por `X-Request-Id` en request/response y logs
+- refresh tokens hasheados en DB y rotación con invalidación del token previo
+- CORS explícito por `ALLOWED_ORIGINS`
+
+Frontend:
+
+- captura de runtime errors y `unhandledrejection`
+- `ErrorBoundary` global con fallback simple y retry
+- integración real con `@sentry/react`
+- correlación FE↔BE con `X-Request-Id` propagado a eventos frontend
+- release metadata (`version`, `commit`, `build timestamp`, `environment`, `release id`)
+- clasificación de errores `offline` / `network_error` / HTTP
+- envío opcional de eventos a `VITE_OBSERVABILITY_INGEST_URL`
+
+Recomendación mínima para staging/prod:
+
+- setear `VITE_APP_ENV=staging|production`
+- setear `VITE_APP_VERSION` con SHA corto o tag de release
+- setear `VITE_APP_COMMIT_SHA`, `VITE_APP_BUILD_TIMESTAMP` y opcionalmente `VITE_APP_RELEASE_ID`
+- configurar `VITE_SENTRY_DSN` y, si se suben sourcemaps en build/deploy, también `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN`
+- dejar `VITE_OBSERVABILITY_SMOKE_ENABLED=false` y `APP_OBSERVABILITY_SMOKE_ENABLED=false` por defecto; activarlos sólo para smoke técnico controlado
+- apuntar `VITE_OBSERVABILITY_INGEST_URL` a un endpoint equivalente si además se quiere forward local
+- conservar `X-Request-Id` en reverse proxy / ingress para correlación punta a punta
+- definir `ALLOWED_ORIGINS` con dominios reales de frontend y evitar defaults `localhost`
+- revisar [docs/production/OBSERVABILITY_RUNBOOK.md](/home/anita/Desktop/barmi/docs/production/OBSERVABILITY_RUNBOOK.md:1)
+- no dejar la sesión frontend en `localStorage` para una exposición pública prolongada; hoy sigue siendo la principal deuda de auth del lado cliente
+
+Smoke técnico controlado:
+
+- `APP_OBSERVABILITY_SMOKE_ENABLED=true` habilita el endpoint backend no productivo `/api/admin/dev/observability/error`.
+- `VITE_OBSERVABILITY_SMOKE_ENABLED=true` habilita la ruta frontend oculta `/__observability`.
+- sin ambos flags, el smoke no debe quedar accesible.
+- upload manual de sourcemaps: `cd frontend && VITE_APP_RELEASE_ID=<release> SENTRY_AUTH_TOKEN=... SENTRY_ORG=... SENTRY_PROJECT=... npm run sentry:sourcemaps:upload`
+- validación end-to-end local/staging: `APP_OBSERVABILITY_SMOKE_ENABLED=true VITE_OBSERVABILITY_SMOKE_ENABLED=true docker compose -f docker-compose.staging.yml up -d --build` y luego `BASE_URL=http://localhost:8088 ./scripts/smoke-observability.sh`
+
+## CI / deploy checklist
+
+El workflow de GitHub ahora corre:
+
+- baseline rápida
+- validación full frontend (`check:architecture` + `build` + baseline tests)
+- validación full backend (`test` + `integrationTest`)
+- `docker build`
+- `docker compose --profile prod config`
+
+Antes de deploy real conviene verificar además:
+
+- secrets reales para `JWT_SECRET` y `MP_WEBHOOK_SECRET`
+- `STORE_BASE_DOMAIN` real
+- `NOTIFICATION_EMAIL_MODE=smtp` si se requieren emails reales
+- availability del datastore Redis si se usa profile `prod`
+- `./scripts/smoke-staging.sh` con demo data cargada y backend/frontend accesibles
+
 ## Notes
 
 - Multi-tenant is modeled as a **column strategy**: every store-owned row carries `store_id`.
@@ -199,6 +356,8 @@ No es una referencia exhaustiva. Para payloads más detallados, ver `backend/REA
 
 - `GET /api/public/stores/{slug}`
 - `GET /api/public/stores/{slug}/products?q={optional}&availableOnly={optional}&sort={optional}&categoryId={optional}`
+- `POST /api/public/beta/telemetry`
+- `POST /api/public/beta/feedback`
 - `GET /api/store/shipping/quote`
 - `POST /api/store/checkout/preview`
 - `POST /api/store/checkout`
@@ -262,6 +421,10 @@ Para alineación incremental con ADR-007, el naming recomendado para nuevas mét
 - `GET /api/public/ecosystems/{slug}/home`
 - `GET /api/public/ecosystems/{slug}/stores/map?q={optional}&category={optional}&location={optional}&sort={optional}`
 - `GET /api/public/ecosystems/{slug}/products?q={optional}&sort={optional}&deliverySupported={optional}&activeOnly={optional}`
+
+Endpoints operativos internos de beta:
+
+- `GET /api/admin/beta/summary`
 - `GET /api/ecosystem/shipping/quote`
 - `POST /api/ecosystem/checkout`
 - `GET /api/ecosystem/orders`

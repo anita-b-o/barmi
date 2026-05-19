@@ -1,15 +1,16 @@
 package com.barmi.api.webhooks;
 
+import com.barmi.app.config.ObservabilitySupport;
 import com.barmi.app.payments.StorePaymentConfirmationService;
+import com.barmi.infra.payments.MercadoPagoApiClient;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -24,67 +25,73 @@ import java.util.UUID;
 @RequestMapping("/api/webhooks/mercadopago")
 public class MercadoPagoWebhookController {
     private static final Logger log = LoggerFactory.getLogger(MercadoPagoWebhookController.class);
+    private static final String PROVIDER = "mercadopago_store";
 
-    private final String secret;
     private final StorePaymentConfirmationService storePaymentConfirmationService;
+    private final MercadoPagoWebhookSecurityService webhookSecurityService;
+    private final MercadoPagoApiClient mercadoPagoApiClient;
 
     public MercadoPagoWebhookController(
-            @Value("${app.mercadoPago.webhookSecret}") String secret,
-            StorePaymentConfirmationService storePaymentConfirmationService
+            StorePaymentConfirmationService storePaymentConfirmationService,
+            MercadoPagoWebhookSecurityService webhookSecurityService,
+            MercadoPagoApiClient mercadoPagoApiClient
     ) {
-        this.secret = secret;
         this.storePaymentConfirmationService = storePaymentConfirmationService;
+        this.webhookSecurityService = webhookSecurityService;
+        this.mercadoPagoApiClient = mercadoPagoApiClient;
     }
 
     @PostMapping
     public ResponseEntity<?> receive(
             @RequestHeader(value = "X-Barmi-Webhook-Secret", required = false) String headerSecret,
-            @RequestBody Map<String, Object> payload
+            @RequestHeader(value = MercadoPagoWebhookSecurityService.TIMESTAMP_HEADER, required = false) String timestampHeader,
+            @RequestHeader(value = MercadoPagoWebhookSecurityService.SIGNATURE_HEADER, required = false) String signatureHeader,
+            @RequestHeader(value = MercadoPagoWebhookSecurityService.REQUEST_ID_HEADER, required = false) String requestIdHeader,
+            @RequestBody(required = false) MercadoPagoStoreWebhookRequest payload,
+            @RequestParam(value = "data.id", required = false) String dataId,
+            HttpServletRequest request
     ) {
-        if (headerSecret == null || !headerSecret.equals(secret)) {
-            log.warn("mercadopago_webhook_invalid_secret");
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.UNAUTHORIZED, "invalid_secret");
+        if (payload == null) {
+            webhookSecurityService.logPayloadError(PROVIDER, null, request, "missing_payload");
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "missing_payload");
         }
-
-        Object eventIdRaw = payload.get("event_id");
-        if (eventIdRaw == null) {
+        if ("payment".equalsIgnoreCase(payload.type()) && payload.data() != null && payload.data().id() != null) {
+            return receiveProviderWebhook(signatureHeader, requestIdHeader, payload, dataId, request);
+        }
+        if (payload.eventId() == null || payload.eventId().isBlank()) {
+            webhookSecurityService.logPayloadError(PROVIDER, null, request, "missing_event_id");
             throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "missing_event_id");
         }
-
-        Object statusRaw = payload.get("status");
-        if (statusRaw == null) {
+        if (payload.status() == null || payload.status().isBlank()) {
+            webhookSecurityService.logPayloadError(PROVIDER, payload.eventId(), request, "missing_status");
             throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "missing_status");
         }
-
-        if (!"approved".equalsIgnoreCase(statusRaw.toString())) {
-            return ResponseEntity.ok(Map.of("status", "ignored"));
+        webhookSecurityService.validate(PROVIDER, headerSecret, timestampHeader, payload.eventId(), request);
+        if (!"approved".equalsIgnoreCase(payload.status())) {
+            return ResponseEntity.ok(java.util.Map.of("status", "ignored"));
         }
-
-        Object operationIdRaw = payload.get("operation_id");
-        if (operationIdRaw == null) {
+        if (payload.operationId() == null || payload.operationId().isBlank()) {
+            webhookSecurityService.logPayloadError(PROVIDER, payload.eventId(), request, "missing_operation_id");
             throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "missing_operation_id");
         }
-
-        Object providerPaymentIdRaw = payload.get("provider_payment_id");
-        if (providerPaymentIdRaw == null) {
+        if (payload.providerPaymentId() == null || payload.providerPaymentId().isBlank()) {
+            webhookSecurityService.logPayloadError(PROVIDER, payload.eventId(), request, "missing_provider_payment_id");
             throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "missing_provider_payment_id");
         }
-
-        Object amountRaw = payload.get("amount");
-        if (amountRaw == null) {
+        if (payload.amount() == null) {
+            webhookSecurityService.logPayloadError(PROVIDER, payload.eventId(), request, "missing_amount");
             throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "missing_amount");
         }
-
-        Object currencyRaw = payload.get("currency");
-        if (currencyRaw == null) {
+        if (payload.currency() == null || payload.currency().isBlank()) {
+            webhookSecurityService.logPayloadError(PROVIDER, payload.eventId(), request, "missing_currency");
             throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "missing_currency");
         }
 
-        UUID eventId = UUID.fromString(eventIdRaw.toString());
-        UUID operationId = UUID.fromString(operationIdRaw.toString());
-        String providerPaymentId = providerPaymentIdRaw.toString();
-        BigDecimal amount = new BigDecimal(amountRaw.toString());
-        String currency = currencyRaw.toString();
+        UUID eventId = parseUuid(payload.eventId(), "invalid_event_id");
+        UUID operationId = parseUuid(payload.operationId(), "invalid_operation_id");
+        String providerPaymentId = payload.providerPaymentId().trim();
+        BigDecimal amount = payload.amount();
+        String currency = payload.currency().trim().toUpperCase();
 
         storePaymentConfirmationService.confirmStorePayment(
                 eventId,
@@ -94,6 +101,84 @@ public class MercadoPagoWebhookController {
                 currency
         );
 
-        return ResponseEntity.ok(Map.of("status", "accepted"));
+        log.info("webhook_accepted provider={} event_id={} operation_id={} request_id={} retry_count={} event_type={} provider_payment_id={}",
+                PROVIDER,
+                payload.eventId(),
+                payload.operationId(),
+                ObservabilitySupport.requestId(request),
+                ObservabilitySupport.retryCount(request),
+                payload.status(),
+                providerPaymentId);
+        return ResponseEntity.ok(java.util.Map.of("status", "accepted"));
+    }
+
+    private ResponseEntity<?> receiveProviderWebhook(
+            String signatureHeader,
+            String requestIdHeader,
+            MercadoPagoStoreWebhookRequest payload,
+            String dataIdQueryParam,
+            HttpServletRequest request
+    ) {
+        String paymentId = firstNonBlank(dataIdQueryParam, payload.data() == null ? null : payload.data().id());
+        if (paymentId == null || paymentId.isBlank()) {
+            webhookSecurityService.logPayloadError(PROVIDER, null, request, "missing_provider_payment_id");
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "missing_provider_payment_id");
+        }
+
+        webhookSecurityService.validateMercadoPagoSignature(PROVIDER, signatureHeader, requestIdHeader, paymentId, payload.eventId(), request);
+        MercadoPagoApiClient.PaymentDetails payment = mercadoPagoApiClient.getPayment(paymentId);
+        if (!"approved".equalsIgnoreCase(payment.status())) {
+            return ResponseEntity.ok(java.util.Map.of("status", "ignored"));
+        }
+
+        UUID orderId = parseExternalReference(payment.externalReference(), "STORE");
+        storePaymentConfirmationService.confirmStorePayment(
+                java.util.UUID.nameUUIDFromBytes(("MERCADOPAGO:" + paymentId).getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                orderId,
+                payment.id(),
+                payment.transactionAmount(),
+                payment.currencyId()
+        );
+
+        log.info("webhook_accepted provider={} event_id={} operation_id={} request_id={} retry_count={} event_type={} provider_payment_id={}",
+                PROVIDER,
+                paymentId,
+                orderId,
+                ObservabilitySupport.requestId(request),
+                ObservabilitySupport.retryCount(request),
+                firstNonBlank(payload.action(), payload.type(), payment.status()),
+                payment.id());
+        return ResponseEntity.ok(java.util.Map.of("status", "accepted"));
+    }
+
+    private UUID parseUuid(String value, String errorCode) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, errorCode);
+        }
+    }
+
+    private UUID parseExternalReference(String externalReference, String expectedScope) {
+        if (externalReference == null || externalReference.isBlank()) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "missing_operation_id");
+        }
+        String[] parts = externalReference.split(":", 2);
+        if (parts.length != 2 || !expectedScope.equalsIgnoreCase(parts[0])) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "invalid_operation_id");
+        }
+        return parseUuid(parts[1], "invalid_operation_id");
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 }

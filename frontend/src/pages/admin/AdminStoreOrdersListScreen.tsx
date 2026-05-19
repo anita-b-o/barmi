@@ -155,7 +155,7 @@ export default function OrdersListScreen() {
         <div style={{ marginTop: theme.spacing.xl }}>
           <EmptyState
             title={orders.hasActiveFilters ? 'No hay órdenes que coincidan con los filtros' : 'No hay órdenes STORE'}
-            description={orders.hasActiveFilters ? 'Probá cambiando estado o búsqueda.' : undefined}
+            description={orders.hasActiveFilters ? 'Probá cambiando estado o búsqueda.' : 'Todavía no entraron órdenes en esta store. Cuando aparezcan, este listado pasa a ser tu vista operativa principal.'}
           />
         </div>
       ) : (

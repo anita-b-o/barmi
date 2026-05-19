@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, memo, useEffect, useState } from 'react'
 import { MapIcon } from './MapIcons'
 
 type MapSearchInputProps = {
@@ -7,7 +7,7 @@ type MapSearchInputProps = {
   onSearch: (value: string) => void
 }
 
-export function MapSearchInput({ value, placeholder = 'buscá en el mapa', onSearch }: MapSearchInputProps) {
+function MapSearchInputBase({ value, placeholder = 'buscá en el mapa', onSearch }: MapSearchInputProps) {
   const [draft, setDraft] = useState(value)
 
   useEffect(() => {
@@ -37,3 +37,5 @@ export function MapSearchInput({ value, placeholder = 'buscá en el mapa', onSea
     </form>
   )
 }
+
+export const MapSearchInput = memo(MapSearchInputBase)

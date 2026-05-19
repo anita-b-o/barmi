@@ -25,6 +25,7 @@ function ToastPreview() {
 }
 
 export const FeedbackStates: Story = {
+  args: {},
   render: () => (
     <ShowcasePage title="Feedback patterns" description="Representative async and empty states using the real shared components.">
       <ShowcaseGrid min={280}>

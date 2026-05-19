@@ -1,16 +1,14 @@
 import { requestJson, requestJsonWithAuth, type AuthRequestContext } from '../client/http'
-import type { AuthLoginReq, AuthMe, AuthRefreshReq, AuthTokenResponse } from '../contracts/v1/auth'
+import type { AuthLoginReq, AuthMe, AuthTokenResponse } from '../contracts/v1/auth'
 import { assertArray, assertRecord, assertString } from './validators'
 
 export function parseAuthTokenResponse(data: unknown): AuthTokenResponse {
   assertRecord(data, 'Invalid auth token response payload')
   assertString(data.accessToken, 'Auth accessToken is required')
-  assertString(data.refreshToken, 'Auth refreshToken is required')
   assertString(data.tokenType, 'Auth tokenType is required')
   assertString(data.expiresAt, 'Auth expiresAt is required')
   return {
     accessToken: data.accessToken,
-    refreshToken: data.refreshToken,
     tokenType: data.tokenType,
     expiresAt: data.expiresAt
   }
@@ -71,16 +69,23 @@ export const authAdapter = {
   async login(payload: AuthLoginReq) {
     const data = await requestJson<unknown>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      credentials: 'include'
     })
     return parseAuthTokenResponse(data)
   },
-  async refresh(payload: AuthRefreshReq) {
+  async refresh() {
     const data = await requestJson<unknown>('/api/auth/refresh', {
       method: 'POST',
-      body: JSON.stringify(payload)
-    })
+      credentials: 'include'
+    }, { transientRetry: 'always' })
     return parseAuthTokenResponse(data)
+  },
+  async logout() {
+    await requestJson<unknown>('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include'
+    })
   },
   async me(auth: AuthRequestContext) {
     const data = await requestJsonWithAuth<unknown>('/api/auth/me', {}, {}, auth)

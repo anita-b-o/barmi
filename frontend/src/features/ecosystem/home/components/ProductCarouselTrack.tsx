@@ -23,7 +23,7 @@ export function ProductCarouselTrack({ groupTitle, products }: ProductCarouselTr
     <div className="ecosystem-product-rails__carousel-body">
       <div
         ref={trackRef}
-        className="ecosystem-product-rails__track"
+        className={`ecosystem-product-rails__track${products.length <= 4 ? ' ecosystem-product-rails__track--compact' : ''}`}
         aria-label={`Carousel de ${groupTitle}`}
         tabIndex={0}
       >

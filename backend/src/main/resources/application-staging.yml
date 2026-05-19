@@ -1,0 +1,39 @@
+logging:
+  level:
+    root: INFO
+
+app:
+  release:
+    version: ${APP_VERSION:staging-local}
+    commitSha: ${APP_COMMIT_SHA:local}
+    buildTimestamp: ${APP_BUILD_TIMESTAMP:unknown}
+  security:
+    refreshCookie:
+      secure: ${REFRESH_COOKIE_SECURE:false}
+
+spring:
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:redis}
+      port: ${SPRING_REDIS_PORT:6379}
+
+management:
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+      probes:
+        enabled: true
+      group:
+        default:
+          include: readinessState,db,outboxBacklog
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db,outboxBacklog
+        health:
+          include: readinessState,db,redis,outboxBacklog
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

@@ -10,6 +10,8 @@ import type { EcosystemCheckoutPreview } from '../types'
 
 type EcosystemCheckoutOrderSummaryProps = {
   preview: EcosystemCheckoutPreview
+  requiresShippingQuote: boolean
+  shippingAvailable: boolean
   isSubmitting: boolean
   isQuoteLoading: boolean
   couponCode: string
@@ -31,6 +33,8 @@ function formatPromotionExpiry(expirationDate: string | null) {
 
 export function EcosystemCheckoutOrderSummary({
   preview,
+  requiresShippingQuote,
+  shippingAvailable,
   isSubmitting,
   isQuoteLoading,
   couponCode,
@@ -185,7 +189,13 @@ export function EcosystemCheckoutOrderSummary({
           {preview.shippingCostAmount > 0 || preview.canQuoteShipping ? (
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, flexWrap: 'wrap' }}>
               <span style={{ color: theme.colors.textMuted, minWidth: 0 }}>Envío</span>
-              <strong style={{ minWidth: 0, marginLeft: 'auto', textAlign: 'right' }}>{formatMoney(preview.shippingCostAmount, preview.currency)}</strong>
+              <strong style={{ minWidth: 0, marginLeft: 'auto', textAlign: 'right' }}>
+                {requiresShippingQuote
+                  ? shippingAvailable
+                    ? formatMoney(preview.shippingCostAmount, preview.currency)
+                    : 'Pendiente de cotización'
+                  : formatMoney(preview.shippingCostAmount, preview.currency)}
+              </strong>
             </div>
           ) : null}
           {preview.discountAmount > 0 ? (

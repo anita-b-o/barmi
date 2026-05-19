@@ -5,6 +5,7 @@ import { extractBackendErrorMessage } from '@/core/errors'
 import { routes } from '@/core/constants/routes'
 import { paymentAdapter, publicEcosystemAdapter } from '../api'
 import type { EcosystemPaymentInitiateInput } from '../types'
+import { trackBetaEvent } from '@/features/beta'
 
 const PAYMENT_PROVIDER = 'MERCADOPAGO'
 
@@ -54,6 +55,14 @@ export function useEcosystemPaymentInitiate(input: EcosystemPaymentInitiateInput
       }, authRequest)
     },
     onSuccess: (paymentIntent) => {
+      trackBetaEvent({
+        eventName: 'payment_initiated',
+        ecosystemSlug: slug,
+        metadata: {
+          surface: 'ecosystem_order_payment',
+          provider: PAYMENT_PROVIDER.toLowerCase()
+        }
+      })
       handoffToCheckout(paymentIntent.checkoutUrl)
     }
   })

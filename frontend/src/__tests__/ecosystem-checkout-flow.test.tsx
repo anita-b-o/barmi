@@ -159,4 +159,30 @@ describe('ecosystem checkout flow', () => {
 
     await cleanup()
   })
+
+  it('keeps the ecosystem checkout blocked until shipping is quoted and avoids a fake zero shipping total', async () => {
+    mockFetch({
+      '/api/public/ecosystems/demo-ecosystem': {
+        body: {
+          id: 'eco-1',
+          slug: 'demo-ecosystem',
+          name: 'Demo Ecosystem',
+          promotions: []
+        }
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/ecosystem/checkout')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Todavía falta cotizar el envío para cerrar el total final.')
+    expect(document.body.textContent).toContain('Pendiente de cotización')
+
+    const submitButtons = Array.from(document.querySelectorAll('button')).filter((button) => button.textContent?.includes('Crear orden') || button.textContent?.includes('Confirmar compra'))
+    expect(submitButtons.length).toBeGreaterThan(0)
+    expect(submitButtons.every((button) => (button as HTMLButtonElement).disabled)).toBe(true)
+
+    await cleanup()
+  })
 })

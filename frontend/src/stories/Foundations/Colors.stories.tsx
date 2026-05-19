@@ -16,6 +16,7 @@ function textColorForSwatch(value: string) {
 }
 
 export const SemanticPalette: Story = {
+  args: {},
   render: () => (
     <ShowcasePage
       title="Color system"

@@ -1,18 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearStorage, flush, mockFetch, renderAppAt, setAuthSession } from '../test-utils/testUtils'
-
-function setInputValue(input: HTMLInputElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
-  setter?.call(input, value)
-  input.dispatchEvent(new Event('input', { bubbles: true }))
-  input.dispatchEvent(new Event('change', { bubbles: true }))
-}
-
-function setSelectValue(select: HTMLSelectElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value')?.set
-  setter?.call(select, value)
-  select.dispatchEvent(new Event('change', { bubbles: true }))
-}
+import {
+  clearStorage,
+  clickElement,
+  flush,
+  mockFetch,
+  renderAppAt,
+  setAuthSession,
+  setInputElementValue,
+  setSelectElementValue
+} from '../test-utils/testUtils'
 
 const authMe = {
   userId: 'u1',
@@ -137,12 +133,12 @@ describe('admin ecosystem shipping', () => {
     const costInput = inputs.find((input) => input.getAttribute('placeholder') === '150.00') as HTMLInputElement
     const currencyInput = inputs.find((input) => input.getAttribute('placeholder') === 'ARS') as HTMLInputElement
 
-    setInputValue(postalCodeInput, '1406')
-    setInputValue(costInput, '175')
-    setInputValue(currencyInput, 'ARS')
+    await setInputElementValue(postalCodeInput, '1406')
+    await setInputElementValue(costInput, '175')
+    await setInputElementValue(currencyInput, 'ARS')
 
     const createButton = Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Crear zona'))
-    createButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await clickElement(createButton)
     await flush()
     await flush()
 
@@ -191,7 +187,7 @@ describe('admin ecosystem shipping', () => {
 
     const selects = Array.from(document.querySelectorAll('select'))
     const typeSelect = selects.find((item) => item.value === 'EXACT') as HTMLSelectElement
-    setSelectValue(typeSelect, 'RANGE')
+    await setSelectElementValue(typeSelect, 'RANGE')
     await flush()
 
     const inputs = Array.from(document.querySelectorAll('input'))
@@ -200,13 +196,13 @@ describe('admin ecosystem shipping', () => {
     const costInput = inputs.find((input) => input.getAttribute('placeholder') === '150.00') as HTMLInputElement
     const currencyInput = inputs.find((input) => input.getAttribute('placeholder') === 'ARS') as HTMLInputElement
 
-    setInputValue(rangeStartInput, '1000')
-    setInputValue(rangeEndInput, '1999')
-    setInputValue(costInput, '200')
-    setInputValue(currencyInput, 'ARS')
+    await setInputElementValue(rangeStartInput, '1000')
+    await setInputElementValue(rangeEndInput, '1999')
+    await setInputElementValue(costInput, '200')
+    await setInputElementValue(currencyInput, 'ARS')
 
     const createButton = Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Crear zona'))
-    createButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await clickElement(createButton)
     await flush()
     await flush()
 
@@ -225,26 +221,31 @@ describe('admin ecosystem shipping', () => {
   })
 
   it('deletes a zone', async () => {
+    let deleted = false
     const handler = mockFetch({
       '/api/auth/me': { body: authMe },
-      '/api/ecosystem/admin/shipping/zones?ecosystemId=eco-1': {
-        body: [
-          {
-            zoneId: 'zone-1',
-            ecosystemId: 'eco-1',
-            type: 'EXACT',
-            postalCode: '1234',
-            rangeStart: null,
-            rangeEnd: null,
-            costAmount: 150,
-            currency: 'ARS',
-            isActive: true,
-            createdAt: '2026-03-13T12:00:00Z'
-          }
-        ]
+      '/api/ecosystem/admin/shipping/zones?ecosystemId=eco-1': () => {
+        if (deleted) return { body: [] }
+        return {
+          body: [
+            {
+              zoneId: 'zone-1',
+              ecosystemId: 'eco-1',
+              type: 'EXACT',
+              postalCode: '1234',
+              rangeStart: null,
+              rangeEnd: null,
+              costAmount: 150,
+              currency: 'ARS',
+              isActive: true,
+              createdAt: '2026-03-13T12:00:00Z'
+            }
+          ]
+        }
       },
-      '/api/ecosystem/admin/shipping/zones/zone-1?ecosystemId=eco-1': {
-        status: 204
+      '/api/ecosystem/admin/shipping/zones/zone-1?ecosystemId=eco-1': () => {
+        deleted = true
+        return { status: 204 }
       }
     })
 
@@ -253,19 +254,20 @@ describe('admin ecosystem shipping', () => {
     await flush()
 
     const deleteButton = Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Eliminar'))
-    deleteButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await clickElement(deleteButton)
     await flush()
 
     const confirmButton = Array.from(document.querySelectorAll('button'))
       .filter((button) => button.textContent === 'Eliminar')
       .at(-1)
-    confirmButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await clickElement(confirmButton)
     await flush()
     await flush()
 
     const deleteCall = handler.mock.calls.find(([url, init]) => String(url).includes('/api/ecosystem/admin/shipping/zones/zone-1') && init?.method === 'DELETE')
     expect(deleteCall).toBeTruthy()
     expect(document.body.textContent).toContain('Zona eliminada')
+    expect(document.body.textContent).not.toContain('zone-1')
 
     await cleanup()
   })
@@ -295,12 +297,12 @@ describe('admin ecosystem shipping', () => {
     const costInput = inputs.find((input) => input.getAttribute('placeholder') === '150.00') as HTMLInputElement
     const currencyInput = inputs.find((input) => input.getAttribute('placeholder') === 'ARS') as HTMLInputElement
 
-    setInputValue(postalCodeInput, '1234')
-    setInputValue(costInput, '150')
-    setInputValue(currencyInput, 'ARS')
+    await setInputElementValue(postalCodeInput, '1234')
+    await setInputElementValue(costInput, '150')
+    await setInputElementValue(currencyInput, 'ARS')
 
     const createButton = Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Crear zona'))
-    createButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await clickElement(createButton)
     await flush()
     await flush()
 

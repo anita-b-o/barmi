@@ -1,7 +1,5 @@
 export * from './components/EcosystemHomeHeroSection'
 export * from './components/EcosystemHomeContentSections'
-export * from './components/EcosystemProductRailsSection'
-export * from './components/EcosystemStoreRailsSection'
 export * from './config'
 export * from './homeSections'
 export * from './productRails'

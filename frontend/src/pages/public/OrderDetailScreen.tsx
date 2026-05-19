@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { routes } from '@/core/constants/routes'
 import { useStoreOrderDetail, StorePaymentInitiateAction } from '@/features/orders'
 import { formatDate, formatMoney } from '@/core/utils/format'
@@ -118,7 +118,15 @@ function getOrderStage(order: {
 
 export default function OrderDetailScreen() {
   const { orderId } = useParams()
+  const [searchParams] = useSearchParams()
   const order = useStoreOrderDetail(orderId)
+  const redirectStatus = (searchParams.get('status') ?? searchParams.get('collection_status') ?? '').toLowerCase()
+  const paymentId = searchParams.get('payment_id') ?? searchParams.get('collection_id')
+  const paymentRedirectMessage = redirectStatus === 'rejected' || redirectStatus === 'failure'
+    ? 'El pago fue rechazado o cancelado por el proveedor. Podés reintentar desde esta misma pantalla.'
+    : redirectStatus === 'pending'
+      ? 'El pago quedó pendiente en el proveedor. Esta pantalla va a seguir consultando el backend para confirmar si se acredita.'
+      : null
 
   const tracking = useMemo(() => {
     if (!order.order) return null
@@ -200,6 +208,12 @@ export default function OrderDetailScreen() {
                   </div>
                 </div>
                 <div style={{ color: theme.colors.textMuted }}>{tracking?.nextStep}</div>
+                {paymentRedirectMessage ? (
+                  <div style={{ color: redirectStatus === 'pending' ? theme.colors.warning : theme.colors.error }}>
+                    {paymentRedirectMessage}
+                    {paymentId ? ` Referencia provider: ${paymentId}.` : ''}
+                  </div>
+                ) : null}
                 {tracking ? (
                   <div style={{ display: 'grid', gap: theme.spacing.sm }}>
                     {tracking.steps.map((step) => (

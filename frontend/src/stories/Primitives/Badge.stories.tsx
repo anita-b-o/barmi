@@ -14,6 +14,10 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Variants: Story = {
+  args: {
+    variant: 'neutral',
+    children: 'Badge'
+  },
   render: () => (
     <ShowcasePage title="Badge" description="Semantic badge variants for neutral and status messaging.">
       <ShowcaseSection title="Variants">

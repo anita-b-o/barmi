@@ -1,5 +1,6 @@
 package com.barmi.orders;
 
+import com.barmi.PostgresIntegrationTestBase;
 import com.barmi.app.orders.CheckoutStoreOrderService;
 import com.barmi.app.orders.CheckoutStoreOrderService.CheckoutItem;
 import com.barmi.app.tenant.TenantContext;
@@ -12,25 +13,19 @@ import com.barmi.infra.repo.ProductRepository;
 import com.barmi.infra.repo.StoreOrderItemRepository;
 import com.barmi.infra.repo.StoreOrderRepository;
 import com.barmi.infra.repo.StoreRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.springframework.test.context.TestConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.TestConstructor;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
-
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace.NONE;
 
 @Testcontainers
 @SpringBootTest(properties = {
@@ -38,27 +33,7 @@ import static org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTest
         "app.money.defaultCurrency=ARS"
 })
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
-@ActiveProfiles("integrationtest")
-@AutoConfigureTestDatabase(replace = NONE)
-class CheckoutStoreOrderServiceIT {
-
-    @Container
-    static PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("postgres:15.6")
-                    .withDatabaseName("barmi_test")
-                    .withUsername("test")
-                    .withPassword("test");
-
-    @DynamicPropertySource
-    static void registerProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-
-        registry.add("spring.flyway.url", postgres::getJdbcUrl);
-        registry.add("spring.flyway.user", postgres::getUsername);
-        registry.add("spring.flyway.password", postgres::getPassword);
-    }
+class CheckoutStoreOrderServiceIT extends PostgresIntegrationTestBase {
 
     private final CheckoutStoreOrderService checkoutService;
     private final StoreRepository storeRepository;
@@ -66,15 +41,17 @@ class CheckoutStoreOrderServiceIT {
     private final StoreOrderRepository storeOrderRepository;
     private final StoreOrderItemRepository storeOrderItemRepository;
     private final OutboxEventRepository outboxEventRepository;
+    private final JdbcTemplate jdbcTemplate;
 
-@Autowired
+    @Autowired
     CheckoutStoreOrderServiceIT(
             CheckoutStoreOrderService checkoutService,
             StoreRepository storeRepository,
             ProductRepository productRepository,
             StoreOrderRepository storeOrderRepository,
             StoreOrderItemRepository storeOrderItemRepository,
-            OutboxEventRepository outboxEventRepository
+            OutboxEventRepository outboxEventRepository,
+            JdbcTemplate jdbcTemplate
     ) {
         this.checkoutService = checkoutService;
         this.storeRepository = storeRepository;
@@ -82,6 +59,12 @@ class CheckoutStoreOrderServiceIT {
         this.storeOrderRepository = storeOrderRepository;
         this.storeOrderItemRepository = storeOrderItemRepository;
         this.outboxEventRepository = outboxEventRepository;
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    @BeforeEach
+    void setup() {
+        truncateAllTables(jdbcTemplate);
     }
 
     @Test
@@ -95,7 +78,7 @@ class CheckoutStoreOrderServiceIT {
             StoreOrder order = checkoutService.checkout(List.of(
                     new CheckoutItem(p1.getId(), 2),
                     new CheckoutItem(p2.getId(), 1)
-            ), null);
+            ), null, null, "buyer@example.com");
 
             assertThat(storeOrderRepository.findById(order.getId())).isPresent();
             assertThat(order.getCurrency()).isEqualTo("ARS");

@@ -94,9 +94,10 @@ describe('ecosystem checkout UI', () => {
     await flush()
 
     expect(window.location.pathname).toBe('/ecosystem/checkout/success')
-    expect(document.body.textContent).toContain('Orden ecosystem creada')
+    expect(document.body.textContent).toContain('Orden creada')
     expect(document.body.textContent).toContain('Tu compra en el ecosystem ya quedó creada')
     expect(document.body.textContent).toContain('eco-order-1')
+    expect(document.body.textContent).toContain('Orden registrada')
     expect(document.body.textContent).toContain('Ver órdenes')
     expect(document.body.textContent).toContain('Resumen de compra')
     expect(document.body.textContent).toContain('Seguir esta orden')

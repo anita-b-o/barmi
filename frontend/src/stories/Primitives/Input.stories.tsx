@@ -14,6 +14,9 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const States: Story = {
+  args: {
+    'aria-label': 'Input'
+  },
   render: () => (
     <ShowcasePage title="Input" description="Current primitive states. The component does not expose a custom error variant yet, so the story stays aligned with the real implementation.">
       <ShowcaseSection title="Examples">

@@ -123,23 +123,7 @@ class AuthzIntegrationTest extends PostgresIntegrationTestBase {
 
     @BeforeEach
     void setup() {
-        refreshTokenRepository.deleteAll();
-        paymentIntentRepository.deleteAll();
-        paymentRepository.deleteAll();
-        ecosystemFulfillmentRepository.deleteAll();
-        storeFulfillmentRepository.deleteAll();
-        jdbcTemplate.update("DELETE FROM ecosystem_order_items");
-        storeOrderItemRepository.deleteAll();
-        ecosystemOrderRepository.deleteAll();
-        storeOrderRepository.deleteAll();
-        ecosystemMemberRepository.deleteAll();
-        storeMemberRepository.deleteAll();
-        ecosystemShippingZoneRepository.deleteAll();
-        ecosystemExternalProductRepository.deleteAll();
-        storeShippingZoneRepository.deleteAll();
-        ecosystemRepository.deleteAll();
-        storeRepository.deleteAll();
-        userRepository.deleteAll();
+        truncateAllTables(jdbcTemplate);
 
         String storeSlug = "authz-store-" + UUID.randomUUID();
         String ecoSlug = "authz-eco-" + UUID.randomUUID();

@@ -9,6 +9,8 @@ export default function ThemeGlobalStyles() {
   return (
     <style>
       {`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
         :root {
           --primary-400: ${raw.primary400};
           --primary-500: ${raw.primary500};
@@ -79,9 +81,32 @@ export default function ThemeGlobalStyles() {
           --barmi-radius-sm: ${tokens.radius.sm}px;
           --barmi-radius-md: ${tokens.radius.md}px;
           --barmi-radius-lg: ${tokens.radius.lg}px;
+          --barmi-radius-xl: ${tokens.radius.xl}px;
+          --barmi-shadow-surface: ${tokens.shadows.surface};
+          --barmi-shadow-elevated: ${tokens.shadows.elevated};
+          --barmi-shadow-overlay: ${tokens.shadows.overlay};
           --barmi-shadow-soft: ${tokens.shadows.soft};
           --barmi-shadow-medium: ${tokens.shadows.medium};
           --barmi-font-family: ${tokens.typography.fontFamily};
+          --barmi-space-1: ${tokens.spacing.xs}px;
+          --barmi-space-2: ${tokens.spacing.sm}px;
+          --barmi-space-3: ${tokens.spacing.md}px;
+          --barmi-space-4: ${tokens.spacing.lg}px;
+          --barmi-space-5: ${tokens.spacing.xl}px;
+          --barmi-space-6: ${tokens.spacing.xxl}px;
+          --barmi-space-8: ${tokens.spacing.xxxl}px;
+          --barmi-space-10: ${tokens.spacing.section}px;
+          --barmi-space-12: ${tokens.spacing.hero}px;
+          --barmi-space-16: ${tokens.spacing.page}px;
+          --barmi-shell-max-width: 1440px;
+          --barmi-topbar-height: 86px;
+          --barmi-font-display: ${tokens.typography.display.size}px;
+          --barmi-font-h1: ${tokens.typography.h1.size}px;
+          --barmi-font-h2: ${tokens.typography.h2.size}px;
+          --barmi-font-h3: ${tokens.typography.h3.size}px;
+          --barmi-font-body: ${tokens.typography.body.size}px;
+          --barmi-font-caption: ${tokens.typography.caption.size}px;
+          --barmi-font-label: ${tokens.typography.label.size}px;
         }
 
         html {
@@ -107,6 +132,8 @@ export default function ThemeGlobalStyles() {
 
         a {
           color: inherit;
+          text-decoration-thickness: 1px;
+          text-underline-offset: 0.16em;
         }
 
         button,

@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { extractBackendErrorMessage } from '@/core/errors'
 import { routes } from '@/core/constants/routes'
 import { paymentAdapter } from '../../../../api/adapters/paymentAdapter'
+import { trackBetaEvent } from '@/features/beta'
 
 const PAYMENT_PROVIDER = 'MERCADOPAGO'
 
@@ -45,6 +46,13 @@ export function useStorePaymentInitiate(input: StorePaymentInitiateInput) {
       })
     },
     onSuccess: (paymentIntent) => {
+      trackBetaEvent({
+        eventName: 'payment_initiated',
+        metadata: {
+          surface: 'store_order_payment',
+          provider: PAYMENT_PROVIDER.toLowerCase()
+        }
+      })
       handoffToCheckout(paymentIntent.checkoutUrl)
     }
   })

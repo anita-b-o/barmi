@@ -28,3 +28,6 @@ backend/out/
 *.log
 *.tmp
 *.swp
+
+# Local operational artifacts
+backups/

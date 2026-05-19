@@ -14,6 +14,10 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Variants: Story = {
+  args: {
+    variant: 'primary',
+    children: 'Action'
+  },
   render: () => (
     <ShowcasePage title="Button" description="Primary, secondary, and ghost actions using the real shared primitive.">
       <ShowcaseSection title="Variants">

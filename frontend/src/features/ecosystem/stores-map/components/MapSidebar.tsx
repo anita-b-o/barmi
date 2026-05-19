@@ -1,3 +1,4 @@
+import { FilterSidebar } from '../../components/FilterSidebar'
 import type { PublicStoreMapStore } from '../../../../api/contracts/v1/public'
 import type { MapExploreGroup } from '../mapExploreConfig'
 import { MapCategoryGroup } from './MapCategoryGroup'
@@ -28,8 +29,15 @@ export function MapSidebar({
   onSelectStore
 }: MapSidebarProps) {
   return (
-    <aside className="ecosystem-map-sidebar" aria-label="Exploración de tiendas">
-      <MapSearchInput value={query} onSearch={onSearch} />
+    <FilterSidebar
+      title={mode === 'explore' ? 'Explorá tu ciudad' : 'Tiendas cerca tuyo'}
+      description={mode === 'explore'
+        ? 'Entrá por categoría o búsqueda libre. Si sos nuevo en Barmi, esta vista suele ser la forma más fácil de entender qué tienda abrir.'
+        : `${stores.length} tienda${stores.length === 1 ? '' : 's'} encontradas con los filtros actuales. Abrí una tienda para ver su catálogo propio y comprar con su carrito separado.`}
+    >
+      <div className="ecosystem-filter-sidebar__section">
+        <MapSearchInput value={query} onSearch={onSearch} />
+      </div>
 
       {mode === 'explore' ? (
         <div className="ecosystem-map-sidebar__explore">
@@ -48,8 +56,9 @@ export function MapSidebar({
           isLoading={isLoading}
           error={error}
           onSelectStore={onSelectStore}
+          onResetSearch={() => onSearch('')}
         />
       )}
-    </aside>
+    </FilterSidebar>
   )
 }

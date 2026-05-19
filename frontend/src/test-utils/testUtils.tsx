@@ -2,12 +2,12 @@ import React, { act } from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient } from '@tanstack/react-query'
 import { vi } from 'vitest'
-import App from '@/app/App'
+import TestApp from './TestApp'
 import { AppProviders } from '@/app/providers'
 
 export type MockRoute =
-  | { status?: number; body?: unknown }
-  | ((url: string, init?: RequestInit) => { status?: number; body?: unknown })
+  | { status?: number; body?: unknown; headers?: Record<string, string> }
+  | ((url: string, init?: RequestInit) => { status?: number; body?: unknown; headers?: Record<string, string> })
 
 export function mockFetch(routes: Record<string, MockRoute>) {
   const handler = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -19,11 +19,14 @@ export function mockFetch(routes: Record<string, MockRoute>) {
     const response = typeof resolved === 'function' ? resolved(url, init) : resolved
     const status = response?.status ?? (resolved ? 200 : 404)
     const body = response?.body
-    return {
-      ok: status >= 200 && status < 300,
-      status,
-      text: async () => (body === undefined ? '' : JSON.stringify(body))
-    } as Response
+    const noContent = status === 204 || status === 205 || status === 304
+    return new Response(
+      noContent ? null : body === undefined ? '' : JSON.stringify(body),
+      {
+        status,
+        headers: response?.headers
+      }
+    )
   })
 
   globalThis.fetch = handler as unknown as typeof fetch
@@ -74,13 +77,19 @@ export async function renderWithProviders(node: React.ReactElement, options?: { 
 
 export async function renderAppAt(path: string) {
   window.history.pushState({}, '', path)
-  return renderWithProviders(<App />)
+  return renderWithProviders(<TestApp />)
 }
 
 export async function flush() {
   await act(async () => {
     await Promise.resolve()
     await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+}
+
+export async function waitForMs(ms: number) {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, ms))
   })
 }
 
@@ -114,7 +123,6 @@ export async function setSelectElementValue(select: HTMLSelectElement, value: st
 export function setAuthSession() {
   window.localStorage.setItem('barmi.auth.session.v1', JSON.stringify({
     accessToken: 'test-token',
-    refreshToken: 'test-refresh',
     tokenType: 'Bearer',
     expiresAt: '2026-03-10T12:00:00.000Z'
   }))

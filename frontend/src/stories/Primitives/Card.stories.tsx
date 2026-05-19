@@ -15,6 +15,9 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const Variants: Story = {
+  args: {
+    children: 'Card content'
+  },
   render: () => (
     <ShowcasePage title="Card" description="Standard surface and soft card treatments used throughout the product. Hover styling is built into the primitive.">
       <ShowcaseGrid>

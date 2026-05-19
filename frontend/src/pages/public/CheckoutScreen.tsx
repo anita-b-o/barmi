@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PublicStoreLayout } from '../../layouts'
 import { alpha, theme } from '@/app/theme'
@@ -18,6 +18,7 @@ import {
   StoreCheckoutOrderSummary,
   StoreCheckoutShippingForm
 } from '@/features/checkout'
+import { trackBetaEvent } from '@/features/beta'
 
 export default function CheckoutScreen() {
   const navigate = useNavigate()
@@ -26,6 +27,7 @@ export default function CheckoutScreen() {
   const checkout = useStoreCheckout()
   const backToStoreHref = checkout.cartStoreSlug ? routes.publicStore(checkout.cartStoreSlug) : routes.publicStore('demo-store')
   const [store, setStore] = useState<PublicStore | null>(null)
+  const trackedCheckoutStartRef = useRef(false)
   const hasAvailabilityIssues = checkout.cartItems.some(
     (item) => item.isAvailable === false || (typeof item.stockQuantity === 'number' && item.stockQuantity < item.qty)
   )
@@ -69,6 +71,21 @@ export default function CheckoutScreen() {
       active = false
     }
   }, [checkout.cartStoreSlug])
+
+  useEffect(() => {
+    if (checkout.cartItems.length === 0) return
+    if (trackedCheckoutStartRef.current) return
+    trackedCheckoutStartRef.current = true
+    trackBetaEvent({
+      eventName: 'checkout_started',
+      storeId: store?.id,
+      storeSlug: store?.slug,
+      storeName: store?.name,
+      metadata: {
+        surface: 'store_checkout'
+      }
+    })
+  }, [checkout.cartItems.length, store?.id, store?.name, store?.slug])
 
   const handleSubmit = async () => {
     const successState = await checkout.submitOrder()
@@ -178,7 +195,12 @@ export default function CheckoutScreen() {
 
       {checkout.error && (
         <div style={{ marginTop: theme.spacing.lg }}>
-          <ErrorState message={checkout.error} />
+          <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+            <ErrorState message={checkout.error} />
+            <div style={{ color: theme.colors.textMuted, lineHeight: 1.6 }}>
+              Revisá email, carrito y código postal. Si vuelve a fallar, enviá feedback beta desde esta pantalla con el paso exacto donde quedó trabado.
+            </div>
+          </div>
         </div>
       )}
 

@@ -23,7 +23,7 @@ export function StoreCarouselTrack({ groupTitle, stores }: StoreCarouselTrackPro
     <div className="ecosystem-store-rails__carousel-body">
       <div
         ref={trackRef}
-        className="ecosystem-store-rails__track"
+        className={`ecosystem-store-rails__track${stores.length <= 4 ? ' ecosystem-store-rails__track--compact' : ''}`}
         aria-label={`Carousel de ${groupTitle}`}
         tabIndex={0}
       >

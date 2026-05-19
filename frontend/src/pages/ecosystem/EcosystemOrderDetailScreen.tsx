@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { EcosystemLayout } from '../../layouts'
 import { theme } from '@/app/theme'
 import { routes } from '@/core/constants/routes'
@@ -13,7 +13,15 @@ import { Breadcrumbs } from '@/components/navigation'
 
 export default function EcosystemOrderDetailScreen() {
   const { orderId } = useParams()
+  const [searchParams] = useSearchParams()
   const order = useEcosystemOrderDetail(orderId)
+  const redirectStatus = (searchParams.get('status') ?? searchParams.get('collection_status') ?? '').toLowerCase()
+  const paymentId = searchParams.get('payment_id') ?? searchParams.get('collection_id')
+  const paymentRedirectMessage = redirectStatus === 'rejected' || redirectStatus === 'failure'
+    ? 'El pago fue rechazado o cancelado por el proveedor. Podés reintentar desde esta misma pantalla.'
+    : redirectStatus === 'pending'
+      ? 'El pago quedó pendiente en el proveedor. Esta pantalla va a seguir consultando el backend para confirmar si se acredita.'
+      : null
 
   return (
     <EcosystemLayout>
@@ -116,6 +124,12 @@ export default function EcosystemOrderDetailScreen() {
                           ? 'La orden fue cancelada.'
                           : 'La orden ya salió del estado pendiente de pago.'}
                   </div>
+                  {paymentRedirectMessage ? (
+                    <div style={{ color: redirectStatus === 'pending' ? theme.colors.warning : theme.colors.error }}>
+                      {paymentRedirectMessage}
+                      {paymentId ? ` Referencia provider: ${paymentId}.` : ''}
+                    </div>
+                  ) : null}
                   {order.error ? <ErrorState message={order.error} /> : null}
                 </div>
               </SectionCard>

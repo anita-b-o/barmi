@@ -102,7 +102,7 @@ describe('router basics', () => {
     await flush()
     await flush()
     expect(document.body.textContent).toContain('Mapa')
-    expect(document.body.textContent).toContain('Productos similares a tus compras')
+    expect(document.body.textContent).toContain('Todavía no hay contenido destacado')
     await cleanup()
   })
 
@@ -159,6 +159,36 @@ describe('router basics', () => {
     const { cleanup } = await renderAppAt('/auth/login')
     await flush()
     expect(document.body.textContent).toContain('Ingresar')
+    await cleanup()
+  })
+
+  it('redirects authenticated login back to the originally requested admin route', async () => {
+    clearStorage()
+    document.body.innerHTML = ''
+    setAuthSession()
+    mockFetch({
+      '/api/auth/me': {
+        body: {
+          userId: 'u1',
+          email: 'admin@example.com',
+          memberships: {
+            stores: [{ storeId: 's1', storeSlug: 'demo-store', role: 'OWNER', status: 'ACTIVE' }],
+            ecosystems: []
+          }
+        }
+      },
+      '/api/store/shipping/zones': {
+        body: []
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/admin/shipping/zones')
+    await flush()
+    await flush()
+
+    expect(window.location.pathname).toBe('/admin/shipping/zones')
+    expect(document.body.textContent).toContain('Zonas de envío')
+
     await cleanup()
   })
 })

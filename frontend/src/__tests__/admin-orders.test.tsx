@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setAuthSession, setInputElementValue, setSelectElementValue } from '../test-utils/testUtils'
+import type { StoreAdminOrderDetail } from '@/api/contracts/v1/store'
 
 const authMe = {
   userId: 'u1',
@@ -77,12 +78,15 @@ const storeOrdersPage = {
   ]
 }
 
-const storeOrder1 = {
+const storeOrder1: StoreAdminOrderDetail = {
   orderId: 'store-1',
   status: 'PAID',
   createdAt: '2026-03-10T12:00:00.000Z',
   currency: 'ARS',
   subtotalAmount: 800,
+  originalAmount: 800,
+  discountAmount: 0,
+  appliedCouponCode: null,
   shippingCostAmount: 200,
   totalAmount: 1000,
   items: [
@@ -90,6 +94,7 @@ const storeOrder1 = {
   ],
   shipping: { zoneId: 'zone-1', postalCode: '1900' },
   payment: null,
+  fulfillment: null,
   operationalIssue: null,
   operationalSummary: {
     status: 'PAID',
@@ -105,12 +110,15 @@ const storeOrder1 = {
   ]
 }
 
-const storeOrder2 = {
+const storeOrder2: StoreAdminOrderDetail = {
   orderId: 'store-2',
   status: 'PENDING_PAYMENT',
   createdAt: '2026-03-10T13:00:00.000Z',
   currency: 'ARS',
   subtotalAmount: 400,
+  originalAmount: 400,
+  discountAmount: 0,
+  appliedCouponCode: null,
   shippingCostAmount: 100,
   totalAmount: 500,
   items: [
@@ -123,6 +131,7 @@ const storeOrder2 = {
     providerPaymentId: 'mp-store-2',
     confirmedAt: '2026-03-10T13:05:00.000Z'
   },
+  fulfillment: null,
   operationalIssue: {
     code: 'STOCK_CONFLICT',
     title: 'Conflicto de stock post-pago',
@@ -471,7 +480,7 @@ describe('admin orders filters', () => {
   })
 
   it('cancels a store order from admin detail', async () => {
-    let currentOrder = { ...storeOrder2 }
+    let currentOrder: StoreAdminOrderDetail = { ...storeOrder2 }
 
     mockFetch({
       '/api/auth/me': { body: authMe },
@@ -526,7 +535,7 @@ describe('admin orders filters', () => {
   })
 
   it('retries conflicted store order processing from admin detail', async () => {
-    let currentOrder = { ...storeOrder2 }
+    let currentOrder: StoreAdminOrderDetail = { ...storeOrder2 }
     const handler = mockFetch({
       '/api/auth/me': { body: authMe },
       '/api/store/admin/orders/store-2': () => ({ body: currentOrder }),

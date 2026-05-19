@@ -3,13 +3,8 @@ export type AuthLoginReq = {
   password: string
 }
 
-export type AuthRefreshReq = {
-  refreshToken: string
-}
-
 export type AuthTokenResponse = {
   accessToken: string
-  refreshToken: string
   tokenType: string
   expiresAt: string
 }

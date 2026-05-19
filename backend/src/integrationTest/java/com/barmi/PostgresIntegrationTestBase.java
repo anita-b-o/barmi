@@ -2,6 +2,7 @@ package com.barmi;
 
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -17,6 +18,34 @@ import static org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTest
 @ActiveProfiles("integrationtest")
 @AutoConfigureTestDatabase(replace = NONE)
 public abstract class PostgresIntegrationTestBase {
+    private static final String TRUNCATE_ALL_TABLES_SQL = """
+            TRUNCATE TABLE
+              refresh_tokens,
+              payment_intents,
+              payments,
+              ecosystem_fulfillments,
+              store_fulfillments,
+              ecosystem_order_items,
+              ecosystem_orders,
+              store_order_items,
+              store_orders,
+              ecosystem_members,
+              store_members,
+              ecosystem_shipping_zones,
+              store_shipping_zones,
+              ecosystem_external_products,
+              ecosystem_promotions,
+              store_promotions,
+              store_categories,
+              external_products,
+              products,
+              stores,
+              ecosystems,
+              users,
+              outbox_events,
+              processed_events
+            RESTART IDENTITY CASCADE
+            """;
 
     static PostgreSQLContainer<?> postgres =
             new PostgreSQLContainer<>("postgres:15.6")
@@ -37,5 +66,9 @@ public abstract class PostgresIntegrationTestBase {
         registry.add("spring.flyway.url", postgres::getJdbcUrl);
         registry.add("spring.flyway.user", postgres::getUsername);
         registry.add("spring.flyway.password", postgres::getPassword);
+    }
+
+    protected void truncateAllTables(JdbcTemplate jdbcTemplate) {
+        jdbcTemplate.execute(TRUNCATE_ALL_TABLES_SQL);
     }
 }

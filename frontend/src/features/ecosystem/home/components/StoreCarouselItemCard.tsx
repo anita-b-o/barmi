@@ -1,8 +1,5 @@
-import { Link } from 'react-router-dom'
 import type { StoreRailStore } from '../storeRails'
-import { StoreLogoCard } from './StoreLogoCard'
-import { StoreMoreProductsButton } from './StoreMoreProductsButton'
-import { StoreProductPreviewStrip } from './StoreProductPreviewStrip'
+import { StoreCard } from '../../components/StoreCard'
 
 type StoreCarouselItemCardProps = {
   store: StoreRailStore
@@ -11,14 +8,18 @@ type StoreCarouselItemCardProps = {
 export function StoreCarouselItemCard({ store }: StoreCarouselItemCardProps) {
   return (
     <article className="ecosystem-store-rails__item-card">
-      <StoreLogoCard name={store.name} href={store.storeHref} logoUrl={store.logoUrl} />
-      <div className="ecosystem-store-rails__products-wrap">
-        <StoreProductPreviewStrip storeName={store.name} products={store.featuredProducts} />
-        <StoreMoreProductsButton storeName={store.name} href={store.storeProductsHref} />
-      </div>
-      <Link className="ecosystem-store-rails__store-name" to={store.storeHref}>
-        {store.name}
-      </Link>
+      <StoreCard
+        layout="rail"
+        store={{
+          id: store.id,
+          name: store.name,
+          storeHref: store.storeHref,
+          storeProductsHref: store.storeProductsHref,
+          logoUrl: store.logoUrl,
+          categoryLabel: store.categoryLabel,
+          featuredProducts: store.featuredProducts
+        }}
+      />
     </article>
   )
 }

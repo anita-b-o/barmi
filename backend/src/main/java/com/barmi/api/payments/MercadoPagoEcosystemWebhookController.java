@@ -1,7 +1,11 @@
 package com.barmi.api.payments;
 
+import com.barmi.api.webhooks.MercadoPagoEcosystemWebhookRequest;
+import com.barmi.api.webhooks.MercadoPagoWebhookSecurityService;
+import com.barmi.app.config.ObservabilitySupport;
 import com.barmi.app.payments.EcosystemPaymentConfirmationService;
-import org.springframework.beans.factory.annotation.Value;
+import com.barmi.infra.payments.MercadoPagoApiClient;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -18,28 +22,43 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 @RestController
 @RequestMapping("/api/payments/mercadopago/ecosystem")
 public class MercadoPagoEcosystemWebhookController {
+    private static final String PROVIDER = "mercadopago_ecosystem";
 
-    private final String secret;
     private final EcosystemPaymentConfirmationService ecosystemPaymentConfirmationService;
+    private final MercadoPagoWebhookSecurityService webhookSecurityService;
+    private final MercadoPagoApiClient mercadoPagoApiClient;
 
     public MercadoPagoEcosystemWebhookController(
-            @Value("${app.mercadoPago.webhookSecret}") String secret,
-            EcosystemPaymentConfirmationService ecosystemPaymentConfirmationService
+            EcosystemPaymentConfirmationService ecosystemPaymentConfirmationService,
+            MercadoPagoWebhookSecurityService webhookSecurityService,
+            MercadoPagoApiClient mercadoPagoApiClient
     ) {
-        this.secret = secret;
         this.ecosystemPaymentConfirmationService = ecosystemPaymentConfirmationService;
+        this.webhookSecurityService = webhookSecurityService;
+        this.mercadoPagoApiClient = mercadoPagoApiClient;
     }
 
     @PostMapping("/webhook")
     public ResponseEntity<?> receive(
             @RequestHeader(value = "X-Barmi-Webhook-Secret", required = false) String headerSecret,
-            @RequestBody Map<String, Object> payload
+            @RequestHeader(value = MercadoPagoWebhookSecurityService.TIMESTAMP_HEADER, required = false) String timestampHeader,
+            @RequestHeader(value = MercadoPagoWebhookSecurityService.SIGNATURE_HEADER, required = false) String signatureHeader,
+            @RequestHeader(value = MercadoPagoWebhookSecurityService.REQUEST_ID_HEADER, required = false) String requestIdHeader,
+            @RequestBody(required = false) MercadoPagoEcosystemWebhookRequest payload,
+            @RequestParam(value = "data.id", required = false) String dataId,
+            HttpServletRequest request
     ) {
-        if (headerSecret == null || !headerSecret.equals(secret)) {
-            throw new ResponseStatusException(UNAUTHORIZED, "invalid_secret");
+        if (payload == null) {
+            webhookSecurityService.logPayloadError(PROVIDER, null, request, "missing_payload");
+            throw new ResponseStatusException(BAD_REQUEST, "missing_payload");
         }
+        if ("payment".equalsIgnoreCase(payload.type()) && (payload.data() != null || dataId != null)) {
+            return receiveProviderWebhook(signatureHeader, requestIdHeader, payload, dataId, request);
+        }
+        String rawEventId = resolveEventId(payload);
+        webhookSecurityService.validate(PROVIDER, headerSecret, timestampHeader, rawEventId, request);
 
-        String status = stringOrNull(payload.get("status"));
+        String status = stringOrNull(payload.status());
         if (status != null && !status.isBlank() && !"approved".equalsIgnoreCase(status)) {
             return ResponseEntity.ok(Map.of("status", "ignored"));
         }
@@ -59,91 +78,166 @@ public class MercadoPagoEcosystemWebhookController {
                 currency
         );
 
+        org.slf4j.LoggerFactory.getLogger(MercadoPagoEcosystemWebhookController.class)
+                .info("webhook_accepted provider={} event_id={} operation_id={} request_id={} retry_count={} event_type={} provider_payment_id={}",
+                        PROVIDER,
+                        rawEventId,
+                        ecosystemOrderId,
+                        ObservabilitySupport.requestId(request),
+                        ObservabilitySupport.retryCount(request),
+                        status,
+                providerPaymentId);
         return ResponseEntity.ok(Map.of("ok", true));
     }
 
-    private UUID resolveWebhookEventId(Map<String, Object> payload) {
-        Object raw = payload.get("eventId");
-        if (raw == null) raw = payload.get("event_id");
-        if (raw == null) raw = payload.get("id");
-        if (raw == null || raw.toString().isBlank()) {
+    private ResponseEntity<?> receiveProviderWebhook(
+            String signatureHeader,
+            String requestIdHeader,
+            MercadoPagoEcosystemWebhookRequest payload,
+            String dataIdQueryParam,
+            HttpServletRequest request
+    ) {
+        String paymentId = firstNonBlank(dataIdQueryParam, payload.data() == null ? null : payload.data().id());
+        if (paymentId == null || paymentId.isBlank()) {
+            webhookSecurityService.logPayloadError(PROVIDER, null, request, "missing_provider_payment_id");
+            throw new ResponseStatusException(BAD_REQUEST, "missing_provider_payment_id");
+        }
+        webhookSecurityService.validateMercadoPagoSignature(PROVIDER, signatureHeader, requestIdHeader, paymentId, payload.eventId(), request);
+
+        MercadoPagoApiClient.PaymentDetails payment = mercadoPagoApiClient.getPayment(paymentId);
+        if (!"approved".equalsIgnoreCase(payment.status())) {
+            return ResponseEntity.ok(Map.of("status", "ignored"));
+        }
+
+        UUID ecosystemOrderId = parseExternalReference(payment.externalReference(), "ECOSYSTEM");
+        ecosystemPaymentConfirmationService.confirmEcosystemPayment(
+                UUID.nameUUIDFromBytes(("MERCADOPAGO:" + paymentId).getBytes(StandardCharsets.UTF_8)),
+                ecosystemOrderId,
+                payment.id(),
+                requireAmount(payment.transactionAmount()),
+                requireCurrency(payment.currencyId())
+        );
+
+        org.slf4j.LoggerFactory.getLogger(MercadoPagoEcosystemWebhookController.class)
+                .info("webhook_accepted provider={} event_id={} operation_id={} request_id={} retry_count={} event_type={} provider_payment_id={}",
+                        PROVIDER,
+                        payload.eventId(),
+                        ecosystemOrderId,
+                        ObservabilitySupport.requestId(request),
+                        ObservabilitySupport.retryCount(request),
+                        firstNonBlank(payload.action(), payload.type(), payment.status()),
+                        payment.id());
+        return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    private UUID resolveWebhookEventId(MercadoPagoEcosystemWebhookRequest payload) {
+        String raw = resolveEventId(payload);
+        if (raw == null || raw.isBlank()) {
             throw new ResponseStatusException(BAD_REQUEST, "missing_event_id");
         }
-        String value = raw.toString();
         try {
-            return UUID.fromString(value);
+            return UUID.fromString(raw);
         } catch (IllegalArgumentException ex) {
-            return UUID.nameUUIDFromBytes(("MERCADOPAGO_EVENT:" + value).getBytes(StandardCharsets.UTF_8));
+            return UUID.nameUUIDFromBytes(("MERCADOPAGO_EVENT:" + raw).getBytes(StandardCharsets.UTF_8));
         }
     }
 
-    private UUID resolveEcosystemOrderId(Map<String, Object> payload) {
-        Object raw = payload.get("ecosystemOrderId");
-        if (raw == null) raw = payload.get("operation_id");
-        if (raw == null) {
-            Object metadata = payload.get("metadata");
-            if (metadata instanceof Map<?, ?> metaMap) {
-                Object fromMeta = metaMap.get("ecosystemOrderId");
-                if (fromMeta != null) raw = fromMeta;
-            }
-        }
-        if (raw == null || raw.toString().isBlank()) {
+    private UUID resolveEcosystemOrderId(MercadoPagoEcosystemWebhookRequest payload) {
+        String raw = firstNonBlank(
+                payload.ecosystemOrderId(),
+                payload.metadata() == null ? null : payload.metadata().ecosystemOrderId()
+        );
+        if (raw == null || raw.isBlank()) {
             throw new ResponseStatusException(BAD_REQUEST, "missing_ecosystem_order_id");
         }
         try {
-            return UUID.fromString(raw.toString());
+            return UUID.fromString(raw);
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(BAD_REQUEST, "invalid_ecosystem_order_id");
         }
     }
 
-    private String resolveProviderPaymentId(Map<String, Object> payload) {
-        Object raw = payload.get("providerPaymentId");
-        if (raw == null) raw = payload.get("provider_payment_id");
-        if (raw == null) raw = payload.get("payment_id");
-        if (raw == null) {
-            Object data = payload.get("data");
-            if (data instanceof Map<?, ?> dataMap) {
-                Object id = dataMap.get("id");
-                if (id != null) raw = id;
-            }
-        }
-        if (raw == null || raw.toString().isBlank()) {
+    private String resolveProviderPaymentId(MercadoPagoEcosystemWebhookRequest payload) {
+        String raw = firstNonBlank(
+                payload.providerPaymentId(),
+                payload.data() == null ? null : payload.data().id()
+        );
+        if (raw == null || raw.isBlank()) {
             throw new ResponseStatusException(BAD_REQUEST, "missing_provider_payment_id");
         }
-        return raw.toString();
+        return raw;
     }
 
-    private BigDecimal resolveAmount(Map<String, Object> payload) {
-        Object raw = payload.get("amount");
-        if (raw == null) raw = payload.get("transaction_amount");
-        if (raw == null) {
-            Object data = payload.get("data");
-            if (data instanceof Map<?, ?> dataMap) {
-                Object amount = dataMap.get("amount");
-                if (amount != null) raw = amount;
-            }
-        }
+    private BigDecimal resolveAmount(MercadoPagoEcosystemWebhookRequest payload) {
+        BigDecimal raw = payload.amount() != null
+                ? payload.amount()
+                : payload.transactionAmount() != null
+                    ? payload.transactionAmount()
+                    : payload.data() == null ? null : payload.data().amount();
         if (raw == null) {
             throw new ResponseStatusException(BAD_REQUEST, "missing_amount");
         }
         try {
-            return new BigDecimal(raw.toString()).setScale(2, RoundingMode.HALF_UP);
-        } catch (NumberFormatException ex) {
+            return raw.setScale(2, RoundingMode.HALF_UP);
+        } catch (ArithmeticException ex) {
             throw new ResponseStatusException(BAD_REQUEST, "invalid_amount");
         }
     }
 
-    private String resolveCurrency(Map<String, Object> payload) {
-        Object raw = payload.get("currency");
-        if (raw == null) raw = payload.get("currency_id");
-        if (raw == null || raw.toString().isBlank()) {
+    private String resolveCurrency(MercadoPagoEcosystemWebhookRequest payload) {
+        String raw = firstNonBlank(payload.currency(), payload.currencyId());
+        if (raw == null || raw.isBlank()) {
             throw new ResponseStatusException(BAD_REQUEST, "missing_currency");
         }
-        return raw.toString().trim().toUpperCase();
+        return raw.trim().toUpperCase();
     }
 
-    private String stringOrNull(Object value) {
+    private String resolveEventId(MercadoPagoEcosystemWebhookRequest payload) {
+        return firstNonBlank(payload.eventId(), payload.providerPaymentId(), payload.data() == null ? null : payload.data().id());
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String stringOrNull(String value) {
         return value == null ? null : value.toString();
+    }
+
+    private BigDecimal requireAmount(BigDecimal amount) {
+        if (amount == null) {
+            throw new ResponseStatusException(BAD_REQUEST, "missing_amount");
+        }
+        return amount.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private String requireCurrency(String currency) {
+        if (currency == null || currency.isBlank()) {
+            throw new ResponseStatusException(BAD_REQUEST, "missing_currency");
+        }
+        return currency.trim().toUpperCase();
+    }
+
+    private UUID parseExternalReference(String externalReference, String expectedScope) {
+        if (externalReference == null || externalReference.isBlank()) {
+            throw new ResponseStatusException(BAD_REQUEST, "missing_ecosystem_order_id");
+        }
+        String[] parts = externalReference.split(":", 2);
+        if (parts.length != 2 || !expectedScope.equalsIgnoreCase(parts[0])) {
+            throw new ResponseStatusException(BAD_REQUEST, "invalid_ecosystem_order_id");
+        }
+        try {
+            return UUID.fromString(parts[1]);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(BAD_REQUEST, "invalid_ecosystem_order_id");
+        }
     }
 }

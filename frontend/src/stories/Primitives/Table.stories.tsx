@@ -14,6 +14,10 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const BasicUsage: Story = {
+  args: {
+    headers: ['Pedido', 'Cliente', 'Estado', 'Total'],
+    rows: []
+  },
   render: () => (
     <ShowcasePage title="Table" description="Representative table chrome using the shared primitive.">
       <ShowcaseSection title="Rows">
@@ -31,6 +35,10 @@ export const BasicUsage: Story = {
 }
 
 export const Empty: Story = {
+  args: {
+    headers: ['Pedido', 'Cliente', 'Estado', 'Total'],
+    rows: []
+  },
   render: () => (
     <ShowcasePage title="Table" description="The primitive also owns the standard empty treatment.">
       <ShowcaseSection title="Empty state">

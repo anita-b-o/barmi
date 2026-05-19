@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.lang.reflect.Field;
@@ -43,15 +44,15 @@ class EcosystemPublicDiscoveryIT extends PostgresIntegrationTestBase {
     @Autowired
     private StoreRepository storeRepository;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     private Ecosystem activeEcosystem;
     private Ecosystem otherEcosystem;
 
     @BeforeEach
     void setup() throws Exception {
-        storeRepository.deleteAll();
-        ecosystemExternalProductRepository.deleteAll();
-        ecosystemPromotionRepository.deleteAll();
-        ecosystemRepository.deleteAll();
+        truncateAllTables(jdbcTemplate);
 
         activeEcosystem = ecosystemRepository.save(new Ecosystem(
                 UUID.randomUUID(),
@@ -134,9 +135,10 @@ class EcosystemPublicDiscoveryIT extends PostgresIntegrationTestBase {
         mockMvc.perform(get("/api/public/ecosystems/demo-ecosystem/home"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.ecosystem.slug").value("demo-ecosystem"))
-                .andExpect(jsonPath("$.newStores.length()").value(2))
+                .andExpect(jsonPath("$.newStores.length()").value(3))
                 .andExpect(jsonPath("$.newStores[0].slug").value("new-store"))
                 .andExpect(jsonPath("$.newStores[0].category.key").value("almacen"))
+                .andExpect(jsonPath("$.newStores[?(@.slug=='hidden-map-store')]").exists())
                 .andExpect(jsonPath("$.storeCategories.length()").value(2))
                 .andExpect(jsonPath("$.promotionProducts.length()").value(2))
                 .andExpect(jsonPath("$.deliveryProducts.length()").value(1))

@@ -13,11 +13,11 @@ export function hasActiveEcosystemMembership(memberships: AuthMemberships | null
 }
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, loading, me, error, sessionNotice } = useAuth()
   const location = useLocation()
 
-  if (loading) return <div style={{ padding: 24 }}>Cargando sesión...</div>
-  if (!isAuthenticated) return <Navigate to={routes.login} replace state={{ from: location }} />
+  if (loading || (isAuthenticated && !me)) return <div style={{ padding: 24 }}>{error === 'Reconectando con el servidor...' ? 'Reconectando sesión...' : 'Cargando sesión...'}</div>
+  if (!isAuthenticated) return <Navigate to={routes.login} replace state={{ from: location, reason: sessionNotice ?? undefined }} />
   return <>{children}</>
 }
 

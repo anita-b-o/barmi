@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:release": "SENTRY_UPLOAD_REQUIRED=true tsc -b && vite build",
+    "sentry:sourcemaps:upload": "node ./scripts/upload-sourcemaps.mjs",
     "lint": "npm run check:architecture && npm run check:design-system",
     "lint:imports": "node ./scripts/check-architecture.mjs",
     "preview": "vite preview",
@@ -15,17 +17,20 @@
     "storybook": "storybook dev -p 6006",
     "storybook:build": "storybook build",
     "test": "vitest",
+    "test:ecosystem:ci": "CI=1 vitest run src/__tests__/http-client.test.ts src/__tests__/ecosystem-home.test.tsx src/__tests__/ecosystem-catalog.test.tsx src/__tests__/ecosystem-stores-map.test.tsx src/__tests__/ecosystem-orders.test.tsx src/__tests__/ecosystem-checkout-flow.test.tsx src/__tests__/routing.test.tsx --api.port=0",
     "test:baseline": "CI=1 ./node_modules/.bin/vitest run src/__tests__/routing.test.tsx src/__tests__/admin-store-products.test.tsx src/__tests__/admin-ecosystem-products.test.tsx src/__tests__/admin-fulfillment.test.tsx src/__tests__/admin-ecosystem-fulfillment.test.tsx src/__tests__/ui-feedback.test.tsx --api.port=0",
     "validate:baseline": "npm run check:architecture && npm run test:baseline",
     "validate:full": "npm run check:architecture && npm run build && npm run test:baseline",
+    "validate:serial": "npm run check:architecture && npm run check:design-system && npm run build && npm run test:ecosystem:ci",
     "test:e2e": "playwright test"
   },
   "dependencies": {
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@mui/material": "^5.16.7",
+    "@sentry/react": "^10.22.0",
     "@tanstack/react-query": "^5.59.16",
-    "axios": "^1.7.7",
+    "axios": "^1.16.1",
     "leaflet": "^1.9.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -35,6 +40,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.48.2",
+    "@sentry/cli": "^2.46.0",
+    "@sentry/vite-plugin": "^4.1.1",
     "@storybook/addon-a11y": "^8.6.12",
     "@storybook/addon-essentials": "^8.6.12",
     "@storybook/react-vite": "^8.6.12",
@@ -43,6 +50,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "jsdom": "^28.1.0",
+    "postcss": "^8.5.14",
     "typescript": "^5.6.3",
     "vite": "^5.4.10",
     "vitest": "^1.6.0"

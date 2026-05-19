@@ -1,6 +1,9 @@
 package com.barmi.app.orders;
 
 import com.barmi.app.catalog.StorePromotionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import com.barmi.app.security.StoreAuthorizationService;
 import com.barmi.app.tenant.TenantContext;
 import com.barmi.app.shipping.StoreShippingQuoteService;
@@ -36,6 +39,7 @@ import java.util.stream.Collectors;
 public class CheckoutStoreOrderService {
     private static final String EVENT_TYPE = "STORE_ORDER_CREATED";
     private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final Logger log = LoggerFactory.getLogger(CheckoutStoreOrderService.class);
 
     private final String defaultCurrency;
     private final StoreRepository storeRepository;
@@ -118,6 +122,14 @@ public class CheckoutStoreOrderService {
         storeOrderItemRepository.saveAll(context.orderItems());
 
         outboxEventRepository.save(buildCreatedEvent(order, context.store(), context.orderItems(), amounts));
+        log.info(
+                "checkout_created request_id={} store_id={} order_id={} item_count={} total_amount={}",
+                MDC.get("requestId"),
+                context.store().getId(),
+                order.getId(),
+                context.orderItems().size(),
+                amounts.totalAmount()
+        );
 
         return order;
     }
@@ -189,6 +201,14 @@ public class CheckoutStoreOrderService {
         for (Map.Entry<UUID, Integer> entry : qtyByProductId.entrySet()) {
             Product product = productById.get(entry.getKey());
             if (product.getStockQuantity() < entry.getValue()) {
+                log.warn(
+                        "checkout_failure category=api_error_checkout_failure request_id={} store_id={} product_id={} failure_reason=stock_conflict requested_qty={} available_qty={}",
+                        MDC.get("requestId"),
+                        store.getId(),
+                        product.getId(),
+                        entry.getValue(),
+                        product.getStockQuantity()
+                );
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "product_out_of_stock");
             }
         }

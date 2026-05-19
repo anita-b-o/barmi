@@ -1,3 +1,4 @@
+import { useDeferredValue } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { appConfig } from '@/app/config/env'
 import { extractBackendErrorMessage } from '@/core/errors'
@@ -6,6 +7,7 @@ import type { PublicEcosystemCatalogSort } from '../../../../api/contracts/v1/pu
 
 export function useEcosystemCatalog(query: string, sort: PublicEcosystemCatalogSort, deliverySupportedOnly: boolean) {
   const slug = appConfig.publicEcosystemSlug
+  const deferredQuery = useDeferredValue(query)
 
   const ecosystemQuery = useQuery({
     queryKey: ['public-ecosystem', slug],
@@ -13,9 +15,9 @@ export function useEcosystemCatalog(query: string, sort: PublicEcosystemCatalogS
   })
 
   const productsQuery = useQuery({
-    queryKey: ['public-ecosystem-products', slug, query, sort, deliverySupportedOnly],
+    queryKey: ['public-ecosystem-products', slug, deferredQuery, sort, deliverySupportedOnly],
     queryFn: () => publicEcosystemAdapter.listProducts(slug, {
-      query,
+      query: deferredQuery,
       activeOnly: true,
       sort,
       deliverySupported: deliverySupportedOnly ? true : undefined
@@ -26,11 +28,13 @@ export function useEcosystemCatalog(query: string, sort: PublicEcosystemCatalogS
     slug,
     ecosystem: ecosystemQuery.data ?? null,
     products: productsQuery.data ?? [],
-    isLoading: ecosystemQuery.isLoading || productsQuery.isLoading,
-    error: ecosystemQuery.error
+    isLoading: productsQuery.isLoading && !productsQuery.data,
+    isMetadataLoading: ecosystemQuery.isLoading && !ecosystemQuery.data,
+    ecosystemError: ecosystemQuery.error
       ? extractBackendErrorMessage(ecosystemQuery.error, 'Error cargando ecosystem')
-      : productsQuery.error
-        ? extractBackendErrorMessage(productsQuery.error, 'Error cargando productos del ecosystem')
-        : null
+      : null,
+    productsError: productsQuery.error
+      ? extractBackendErrorMessage(productsQuery.error, 'Error cargando productos del ecosystem')
+      : null
   }
 }

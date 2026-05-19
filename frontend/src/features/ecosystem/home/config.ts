@@ -24,7 +24,7 @@ export const ecosystemHomeQuickAccessItems: QuickAccessItem[] = [
   {
     id: 'map',
     title: 'Mapa',
-    description: 'Visitá las tiendas físicas de tus negocios favoritos.',
+    description: 'Entrá por zona y elegí una tienda real antes de comprar.',
     ctaLabel: 'Ir a mapa',
     href: routes.ecosystemStoresMap,
     icon: 'map'
@@ -32,7 +32,7 @@ export const ecosystemHomeQuickAccessItems: QuickAccessItem[] = [
   {
     id: 'stores',
     title: 'Tiendas',
-    description: 'Encontrá todas las tiendas parte de la familia Barmi.',
+    description: 'Compará tiendas del ecosystem y entrá a su catálogo propio.',
     ctaLabel: 'Ir a tiendas',
     href: routes.ecosystemStoresMap,
     icon: 'stores'
@@ -40,7 +40,7 @@ export const ecosystemHomeQuickAccessItems: QuickAccessItem[] = [
   {
     id: 'products',
     title: 'Productos',
-    description: 'Descubrí todos los productos disponibles en Barmi.',
+    description: 'Buscá productos del marketplace y pasalos al carrito ecosystem.',
     ctaLabel: 'Ir a productos',
     href: routes.ecosystemCatalog,
     icon: 'products',
@@ -48,8 +48,8 @@ export const ecosystemHomeQuickAccessItems: QuickAccessItem[] = [
   },
   {
     id: 'categories',
-    title: 'Categorias',
-    description: 'Descubrí todas las categorías que tenemos para ofrecer.',
+    title: 'Categorías',
+    description: 'Usá categorías frecuentes cuando todavía no sabés qué tienda abrir.',
     ctaLabel: 'Ir a categorías',
     href: routes.ecosystemStoresMap,
     icon: 'categories'

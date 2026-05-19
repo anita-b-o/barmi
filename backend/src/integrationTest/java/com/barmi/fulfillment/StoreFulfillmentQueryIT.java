@@ -94,12 +94,7 @@ class StoreFulfillmentQueryIT extends PostgresIntegrationTestBase {
 
     @BeforeEach
     void setup() {
-        refreshTokenRepository.deleteAll();
-        storeMemberRepository.deleteAll();
-        storeFulfillmentRepository.deleteAll();
-        storeOrderRepository.deleteAll();
-        userRepository.deleteAll();
-        storeRepository.deleteAll();
+        truncateAllTables(jdbcTemplate);
 
         store = storeRepository.save(new Store(UUID.randomUUID(), "fulfillments-" + UUID.randomUUID(), "Fulfillment Store"));
         otherStore = storeRepository.save(new Store(UUID.randomUUID(), "other-" + UUID.randomUUID(), "Other Store"));

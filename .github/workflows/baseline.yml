@@ -8,7 +8,7 @@ on:
   pull_request:
 
 jobs:
-  validate:
+  baseline:
     runs-on: ubuntu-latest
 
     steps:
@@ -39,3 +39,43 @@ jobs:
       - name: Backend baseline validation
         working-directory: backend
         run: ./gradlew baselineCheck
+
+  full-validation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend full validation
+        run: ./scripts/validate-frontend-serial.sh
+
+      - name: Backend full validation
+        working-directory: backend
+        run: ./gradlew baselineVerify
+
+      - name: Backend docker build
+        run: docker build -t barmi-backend:ci .
+
+      - name: Compose production config
+        run: docker compose --profile prod config
+
+      - name: Compose staging config
+        run: docker compose -f docker-compose.staging.yml config

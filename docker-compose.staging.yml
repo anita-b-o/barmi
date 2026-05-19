@@ -1,0 +1,127 @@
+name: barmi-staging
+
+services:
+  postgres:
+    image: postgres:15.6
+    environment:
+      POSTGRES_DB: ${DB_NAME:?DB_NAME is required}
+      POSTGRES_USER: ${DB_USER:?DB_USER is required}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+    ports:
+      - "${STAGING_DB_PORT:-5435}:5432"
+    volumes:
+      - barmi_staging_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - barmi_staging_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-staging-local}
+        APP_COMMIT_SHA: ${APP_COMMIT_SHA:-unknown}
+        APP_BUILD_TIMESTAMP: ${APP_BUILD_TIMESTAMP:-unknown}
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:?DB_NAME is required}
+      DB_USER: ${DB_USER:?DB_USER is required}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-}
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:?MP_WEBHOOK_SECRET is required}
+      MP_PUBLIC_BASE_URL: ${MP_PUBLIC_BASE_URL:-}
+      APP_VERSION: ${APP_VERSION:-staging-local}
+      APP_COMMIT_SHA: ${APP_COMMIT_SHA:-unknown}
+      APP_BUILD_TIMESTAMP: ${APP_BUILD_TIMESTAMP:-unknown}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?ALLOWED_ORIGINS is required}
+      STORE_BASE_DOMAIN: ${STORE_BASE_DOMAIN:?STORE_BASE_DOMAIN is required}
+      STORE_PUBLIC_SCHEME: ${STORE_PUBLIC_SCHEME:-http}
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-ARS}
+      NOTIFICATION_EMAIL_MODE: ${NOTIFICATION_EMAIL_MODE:-logging}
+      NOTIFICATION_EMAIL_FROM: ${NOTIFICATION_EMAIL_FROM:-}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH:-true}
+      SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE: ${SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE:-true}
+      OBSERVABILITY_OUTBOX_BACKLOG_THRESHOLD: ${OBSERVABILITY_OUTBOX_BACKLOG_THRESHOLD:-1000}
+      APP_OBSERVABILITY_SMOKE_ENABLED: ${APP_OBSERVABILITY_SMOKE_ENABLED:-true}
+      REFRESH_COOKIE_SECURE: ${REFRESH_COOKIE_SECURE:-false}
+      REFRESH_COOKIE_DOMAIN: ${REFRESH_COOKIE_DOMAIN:-}
+      REFRESH_COOKIE_SAMESITE: ${REFRESH_COOKIE_SAMESITE:-Lax}
+      SPRING_PROFILES_ACTIVE: staging
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health/liveness >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+        VITE_PUBLIC_STORE_HOST: ${VITE_PUBLIC_STORE_HOST:?VITE_PUBLIC_STORE_HOST is required}
+        VITE_PUBLIC_ECOSYSTEM_SLUG: ${VITE_PUBLIC_ECOSYSTEM_SLUG:?VITE_PUBLIC_ECOSYSTEM_SLUG is required}
+        VITE_APP_ENV: ${VITE_APP_ENV:-staging}
+        VITE_APP_VERSION: ${APP_VERSION:-staging-local}
+        VITE_APP_COMMIT_SHA: ${APP_COMMIT_SHA:-unknown}
+        VITE_APP_BUILD_TIMESTAMP: ${APP_BUILD_TIMESTAMP:-unknown}
+        VITE_APP_RELEASE_ID: ${VITE_APP_RELEASE_ID:-${APP_VERSION:-staging-local}+${APP_COMMIT_SHA:-unknown}}
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_OBSERVABILITY_SMOKE_ENABLED: ${VITE_OBSERVABILITY_SMOKE_ENABLED:-true}
+        VITE_OBSERVABILITY_INGEST_URL: ${VITE_OBSERVABILITY_INGEST_URL:-}
+        SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
+        SENTRY_ORG: ${SENTRY_ORG:-}
+        SENTRY_PROJECT: ${SENTRY_PROJECT:-}
+        SENTRY_AUTO_UPLOAD: ${SENTRY_AUTO_UPLOAD:-false}
+        SENTRY_UPLOAD_REQUIRED: ${SENTRY_UPLOAD_REQUIRED:-false}
+    healthcheck:
+      test: ["CMD-SHELL", "test -s /usr/share/nginx/html/index.html"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+    ports:
+      - "${STAGING_HTTP_PORT:-8088}:80"
+      - "${STAGING_HTTPS_PORT:-8443}:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./infra/nginx/sites:/etc/nginx/sites-enabled:ro
+      - ./infra/nginx/certs:/etc/nginx/certs:ro
+
+volumes:
+  barmi_staging_pgdata:
+  barmi_staging_redisdata:

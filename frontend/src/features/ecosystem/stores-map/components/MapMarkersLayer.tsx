@@ -1,8 +1,10 @@
-import { useEffect, useMemo } from 'react'
+import { memo, useEffect, useMemo } from 'react'
 import L, { type LatLngExpression } from 'leaflet'
 import { Marker, Popup, useMap } from 'react-leaflet'
 import type { PublicStoreMapStore } from '../../../../api/contracts/v1/public'
 import { ecosystemMapDefaultCenter, ecosystemMapDefaultZoom } from '../mapDefaults'
+import { appConfig } from '@/app/config/env'
+import { trackBetaEvent } from '@/features/beta'
 
 export type LocatedStore = PublicStoreMapStore & {
   latitude: number
@@ -64,7 +66,7 @@ function MapViewportController({ stores, selectedStoreId }: Pick<MapMarkersLayer
   return null
 }
 
-export function MapMarkersLayer({ stores, selectedStoreId, onSelectStore }: MapMarkersLayerProps) {
+function MapMarkersLayerBase({ stores, selectedStoreId, onSelectStore }: MapMarkersLayerProps) {
   const markerItems = useMemo(
     () => stores.map((store) => ({ store, position: toPosition(store) })),
     [stores]
@@ -79,7 +81,19 @@ export function MapMarkersLayer({ stores, selectedStoreId, onSelectStore }: MapM
           position={position}
           icon={store.id === selectedStoreId ? selectedMarkerIcon : defaultMarkerIcon}
           title={store.name}
-          eventHandlers={{ click: () => onSelectStore(store.id) }}
+          eventHandlers={{
+            click: () => {
+              trackBetaEvent({
+                eventName: 'map_pin_click',
+                ecosystemSlug: appConfig.publicEcosystemSlug,
+                storeId: store.id,
+                storeSlug: store.slug,
+                storeName: store.name,
+                metadata: { surface: 'ecosystem_map_pin' }
+              })
+              onSelectStore(store.id)
+            }
+          }}
         >
           <Popup>
             <strong>{store.name}</strong>
@@ -90,3 +104,5 @@ export function MapMarkersLayer({ stores, selectedStoreId, onSelectStore }: MapM
     </>
   )
 }
+
+export const MapMarkersLayer = memo(MapMarkersLayerBase)

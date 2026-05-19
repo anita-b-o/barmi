@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearStorage, flush, mockFetch, renderAppAt, setAuthSession } from '../test-utils/testUtils'
+import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setAuthSession, setInputElementValue } from '../test-utils/testUtils'
 
 beforeEach(() => {
   clearStorage()
@@ -66,20 +66,17 @@ describe('admin members store', () => {
     expect(document.body.textContent).not.toContain('no expone endpoints para listar miembros')
 
     const inviteButton = Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Invitar miembro'))
-    inviteButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await clickElement(inviteButton)
     await flush()
 
     const emailInput = document.querySelector('input[type="email"]') as HTMLInputElement | null
     expect(emailInput).not.toBeNull()
     if (emailInput) {
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
-      setter?.call(emailInput, 'staff')
-      emailInput.dispatchEvent(new Event('input', { bubbles: true }))
-      emailInput.dispatchEvent(new Event('change', { bubbles: true }))
+      await setInputElementValue(emailInput, 'staff')
     }
 
     const createButton = Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Crear miembro'))
-    createButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await clickElement(createButton)
     await flush()
 
     expect(document.body.textContent).toContain('Ingresá un email válido')
@@ -89,13 +86,10 @@ describe('admin members store', () => {
     expect(invalidPostCall).toBeFalsy()
 
     if (emailInput) {
-      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
-      setter?.call(emailInput, 'staff@example.com')
-      emailInput.dispatchEvent(new Event('input', { bubbles: true }))
-      emailInput.dispatchEvent(new Event('change', { bubbles: true }))
+      await setInputElementValue(emailInput, 'staff@example.com')
     }
 
-    createButton?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await clickElement(createButton)
     await flush()
     await flush()
 

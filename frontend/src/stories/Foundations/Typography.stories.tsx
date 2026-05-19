@@ -12,6 +12,7 @@ export default meta
 type Story = StoryObj<typeof meta>
 
 export const TypeScale: Story = {
+  args: {},
   render: () => (
     <ShowcasePage
       title="Typography"

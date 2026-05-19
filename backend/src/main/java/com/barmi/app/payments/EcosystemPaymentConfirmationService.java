@@ -19,6 +19,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -134,14 +135,16 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
             try {
                 paymentRepository.save(payment);
                 paymentsConfirmedCounter.increment();
-                log.info("payment_confirmed scope=ECOSYSTEM operation_id={} provider_payment_id={}", ecosystemOrderId, providerPaymentId);
+                log.info("payment_confirmed scope=ECOSYSTEM request_id={} ecosystem_id={} operation_id={} provider_payment_id={}",
+                        MDC.get("requestId"), order.getEcosystem().getId(), ecosystemOrderId, providerPaymentId);
             } catch (DataIntegrityViolationException ex) {
                 if (paymentRepository.findFirstByScopeAndOperationIdAndStatus(
                         PaymentScope.ECOSYSTEM,
                         ecosystemOrderId,
                         PaymentStatus.CONFIRMED
                 ).isPresent()) {
-                    log.info("payment_confirm_noop_race scope=ECOSYSTEM operation_id={} provider_payment_id={}", ecosystemOrderId, providerPaymentId);
+                    log.info("payment_confirm_noop_race scope=ECOSYSTEM request_id={} ecosystem_id={} operation_id={} provider_payment_id={}",
+                            MDC.get("requestId"), order.getEcosystem().getId(), ecosystemOrderId, providerPaymentId);
                     saveProcessedEvent(webhookEventId);
                     return;
                 }
@@ -183,7 +186,8 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
             );
             outboxEventRepository.save(event);
             paymentsMismatchCounter.increment();
-            log.warn("payment_mismatch scope=ECOSYSTEM operation_id={} provider_payment_id={} received_amount={} received_currency={} expected_amount={} expected_currency={}", order.getId(), providerPaymentId, amount, currency, order.getTotalAmount(), order.getCurrency());
+            log.warn("checkout_failure category=api_error_checkout_failure request_id={} ecosystem_id={} order_id={} provider={} failure_reason=payment_mismatch received_amount={} received_currency={} expected_amount={} expected_currency={}",
+                    MDC.get("requestId"), order.getEcosystem().getId(), order.getId(), PROVIDER, amount, currency, order.getTotalAmount(), order.getCurrency());
             saveProcessedEvent(webhookEventId);
             return;
         }

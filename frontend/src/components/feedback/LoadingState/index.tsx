@@ -6,8 +6,8 @@ export default function LoadingState({ label = 'Cargando...' }: { label?: string
     <div
       style={{
         display: 'grid',
-        gap: theme.spacing.md,
-        padding: theme.spacing.xl,
+        gap: theme.spacing.sm,
+        padding: theme.spacing.lg,
         color: theme.colors.textMuted,
         fontSize: theme.typography.body.size,
         background: theme.colors.bgSurfaceAlt,
@@ -19,10 +19,10 @@ export default function LoadingState({ label = 'Cargando...' }: { label?: string
       <div
         aria-hidden="true"
         style={{
-          width: 44,
-          height: 44,
-          borderRadius: theme.radius.pill,
-          background: theme.colors.bgSurfaceAlt,
+          width: 38,
+          height: 38,
+          borderRadius: theme.radius.md,
+          background: alpha(theme.colors.brand, 0.05),
           border: `1px solid ${alpha(theme.colors.brand, 0.16)}`
         }}
       />

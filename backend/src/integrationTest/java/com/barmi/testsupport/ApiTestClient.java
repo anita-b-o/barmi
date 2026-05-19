@@ -2,6 +2,7 @@ package com.barmi.testsupport;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -24,6 +25,10 @@ public class ApiTestClient {
 
     public ApiTestResponse postJson(String path, Object body, HttpHeaders headers) throws Exception {
         return exchange(MockMvcRequestBuilders.post(path), body, headers);
+    }
+
+    public ApiTestResponse postJson(String path, Object body, HttpHeaders headers, Cookie... cookies) throws Exception {
+        return exchange(MockMvcRequestBuilders.post(path), body, headers, cookies);
     }
 
     public ApiTestResponse putJson(String path, Object body, HttpHeaders headers) throws Exception {
@@ -56,8 +61,15 @@ public class ApiTestClient {
     }
 
     private ApiTestResponse exchange(MockHttpServletRequestBuilder builder, Object body, HttpHeaders headers) throws Exception {
+        return exchange(builder, body, headers, new Cookie[0]);
+    }
+
+    private ApiTestResponse exchange(MockHttpServletRequestBuilder builder, Object body, HttpHeaders headers, Cookie... cookies) throws Exception {
         if (headers != null) {
             builder.headers(headers);
+        }
+        if (cookies != null && cookies.length > 0) {
+            builder.cookie(cookies);
         }
         if (body != null) {
             builder.contentType(MediaType.APPLICATION_JSON);
@@ -71,8 +83,11 @@ public class ApiTestClient {
         if (content != null && !content.isBlank()) {
             bodyMap = MAPPER.readValue(content, new TypeReference<>() {});
         }
-        return new ApiTestResponse(status, bodyMap, content);
+        HttpHeaders responseHeaders = new HttpHeaders();
+        result.getResponse().getHeaderNames().forEach(name -> responseHeaders.put(name, result.getResponse().getHeaders(name)));
+        Cookie[] responseCookies = result.getResponse().getCookies();
+        return new ApiTestResponse(status, bodyMap, content, responseHeaders, responseCookies);
     }
 
-    public record ApiTestResponse(int status, Map<String, Object> body, String rawBody) {}
+    public record ApiTestResponse(int status, Map<String, Object> body, String rawBody, HttpHeaders headers, Cookie[] cookies) {}
 }

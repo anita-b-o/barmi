@@ -13,10 +13,9 @@ run_frontend_fast() {
 }
 
 run_frontend_full() {
-  echo "[baseline] frontend: architecture + build + baseline tests"
+  echo "[baseline] frontend: serial checks + build + ecosystem/routing tests"
   (
-    cd "$ROOT_DIR/frontend"
-    npm run validate:full
+    "$ROOT_DIR/scripts/validate-frontend-serial.sh"
   )
 }
 

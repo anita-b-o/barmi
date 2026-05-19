@@ -16,9 +16,11 @@ import com.barmi.infra.repo.RefreshTokenRepository;
 import com.barmi.infra.repo.StoreMemberRepository;
 import com.barmi.infra.repo.StoreRepository;
 import com.barmi.infra.repo.UserRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -28,6 +30,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
@@ -42,6 +45,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenCodec refreshTokenCodec;
     private final long refreshTtlDays;
 
     public AuthService(
@@ -53,6 +57,7 @@ public class AuthService {
             RefreshTokenRepository refreshTokenRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
+            RefreshTokenCodec refreshTokenCodec,
             @Value("${app.security.refreshTtlDays:30}") long refreshTtlDays
     ) {
         this.userRepository = userRepository;
@@ -63,10 +68,13 @@ public class AuthService {
         this.refreshTokenRepository = refreshTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.refreshTokenCodec = refreshTokenCodec;
         this.refreshTtlDays = refreshTtlDays;
     }
 
+    @Transactional
     public AuthTokens login(String email, String password) {
+        Instant requestStartedAt = Instant.now();
         if (email == null || email.isBlank() || password == null || password.isBlank()) {
             throw new ResponseStatusException(BAD_REQUEST, "bad_request");
         }
@@ -82,18 +90,30 @@ public class AuthService {
             throw new ResponseStatusException(UNAUTHORIZED, "invalid_credentials");
         }
 
-        return issueTokens(user);
+        revokeActiveTokens(user.getId(), requestStartedAt);
+        return issueTokens(user, CONFLICT, "concurrent_auth_request");
     }
 
+    @Transactional
     public AuthTokens refresh(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new ResponseStatusException(UNAUTHORIZED, "invalid_refresh_token");
         }
 
-        RefreshToken token = refreshTokenRepository.findByToken(refreshToken)
+        RefreshToken token = refreshTokenRepository.findByTokenHash(refreshTokenCodec.hash(refreshToken))
                 .orElseThrow(() -> new ResponseStatusException(UNAUTHORIZED, "invalid_refresh_token"));
 
-        if (token.isRevoked() || token.isExpired(Instant.now())) {
+        Instant now = Instant.now();
+        if (token.isExpired(now)) {
+            throw new ResponseStatusException(UNAUTHORIZED, "refresh_token_expired");
+        }
+        if (token.isRevoked()) {
+            throw new ResponseStatusException(UNAUTHORIZED, "invalid_refresh_token");
+        }
+
+        Instant revokedAt = Instant.now();
+        int revokedRows = refreshTokenRepository.revokeIfActive(token.getId(), now, revokedAt);
+        if (revokedRows != 1) {
             throw new ResponseStatusException(UNAUTHORIZED, "invalid_refresh_token");
         }
 
@@ -104,10 +124,16 @@ public class AuthService {
             throw new ResponseStatusException(FORBIDDEN, "user_inactive");
         }
 
-        token.revoke();
-        refreshTokenRepository.save(token);
+        return issueTokens(user, UNAUTHORIZED, "invalid_refresh_token");
+    }
 
-        return issueTokens(user);
+    @Transactional
+    public void logout(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return;
+        }
+
+        refreshTokenRepository.revokeByTokenHashIfActive(refreshTokenCodec.hash(refreshToken), Instant.now());
     }
 
     public MeResponse me(AuthenticatedUser principal) {
@@ -153,30 +179,45 @@ public class AuthService {
         );
     }
 
-    private AuthTokens issueTokens(User user) {
+    private AuthTokens issueTokens(User user, org.springframework.http.HttpStatus conflictStatus, String conflictCode) {
+        Instant now = Instant.now();
+
         Map<String, Object> claims = Map.of(
                 "email", user.getEmail(),
                 "userId", user.getId().toString()
         );
         String accessToken = jwtService.issueToken(user.getId().toString(), claims);
-        Instant expiresAt = jwtService.computeExpiry();
+        Instant accessTokenExpiresAt = jwtService.computeExpiry(now);
+        String rawRefreshToken = refreshTokenCodec.generateOpaqueToken();
+        String refreshTokenHash = refreshTokenCodec.hash(rawRefreshToken);
+        Instant refreshTokenExpiresAt = now.plus(refreshTtlDays, ChronoUnit.DAYS);
 
         RefreshToken refreshToken = new RefreshToken(
                 UUID.randomUUID(),
                 user.getId(),
-                UUID.randomUUID().toString(),
-                Instant.now().plus(refreshTtlDays, ChronoUnit.DAYS)
+                refreshTokenHash,
+                refreshTokenHash,
+                refreshTokenExpiresAt
         );
-        refreshTokenRepository.save(refreshToken);
+        try {
+            refreshTokenRepository.saveAndFlush(refreshToken);
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(conflictStatus, conflictCode, ex);
+        }
 
-        return new AuthTokens(accessToken, refreshToken.getToken(), "Bearer", expiresAt);
+        return new AuthTokens(accessToken, accessTokenExpiresAt, rawRefreshToken, refreshTokenExpiresAt, "Bearer");
+    }
+
+    private void revokeActiveTokens(UUID userId, Instant requestStartedAt) {
+        refreshTokenRepository.revokeActiveByUserId(userId, requestStartedAt, requestStartedAt);
     }
 
     public record AuthTokens(
             String accessToken,
+            Instant accessTokenExpiresAt,
             String refreshToken,
-            String tokenType,
-            Instant expiresAt
+            Instant refreshTokenExpiresAt,
+            String tokenType
     ) {}
 
     public record MeResponse(

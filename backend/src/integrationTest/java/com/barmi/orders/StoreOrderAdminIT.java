@@ -135,7 +135,7 @@ class StoreOrderAdminIT {
         StoreOrder order;
         try {
             TenantContext.setStoreSlug(store.getSlug());
-            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
+            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "cancel@example.com");
         } finally {
             TenantContext.clear();
         }
@@ -191,8 +191,8 @@ class StoreOrderAdminIT {
         StoreOrder conflictedOrder;
         try {
             TenantContext.setStoreSlug(store.getSlug());
-            paidOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
-            conflictedOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
+            paidOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "paid@example.com");
+            conflictedOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "conflicted@example.com");
         } finally {
             TenantContext.clear();
         }
@@ -304,7 +304,7 @@ class StoreOrderAdminIT {
         StoreOrder order;
         try {
             TenantContext.setStoreSlug(store.getSlug());
-            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
+            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "retry@example.com");
         } finally {
             TenantContext.clear();
         }
@@ -344,10 +344,10 @@ class StoreOrderAdminIT {
         StoreOrder cancelledOrder;
         try {
             TenantContext.setStoreSlug(store.getSlug());
-            pendingOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
-            conflictedOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
-            fulfilledOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
-            cancelledOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
+            pendingOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "pending@example.com");
+            conflictedOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "conflicted-list@example.com");
+            fulfilledOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "fulfilled@example.com");
+            cancelledOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "cancelled@example.com");
         } finally {
             TenantContext.clear();
         }
@@ -489,10 +489,10 @@ class StoreOrderAdminIT {
         StoreOrder conflictOrder;
         try {
             TenantContext.setStoreSlug(store.getSlug());
-            createdOnly = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
-            paidOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
-            cancelledOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
-            conflictOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
+            createdOnly = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "created-only@example.com");
+            paidOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "paid-order@example.com");
+            cancelledOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "cancelled-order@example.com");
+            conflictOrder = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "conflict-order@example.com");
         } finally {
             TenantContext.clear();
         }

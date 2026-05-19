@@ -1,6 +1,5 @@
 import type { ProductRailProduct } from '../productRails'
-import { ProductCardBody } from './ProductCardBody'
-import { ProductCardImage } from './ProductCardImage'
+import { ProductCard } from '../../components/ProductCard'
 
 type ProductCarouselItemCardProps = {
   product: ProductRailProduct
@@ -9,13 +8,19 @@ type ProductCarouselItemCardProps = {
 export function ProductCarouselItemCard({ product }: ProductCarouselItemCardProps) {
   return (
     <article className="ecosystem-product-rails__item-card">
-      <ProductCardImage
-        href={product.href}
-        name={product.name}
-        imageUrl={product.imageUrl}
-        imageAlt={product.imageAlt}
+      <ProductCard
+        layout="rail"
+        product={{
+          id: product.id,
+          name: product.name,
+          href: product.href,
+          imageUrl: product.imageUrl,
+          imageAlt: product.imageAlt,
+          priceAmount: product.priceAmount,
+          currency: product.currency,
+          storeName: product.storeName
+        }}
       />
-      <ProductCardBody product={product} />
     </article>
   )
 }

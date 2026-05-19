@@ -1,7 +1,6 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { EcosystemLayout } from '../../layouts'
 import { appConfig } from '@/app/config/env'
 import { publicEcosystemAdapter } from '../../api/adapters/publicEcosystemAdapter'
 import type { PublicEcosystemStoresMapLocationFilter } from '../../api/contracts/v1/public'
@@ -9,7 +8,10 @@ import { extractBackendErrorMessage } from '@/core/errors'
 import { mapExploreGroups } from '@/features/ecosystem/stores-map/mapExploreConfig'
 import { EcosystemMapView } from '@/features/ecosystem/stores-map/components/EcosystemMapView'
 import { MapSidebar } from '@/features/ecosystem/stores-map/components/MapSidebar'
-import '@/features/ecosystem/stores-map/components/EcosystemStoresMapScreen.css'
+import '@/features/ecosystem/components/ecosystem-marketplace.css'
+import { EcosystemLayout } from '../../layouts'
+import { trackBetaEvent } from '@/features/beta'
+import { useRef } from 'react'
 
 export default function EcosystemStoresMapScreen() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -18,6 +20,15 @@ export default function EcosystemStoresMapScreen() {
   const category = searchParams.get('category') ?? ''
   const location = (searchParams.get('location') === 'all' ? 'all' : 'mapped') as PublicEcosystemStoresMapLocationFilter
   const selectedStoreId = searchParams.get('store')
+  const trackedSearchRef = useRef('')
+
+  useEffect(() => {
+    trackBetaEvent({
+      eventName: 'map_view',
+      ecosystemSlug: slug,
+      metadata: { surface: 'ecosystem_map' }
+    })
+  }, [slug])
 
   const storesQuery = useQuery({
     queryKey: ['public-ecosystem-stores-map', slug, query, category, location],
@@ -40,7 +51,19 @@ export default function EcosystemStoresMapScreen() {
     setSearchParams(next, { replace: true })
   }, [searchParams, selectedStoreId, setSearchParams, storesQuery.data, validSelectedStoreId])
 
-  const updateParams = (updates: Record<string, string>) => {
+  useEffect(() => {
+    const normalized = query.trim().toLowerCase()
+    if (!normalized || trackedSearchRef.current === normalized) return
+    trackedSearchRef.current = normalized
+    trackBetaEvent({
+      eventName: 'search_used',
+      ecosystemSlug: slug,
+      searchTerm: normalized,
+      metadata: { surface: 'ecosystem_map' }
+    })
+  }, [query, slug])
+
+  const updateParams = useCallback((updates: Record<string, string>) => {
     const next = new URLSearchParams(searchParams)
     Object.entries(updates).forEach(([key, value]) => {
       if (!value || (key === 'location' && value === 'mapped')) next.delete(key)
@@ -48,13 +71,13 @@ export default function EcosystemStoresMapScreen() {
     })
     if (updates.q !== undefined || updates.category !== undefined || updates.location !== undefined) next.delete('store')
     setSearchParams(next)
-  }
+  }, [searchParams, setSearchParams])
 
-  const selectStore = (storeId: string) => {
+  const selectStore = useCallback((storeId: string) => {
     const next = new URLSearchParams(searchParams)
     next.set('store', storeId)
     setSearchParams(next)
-  }
+  }, [searchParams, setSearchParams])
 
   const error = storesQuery.error ? extractBackendErrorMessage(storesQuery.error, 'Error cargando tiendas del ecosystem') : null
 

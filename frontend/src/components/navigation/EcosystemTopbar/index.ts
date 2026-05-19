@@ -1,1 +1,1 @@
-export { default } from './EcosystemTopbar'
+export { default } from '../MarketplaceTopbar'

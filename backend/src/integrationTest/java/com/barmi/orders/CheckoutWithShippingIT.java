@@ -1,5 +1,6 @@
 package com.barmi.orders;
 
+import com.barmi.PostgresIntegrationTestBase;
 import com.barmi.domain.catalog.Product;
 import com.barmi.domain.shipping.ShippingZoneType;
 import com.barmi.domain.shipping.StoreShippingZone;
@@ -10,19 +11,14 @@ import com.barmi.infra.repo.StoreOrderRepository;
 import com.barmi.infra.repo.StoreRepository;
 import com.barmi.infra.repo.StoreShippingZoneRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import com.barmi.testsupport.ApiTestClient;
 
 import java.math.BigDecimal;
@@ -32,36 +28,14 @@ import java.util.UUID;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace.NONE;
 
-@Testcontainers
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "jwt.secret=this_is_a_super_long_test_secret_key_that_is_at_least_32_bytes_long",
         "app.money.defaultCurrency=ARS"
 })
 @org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 @TestConstructor(autowireMode = TestConstructor.AutowireMode.ALL)
-@ActiveProfiles("integrationtest")
-@AutoConfigureTestDatabase(replace = NONE)
-class CheckoutWithShippingIT {
-
-    @Container
-    static PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>("postgres:15.6")
-                    .withDatabaseName("barmi_test")
-                    .withUsername("test")
-                    .withPassword("test");
-
-    @DynamicPropertySource
-    static void registerProps(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-
-        registry.add("spring.flyway.url", postgres::getJdbcUrl);
-        registry.add("spring.flyway.user", postgres::getUsername);
-        registry.add("spring.flyway.password", postgres::getPassword);
-    }
+class CheckoutWithShippingIT extends PostgresIntegrationTestBase {
 
     private final StoreRepository storeRepository;
     private final ProductRepository productRepository;
@@ -70,6 +44,7 @@ class CheckoutWithShippingIT {
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final ApiTestClient api;
+    private final JdbcTemplate jdbcTemplate;
 
     @Autowired
     CheckoutWithShippingIT(
@@ -78,7 +53,8 @@ class CheckoutWithShippingIT {
             StoreShippingZoneRepository storeShippingZoneRepository,
             StoreOrderRepository storeOrderRepository,
             OutboxEventRepository outboxEventRepository,
-            MockMvc mockMvc
+            MockMvc mockMvc,
+            JdbcTemplate jdbcTemplate
     ) {
         this.storeRepository = storeRepository;
         this.productRepository = productRepository;
@@ -86,6 +62,12 @@ class CheckoutWithShippingIT {
         this.storeOrderRepository = storeOrderRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.api = new ApiTestClient(mockMvc);
+        this.jdbcTemplate = jdbcTemplate;
+    }
+
+    @BeforeEach
+    void setup() {
+        truncateAllTables(jdbcTemplate);
     }
 
     @Test
@@ -108,6 +90,7 @@ class CheckoutWithShippingIT {
         HttpHeaders headers = api.storeHostHeaders("shipcheckout");
 
         Map<String, Object> body = Map.of(
+                "buyerEmail", "shipping@example.com",
                 "items", List.of(
                         Map.of("productId", product.getId().toString(), "qty", 1)
                 ),

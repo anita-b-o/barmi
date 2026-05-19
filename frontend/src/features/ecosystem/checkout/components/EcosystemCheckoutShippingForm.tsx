@@ -97,9 +97,27 @@ export function EcosystemCheckoutShippingForm({
               style={{
                 padding: theme.spacing.md,
                 borderRadius: theme.radius.lg,
-                background: alpha(shippingAvailable ? theme.colors.success : theme.colors.warning, 0.1),
-                border: `1px solid ${alpha(shippingAvailable ? theme.colors.success : theme.colors.warning, 0.2)}`,
-                color: shippingAvailable ? theme.colors.textPrimary : theme.colors.warning,
+                background: alpha(
+                  shippingAvailable
+                    ? theme.colors.success
+                    : shippingSummary.toLowerCase().includes('todav')
+                      ? theme.colors.secondary
+                      : theme.colors.warning,
+                  0.1
+                ),
+                border: `1px solid ${alpha(
+                  shippingAvailable
+                    ? theme.colors.success
+                    : shippingSummary.toLowerCase().includes('todav')
+                      ? theme.colors.secondary
+                      : theme.colors.warning,
+                  0.2
+                )}`,
+                color: shippingAvailable
+                  ? theme.colors.textPrimary
+                  : shippingSummary.toLowerCase().includes('todav')
+                    ? theme.colors.textMuted
+                    : theme.colors.warning,
                 boxShadow: 'none'
               }}
             >

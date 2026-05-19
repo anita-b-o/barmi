@@ -82,6 +82,7 @@ describe('store checkout flow', () => {
 
     const { cleanup } = await renderAppAt('/store/checkout')
     await flush()
+    await flush()
 
     expect(document.body.textContent).toContain('Compra simple, total transparente')
     expect(document.body.textContent).toContain('Promociones activas recordadas')
@@ -199,6 +200,7 @@ describe('store checkout flow', () => {
 
     const { cleanup } = await renderAppAt('/store/checkout')
     await flush()
+    await flush()
 
     const couponInput = Array.from(document.querySelectorAll('input'))
       .find((input) => input.getAttribute('placeholder')?.includes('BIENVENIDA10')) as HTMLInputElement | undefined
@@ -283,6 +285,7 @@ describe('store checkout flow', () => {
 
     const { cleanup } = await renderAppAt('/store/checkout')
     await flush()
+    await flush()
 
     const emailInput = Array.from(document.querySelectorAll('input'))
       .find((input) => input.getAttribute('type') === 'email') as HTMLInputElement | undefined
@@ -348,6 +351,7 @@ describe('store checkout flow', () => {
     })
 
     const { cleanup } = await renderAppAt('/store/checkout')
+    await flush()
     await flush()
 
     const couponInput = Array.from(document.querySelectorAll('input'))

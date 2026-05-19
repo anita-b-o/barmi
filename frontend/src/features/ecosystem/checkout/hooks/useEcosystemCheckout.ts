@@ -5,6 +5,7 @@ import { extractBackendErrorMessage } from '@/core/errors'
 import { useEcosystemCart } from '../../cart/ecosystemCartContext'
 import type { EcosystemCheckoutPreviewRes, EcosystemShippingQuoteRes } from '../../../../api/contracts/v1/ecosystem'
 import { ecosystemAdapter, publicEcosystemAdapter } from '../api'
+import { trackBetaEvent } from '@/features/beta'
 import type {
   EcosystemCheckoutCartItemViewModel,
   EcosystemCheckoutPreview,
@@ -55,6 +56,7 @@ export function useEcosystemCheckout() {
     () => cartItems.length > 0 && cartItems.every((item) => item.deliverySupported !== false),
     [cartItems]
   )
+  const requiresShippingQuote = canQuoteShipping && cartItems.length > 0
 
   const quoteMutation = useMutation({
     mutationFn: (nextPostalCode: string) => {
@@ -68,7 +70,16 @@ export function useEcosystemCheckout() {
       setPostalCodeError(null)
     },
     onError: (mutationError) => {
+      setQuote(null)
       setError(mapCheckoutError(mutationError))
+      trackBetaEvent({
+        eventName: 'checkout_failure',
+        ecosystemSlug: slug,
+        metadata: {
+          surface: 'ecosystem_checkout',
+          reason: mapCheckoutError(mutationError)
+        }
+      })
     }
   })
 
@@ -181,8 +192,8 @@ export function useEcosystemCheckout() {
       setError('El carrito está vacío.')
       return null
     }
-    if (canQuoteShipping && postalCode.trim() && !quote) {
-      setError('Cotizá el envío antes de crear la orden o vaciá el código postal.')
+    if (requiresShippingQuote && !quote?.available) {
+      setError(quote ? 'No hay envío disponible para ese código postal. Revisá el destino o el carrito antes de continuar.' : 'Cotizá el envío antes de crear la orden para confirmar el total final.')
       return null
     }
     const ecosystem = ecosystemQuery.data
@@ -198,6 +209,14 @@ export function useEcosystemCheckout() {
       return null
     }
     cart.clear()
+    trackBetaEvent({
+      eventName: 'checkout_success',
+      ecosystemSlug: slug,
+      metadata: {
+        surface: 'ecosystem_checkout',
+        status: order.status
+      }
+    })
     return {
       ecosystem,
       order,
@@ -233,7 +252,8 @@ export function useEcosystemCheckout() {
     postalCode,
     postalCodeError,
     preview,
-    isLoading: ecosystemQuery.isLoading,
+    requiresShippingQuote,
+    isLoading: ecosystemQuery.isLoading && cartItems.length > 0,
     isQuoteLoading: quoteMutation.isPending,
     isCouponLoading: previewMutation.isPending,
     isCheckoutLoading: checkoutMutation.isPending,

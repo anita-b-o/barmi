@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { MapExploreGroup, MapExploreItem } from '../mapExploreConfig'
 import { MapIcon } from './MapIcons'
 
@@ -6,15 +7,15 @@ type MapCategoryGroupProps = {
   onSelectQuery: (query: string) => void
 }
 
-function MapCategoryItem({ item, onSelectQuery }: { item: MapExploreItem; onSelectQuery: (query: string) => void }) {
+const MapCategoryItem = memo(function MapCategoryItem({ item, onSelectQuery }: { item: MapExploreItem; onSelectQuery: (query: string) => void }) {
   return (
     <button className="ecosystem-map-category__item" type="button" onClick={() => onSelectQuery(item.query)}>
       {item.label}
     </button>
   )
-}
+})
 
-export function MapCategoryGroup({ group, onSelectQuery }: MapCategoryGroupProps) {
+function MapCategoryGroupBase({ group, onSelectQuery }: MapCategoryGroupProps) {
   return (
     <section className="ecosystem-map-category" aria-label={group.title}>
       <button className="ecosystem-map-category__main" type="button" onClick={() => onSelectQuery(group.query)}>
@@ -40,3 +41,5 @@ export function MapCategoryGroup({ group, onSelectQuery }: MapCategoryGroupProps
     </section>
   )
 }
+
+export const MapCategoryGroup = memo(MapCategoryGroupBase)

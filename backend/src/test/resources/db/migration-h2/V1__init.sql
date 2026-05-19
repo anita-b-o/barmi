@@ -79,6 +79,42 @@ CREATE TABLE processed_events (
   processed_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE beta_product_events (
+  id              UUID PRIMARY KEY,
+  event_name      TEXT NOT NULL,
+  event_category  TEXT NOT NULL,
+  store_id        UUID NULL REFERENCES stores(id),
+  store_slug      TEXT NULL,
+  store_name      TEXT NULL,
+  ecosystem_slug  TEXT NULL,
+  product_id      TEXT NULL,
+  search_term     TEXT NULL,
+  request_id      TEXT NULL,
+  session_id      TEXT NOT NULL,
+  route           TEXT NOT NULL,
+  release_id      TEXT NOT NULL,
+  environment     TEXT NOT NULL,
+  metadata_json   CLOB NOT NULL DEFAULT '{}',
+  occurred_at     TIMESTAMP NOT NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE beta_feedback_entries (
+  id              UUID PRIMARY KEY,
+  category        TEXT NOT NULL,
+  score           INTEGER NULL,
+  message         TEXT NOT NULL,
+  route           TEXT NOT NULL,
+  store_id        UUID NULL REFERENCES stores(id),
+  store_slug      TEXT NULL,
+  ecosystem_slug  TEXT NULL,
+  request_id      TEXT NULL,
+  session_id      TEXT NOT NULL,
+  release_id      TEXT NOT NULL,
+  environment     TEXT NOT NULL,
+  created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 ALTER TABLE stores
   ADD COLUMN ecosystem_id UUID NULL REFERENCES ecosystems(id);
 

@@ -12,8 +12,14 @@ spring:
     locations: classpath:db/migration-h2
 
 app:
+  rateLimit:
+    enabled: false
   security:
     jwtSecret: test-secret-please-change-32-bytes-minimum
+  mercadoPago:
+    stubEnabled: true
+    replayGuard:
+      enabled: false
   notifications:
     email:
       mode: logging

@@ -7,6 +7,7 @@ import { AccessDeniedState, Breadcrumbs, ContextHeader } from '@/components/navi
 import { useAuth } from '@/core/auth/authContext'
 import { hasActiveEcosystemMembership, hasActiveStoreMembership } from '@/core/auth/routeGuards'
 import { routes } from '@/core/constants/routes'
+import { getBrowserTenantContext } from '@/core/tenant'
 import AdminLayout from '@/layouts/AdminLayout'
 import PageHeader from '@/components/navigation/SectionHeader'
 import Section from '@/components/ui/Section'
@@ -16,6 +17,7 @@ import Button from '@/components/primitives/Button'
 import ErrorAlert from '@/components/feedback/ErrorState'
 import LoadingBlock from '@/components/feedback/LoadingState'
 import { theme } from '@/app/theme'
+import { useBetaMetricsSummary } from '@/features/beta'
 
 type OrderSummaryCounts = {
   total: number
@@ -67,7 +69,9 @@ async function loadEcosystemCounts() {
 
 export default function AdminHomeScreen() {
   const { me, memberships, logout } = useAuth()
+  const tenant = useMemo(() => getBrowserTenantContext(), [])
   const hasStore = useMemo(() => hasActiveStoreMembership(memberships), [memberships])
+  const canLoadStoreSummary = hasStore && tenant.scope === 'STORE' && Boolean(tenant.slug)
   const hasEco = useMemo(() => hasActiveEcosystemMembership(memberships), [memberships])
   const [storeCounts, setStoreCounts] = useState<OrderSummaryCounts>(emptyOrderSummaryCounts)
   const [ecosystemCounts, setEcosystemCounts] = useState<OrderSummaryCounts>(emptyOrderSummaryCounts)
@@ -75,9 +79,10 @@ export default function AdminHomeScreen() {
   const [ecosystemLoading, setEcosystemLoading] = useState(false)
   const [storeError, setStoreError] = useState<string | null>(null)
   const [ecosystemError, setEcosystemError] = useState<string | null>(null)
+  const betaMetrics = useBetaMetricsSummary()
 
   const loadStoreSummary = useCallback(async () => {
-    if (!hasStore) return
+    if (!canLoadStoreSummary) return
     setStoreLoading(true)
     setStoreError(null)
     try {
@@ -91,7 +96,7 @@ export default function AdminHomeScreen() {
     } finally {
       setStoreLoading(false)
     }
-  }, [hasStore])
+  }, [canLoadStoreSummary])
 
   const loadEcosystemSummary = useCallback(async () => {
     if (!hasEco) return
@@ -154,22 +159,109 @@ export default function AdminHomeScreen() {
         </div>
       </Section>
 
+      <Section
+        title="Beta privada: métricas mínimas"
+        action={<Button onClick={() => void betaMetrics.refetch()} disabled={betaMetrics.isFetching}>Actualizar</Button>}
+      >
+        {betaMetrics.isLoading ? <LoadingBlock label="Cargando métricas beta..." /> : null}
+        {betaMetrics.error ? <ErrorAlert message={betaMetrics.error} /> : null}
+        {betaMetrics.summary ? (
+          <>
+            <div style={{ color: theme.colors.textMuted, marginBottom: theme.spacing.lg, lineHeight: 1.6 }}>
+              Este bloque resume discovery, checkout, auth y feedback de la beta real sin dashboards enterprise ni tracking invasivo.
+            </div>
+            <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: theme.spacing.lg }}>
+              <MetricCard label="Home views" value={String(betaMetrics.summary.homeViews)} />
+              <MetricCard label="Catalog views" value={String(betaMetrics.summary.catalogViews)} />
+              <MetricCard label="Map views" value={String(betaMetrics.summary.mapViews)} />
+              <MetricCard label="Store views" value={String(betaMetrics.summary.storeViews)} />
+              <MetricCard label="Search used" value={String(betaMetrics.summary.searchUses)} />
+              <MetricCard label="Clicks discovery" value={String(betaMetrics.summary.productClicks + betaMetrics.summary.storeClicks + betaMetrics.summary.mapPinClicks)} />
+              <MetricCard label="Checkout start" value={String(betaMetrics.summary.checkoutStarted)} tone="warning" />
+              <MetricCard label="Pago iniciado" value={String(betaMetrics.summary.paymentInitiated)} tone="warning" />
+              <MetricCard label="Checkout success %" value={`${betaMetrics.summary.checkoutSuccessRate}%`} tone="success" />
+              <MetricCard label="Login failure %" value={`${betaMetrics.summary.loginFailureRate}%`} tone="danger" />
+              <MetricCard label="Feedback enviados" value={String(betaMetrics.summary.feedbackSubmitted)} />
+            </div>
+            <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+              <Card variant="soft">
+                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Top stores vistas</div>
+                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+                  {betaMetrics.summary.topStores.length === 0 ? (
+                    <div style={{ color: theme.colors.textMuted }}>Todavía no hay vistas suficientes para rankear stores.</div>
+                  ) : betaMetrics.summary.topStores.map((store) => (
+                    <div key={store.storeSlug} style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                      <span>{store.storeName}</span>
+                      <strong>{store.views}</strong>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              <Card variant="soft">
+                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Top búsquedas</div>
+                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+                  {betaMetrics.summary.topSearches.length === 0 ? (
+                    <div style={{ color: theme.colors.textMuted }}>Todavía no hay búsquedas útiles registradas.</div>
+                  ) : betaMetrics.summary.topSearches.map((search) => (
+                    <div key={search.query} style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                      <span>{search.query}</span>
+                      <strong>{search.uses}</strong>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              <Card variant="soft">
+                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Feedback por tipo</div>
+                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                    <span>Bug</span>
+                    <strong>{betaMetrics.summary.feedbackBug}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                    <span>Confusión</span>
+                    <strong>{betaMetrics.summary.feedbackConfusing}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                    <span>Falta algo</span>
+                    <strong>{betaMetrics.summary.feedbackMissing}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                    <span>Funcionó bien</span>
+                    <strong>{betaMetrics.summary.feedbackLoveIt}</strong>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </>
+        ) : null}
+      </Section>
+
       {hasStore && (
         <Section
           title="Store: resumen operativo"
-          action={<Button onClick={loadStoreSummary} disabled={storeLoading}>Actualizar</Button>}
+          action={canLoadStoreSummary ? <Button onClick={loadStoreSummary} disabled={storeLoading}>Actualizar</Button> : undefined}
         >
-          {storeLoading && <LoadingBlock label="Cargando resumen operativo de store..." />}
-          {storeError && <ErrorAlert message={storeError} />}
-          <div style={{ color: theme.colors.textMuted, marginBottom: theme.spacing.lg }}>
-            Este resumen usa conteos por estado sobre el backend actual. Las ventas agregadas no se muestran aca porque hoy no existe un endpoint analitico dedicado.
-          </div>
-          <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-            <MetricCard label="Ordenes totales" value={String(storeCounts.total)} />
-            <MetricCard label="Pedidos pendientes" value={String(storeCounts.pending)} tone="warning" />
-            <MetricCard label="Pedidos pagados" value={String(storeCounts.paid)} tone="success" />
-            <MetricCard label="Pedidos cancelados" value={String(storeCounts.cancelled)} tone="danger" />
-          </div>
+          {!canLoadStoreSummary ? (
+            <Card variant="soft">
+              <div style={{ color: theme.colors.textMuted, lineHeight: 1.6 }}>
+                El resumen STORE sólo se carga dentro del host de una tienda. Desde este host general podés entrar al hub store, pero para métricas store-scoped necesitás abrir la app con el subdominio de la tienda.
+              </div>
+            </Card>
+          ) : (
+            <>
+              {storeLoading && <LoadingBlock label="Cargando resumen operativo de store..." />}
+              {storeError && <ErrorAlert message={storeError} />}
+              <div style={{ color: theme.colors.textMuted, marginBottom: theme.spacing.lg }}>
+                Este resumen usa conteos por estado sobre el backend actual. Las ventas agregadas no se muestran aca porque hoy no existe un endpoint analitico dedicado.
+              </div>
+              <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+                <MetricCard label="Ordenes totales" value={String(storeCounts.total)} />
+                <MetricCard label="Pedidos pendientes" value={String(storeCounts.pending)} tone="warning" />
+                <MetricCard label="Pedidos pagados" value={String(storeCounts.paid)} tone="success" />
+                <MetricCard label="Pedidos cancelados" value={String(storeCounts.cancelled)} tone="danger" />
+              </div>
+            </>
+          )}
         </Section>
       )}
 

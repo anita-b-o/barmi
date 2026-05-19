@@ -21,6 +21,8 @@ public interface PaymentProviderClient {
             BigDecimal amount,
             String currency,
             String returnUrl,
+            String notificationUrl,
+            String externalReference,
             Map<String, Object> metadata
     ) {}
 

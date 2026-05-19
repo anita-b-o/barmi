@@ -110,7 +110,7 @@ class StoreOrderQueryIT {
         StoreOrder order;
         try {
             TenantContext.setStoreSlug("store-a");
-            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
+            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "tenant-a@example.com");
         } finally {
             TenantContext.clear();
         }
@@ -141,8 +141,8 @@ class StoreOrderQueryIT {
         UUID paidId;
         try {
             TenantContext.setStoreSlug("store-a2");
-            StoreOrder pending = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(productA.getId(), 1)), null);
-            StoreOrder paid = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(productA.getId(), 1)), null);
+            StoreOrder pending = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(productA.getId(), 1)), null, null, "pending-a@example.com");
+            StoreOrder paid = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(productA.getId(), 1)), null, null, "paid-a@example.com");
             paid.markPaid();
             storeOrderRepository.save(paid);
 
@@ -156,7 +156,7 @@ class StoreOrderQueryIT {
 
         try {
             TenantContext.setStoreSlug("store-b2");
-            checkoutStoreOrderService.checkout(List.of(new CheckoutItem(productB.getId(), 1)), null);
+            checkoutStoreOrderService.checkout(List.of(new CheckoutItem(productB.getId(), 1)), null, null, "tenant-b@example.com");
         } finally {
             TenantContext.clear();
         }
@@ -204,7 +204,7 @@ class StoreOrderQueryIT {
         StoreOrder order;
         try {
             TenantContext.setStoreSlug("store-pay");
-            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), new CheckoutStoreOrderService.ShippingRequest("1234"));
+            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), new CheckoutStoreOrderService.ShippingRequest("1234"), null, "shipping-visibility@example.com");
         } finally {
             TenantContext.clear();
         }
@@ -248,7 +248,7 @@ class StoreOrderQueryIT {
         StoreOrder order;
         try {
             TenantContext.setStoreSlug("store-conflict");
-            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null);
+            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "conflict-visible@example.com");
         } finally {
             TenantContext.clear();
         }

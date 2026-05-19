@@ -4,8 +4,10 @@ import { routes } from '@/core/constants/routes'
 import { alpha, getContextPalette, theme } from '@/app/theme'
 import { useAuth } from '@/core/auth'
 import { hasActiveEcosystemMembership, hasActiveStoreMembership } from '@/core/auth/routeGuards'
+import { useViewportMode } from '@/core/hooks/useViewportMode'
 import Sidebar from '@/components/navigation/Sidebar'
 import Topbar from '@/components/navigation/Topbar'
+import { BetaFeedbackWidget } from '@/features/beta'
 
 type AdminScope = 'home' | 'store' | 'ecosystem'
 
@@ -26,6 +28,8 @@ function resolveScope(pathname: string): AdminScope {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const { memberships } = useAuth()
+  const viewportMode = useViewportMode()
+  const isMobile = viewportMode === 'mobile'
   const scope = resolveScope(location.pathname)
   const hasStore = hasActiveStoreMembership(memberships)
   const hasEcosystem = hasActiveEcosystemMembership(memberships)
@@ -62,24 +66,34 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ]
   const scopedLinks = scope === 'ecosystem' ? ecosystemLinks : scope === 'store' ? storeLinks : []
   const contextLabel = scope === 'ecosystem' ? 'Dominio activo: Ecosystem' : scope === 'store' ? 'Dominio activo: Store' : 'Elegí un dominio operativo'
+  const navStyle: React.CSSProperties = {
+    display: 'grid',
+    gap: 10
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: theme.colors.bgPage, color: theme.colors.textPrimary }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', minHeight: '100vh' }}>
-        <Sidebar>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '260px 1fr', minHeight: '100vh' }}>
+        <Sidebar
+          style={isMobile ? {
+            borderRight: 'none',
+            borderBottom: `1px solid ${theme.colors.borderDefault}`,
+            padding: `${theme.spacing.lg}px`,
+          } : undefined}
+        >
           <div style={{ fontWeight: 700, fontSize: 22, marginBottom: theme.spacing.xs, color: theme.colors.bgSurfaceAlt, letterSpacing: 0 }}>Barmi Admin</div>
           <div style={{ color: theme.colors.textSecondary, marginBottom: theme.spacing.xl }}>{contextLabel}</div>
 
           <div style={{ marginBottom: theme.spacing.xl }}>
             <div style={sectionTitleStyle}>Entrada</div>
-            <nav style={{ display: 'grid', gap: 10 }}>
+            <nav style={navStyle}>
               <NavLink to={routes.adminHome} end style={navLinkStyle}>Selección de dominios</NavLink>
             </nav>
           </div>
 
           <div style={{ marginBottom: theme.spacing.xl }}>
             <div style={sectionTitleStyle}>Dominios</div>
-            <nav style={{ display: 'grid', gap: 10 }}>
+            <nav style={navStyle}>
               {hasStore ? <NavLink to={routes.adminStore} style={navLinkStyle}>Admin Store</NavLink> : null}
               {hasEcosystem ? <NavLink to={routes.adminEcosystem} style={navLinkStyle}>Admin Ecosystem</NavLink> : null}
             </nav>
@@ -88,7 +102,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {scopedLinks.length > 0 ? (
             <div>
               <div style={sectionTitleStyle}>Navegación</div>
-              <nav style={{ display: 'grid', gap: 10 }}>
+              <nav style={navStyle}>
                 {scopedLinks.map((link) => (
                   <NavLink key={link.to} to={link.to} end={link.end} style={navLinkStyle}>{link.label}</NavLink>
                 ))}
@@ -103,12 +117,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             subtitle={scope === 'home' ? 'Consola operativa' : scope === 'store' ? 'Contexto STORE activo' : 'Contexto ECOSYSTEM activo'}
             tone={scope === 'store' ? 'store' : scope === 'ecosystem' ? 'ecosystem' : 'admin'}
             actions={(
-              <div style={{ color: theme.colors.textMuted, fontWeight: 500 }}>
+              <div style={{ color: theme.colors.textMuted, fontWeight: 500, textAlign: isMobile ? 'left' : 'right' }}>
               {scope === 'home' ? 'Elegí el dominio desde el que vas a operar.' : `Navegación contextual para ${scope === 'store' ? 'STORE' : 'ECOSYSTEM'}.`}
               </div>
             )}
           />
-          <main style={{ padding: theme.spacing.xxl, maxWidth: 1320 }}>{children}</main>
+          <main style={{ padding: isMobile ? theme.spacing.lg : theme.spacing.xxl, maxWidth: 1320 }}>{children}</main>
+          <BetaFeedbackWidget />
         </div>
       </div>
     </div>

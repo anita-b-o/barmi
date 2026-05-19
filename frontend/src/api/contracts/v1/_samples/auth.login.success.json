@@ -1,6 +1,5 @@
 {
   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.login",
-  "refreshToken": "rt-1234567890",
   "tokenType": "Bearer",
   "expiresAt": "2026-03-10T15:00:00.000Z"
 }

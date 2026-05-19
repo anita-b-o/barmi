@@ -20,30 +20,30 @@ export default function EmptyState({
   return (
     <div
       style={{
-        padding: `${theme.spacing.xl}px ${theme.spacing.lg}px`,
+        padding: `${theme.spacing.lg}px ${theme.spacing.lg}px`,
         textAlign: 'center',
         color: theme.colors.textMuted,
         background: theme.colors.bgSurfaceAlt,
         borderRadius: theme.radius.xl,
-        border: `1px solid ${alpha(theme.colors.secondary, 0.08)}`,
+        border: `1px solid ${alpha(theme.colors.textPrimary, 0.08)}`,
         boxShadow: 'none',
         display: 'grid',
-        gap: theme.spacing.sm,
+        gap: theme.spacing.xs,
         justifyItems: 'center'
       }}
     >
       <div
         aria-hidden="true"
         style={{
-          width: 44,
-          height: 44,
+          width: 38,
+          height: 38,
           borderRadius: theme.radius.pill,
-          background: theme.colors.bgSurfaceAlt,
+          background: alpha(theme.colors.brand, 0.05),
           border: `1px solid ${alpha(theme.colors.brand, 0.12)}`
         }}
       />
-      <div style={{ fontWeight: 700, color: theme.colors.textPrimary, fontSize: 18, letterSpacing: 0 }}>{title}</div>
-      {description ? <div style={{ maxWidth: 620, lineHeight: 1.55, color: theme.colors.textSecondary }}>{description}</div> : null}
+      <div style={{ fontWeight: 700, color: theme.colors.textPrimary, fontSize: 17, letterSpacing: 0 }}>{title}</div>
+      {description ? <div style={{ maxWidth: 560, lineHeight: 1.5, color: theme.colors.textSecondary }}>{description}</div> : null}
       {actionLabel && onAction ? (
         <div>
           <Button variant="secondary" onClick={onAction} disabled={actionDisabled}>

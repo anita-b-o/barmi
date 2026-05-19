@@ -49,6 +49,7 @@ export default function PublicStoreLayout({ children }: { children: React.ReactN
           </NavLink>
         </>
       )}
+      feedbackStoreSlug={storeSlug}
       navigation={(
         <>
           <NavLink to={routes.publicStore(storeSlug)} end style={navLinkStyle}>Catálogo</NavLink>
