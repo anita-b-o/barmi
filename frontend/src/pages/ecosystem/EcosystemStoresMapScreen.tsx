@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { appConfig } from '@/app/config/env'
 import { publicEcosystemAdapter } from '../../api/adapters/publicEcosystemAdapter'
 import type { PublicEcosystemStoresMapLocationFilter } from '../../api/contracts/v1/public'
@@ -32,7 +32,8 @@ export default function EcosystemStoresMapScreen() {
 
   const storesQuery = useQuery({
     queryKey: ['public-ecosystem-stores-map', slug, query, category, location],
-    queryFn: () => publicEcosystemAdapter.getStoresMap(slug, { query, category, location })
+    queryFn: () => publicEcosystemAdapter.getStoresMap(slug, { query, category, location }),
+    placeholderData: keepPreviousData
   })
 
   const stores = storesQuery.data?.stores ?? []
@@ -91,7 +92,7 @@ export default function EcosystemStoresMapScreen() {
             exploreGroups={mapExploreGroups}
             stores={stores}
             selectedStoreId={validSelectedStoreId}
-            isLoading={storesQuery.isLoading}
+            isLoading={storesQuery.isLoading || storesQuery.isFetching}
             error={error}
             onSearch={(value) => updateParams({ q: value })}
             onSelectStore={selectStore}

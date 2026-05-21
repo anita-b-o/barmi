@@ -1,5 +1,5 @@
 import { useDeferredValue } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { appConfig } from '@/app/config/env'
 import { extractBackendErrorMessage } from '@/core/errors'
 import { publicEcosystemAdapter } from '../api'
@@ -21,7 +21,8 @@ export function useEcosystemCatalog(query: string, sort: PublicEcosystemCatalogS
       activeOnly: true,
       sort,
       deliverySupported: deliverySupportedOnly ? true : undefined
-    })
+    }),
+    placeholderData: keepPreviousData
   })
 
   return {
@@ -29,6 +30,7 @@ export function useEcosystemCatalog(query: string, sort: PublicEcosystemCatalogS
     ecosystem: ecosystemQuery.data ?? null,
     products: productsQuery.data ?? [],
     isLoading: productsQuery.isLoading && !productsQuery.data,
+    isFetchingProducts: productsQuery.isFetching,
     isMetadataLoading: ecosystemQuery.isLoading && !ecosystemQuery.data,
     ecosystemError: ecosystemQuery.error
       ? extractBackendErrorMessage(ecosystemQuery.error, 'Error cargando ecosystem')

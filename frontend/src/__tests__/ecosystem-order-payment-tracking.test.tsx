@@ -97,6 +97,36 @@ describe('ecosystem order payment tracking', () => {
     await cleanup()
   })
 
+  it('explains unknown provider return states without trapping the user', async () => {
+    mockFetch({
+      '/api/public/ecosystems/demo-ecosystem': { body: ecosystemResponse() },
+      '/api/ecosystem/orders/eco-weird-return': {
+        body: {
+          orderId: 'eco-weird-return',
+          status: 'PENDING_PAYMENT',
+          createdAt: '2026-03-10T12:00:00.000Z',
+          currency: 'ARS',
+          subtotalAmount: 120,
+          shippingCostAmount: 0,
+          totalAmount: 120,
+          items: [],
+          shipping: null,
+          payment: null
+        }
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/ecosystem/orders/eco-weird-return?status=unknown_provider_state&payment_id=mp-weird')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Volviste desde el proveedor con un estado que no pudimos clasificar')
+    expect(document.body.textContent).toContain('Referencia provider: mp-weird')
+    expect(document.body.textContent).toContain('Actualizar')
+
+    await cleanup()
+  })
+
   it('polls automatically while the order remains pending and stops when it becomes paid', async () => {
     vi.useFakeTimers()
     let calls = 0

@@ -8,6 +8,7 @@ export type BetaTelemetryEventName =
   | 'map_view'
   | 'store_view'
   | 'search_used'
+  | 'search_no_results'
   | 'product_click'
   | 'store_click'
   | 'map_pin_click'

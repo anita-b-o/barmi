@@ -13,6 +13,10 @@ Operar una beta privada real con foco en:
 
 Este documento asume el estado actual ya validado de staging, backups, restore, rollback y observability básica.
 
+Resumen RC interno:
+
+- `docs/production/BETA_INTERNAL_RC_SUMMARY.md`
+
 ## Deploy
 
 1. Validar variables de staging:
@@ -24,6 +28,7 @@ Este documento asume el estado actual ya validado de staging, backups, restore, 
 2. Reconstruir y levantar staging:
 
 ```bash
+./scripts/generate-staging-cert.sh
 docker compose -f docker-compose.staging.yml up -d --build
 ```
 
@@ -55,10 +60,33 @@ BASE_URL=http://localhost:${STAGING_HTTP_PORT:-8088} ./scripts/smoke-observabili
 Smoke funcional amplio:
 
 ```bash
-BASE_URL=http://localhost:${STAGING_HTTP_PORT:-8088} \
+BASE_URL=https://${STORE_BASE_DOMAIN}:${STAGING_HTTPS_PORT:-8443} \
 STORE_HOST=${VITE_PUBLIC_STORE_HOST} \
 ./scripts/smoke-staging.sh
 ```
+
+HTTPS/session prod-like:
+
+```bash
+./scripts/smoke-https-staging.sh
+```
+
+Pago real Mercado Pago:
+
+```bash
+MP_ACCESS_TOKEN=<real-or-sandbox-access-token> \
+MP_PUBLIC_BASE_URL=https://<public-staging-host> \
+WAIT_FOR_WEBHOOK=true \
+./scripts/smoke-real-payment.sh
+```
+
+Notas:
+
+- `STORE_PUBLIC_SCHEME=https`, `REFRESH_COOKIE_SECURE=true` y `ALLOWED_ORIGINS` con dominios HTTPS son requisito para declarar session/cookies validados.
+- self-signed local sirve para navegador y CORS local; para webhook real el provider necesita un `MP_PUBLIC_BASE_URL` HTTPS público y confiable.
+- el backend debe arrancar con `MP_ACCESS_TOKEN` y `MP_PUBLIC_BASE_URL`; exportarlos sólo al ejecutar el smoke no actualiza un contenedor API ya levantado.
+- `smoke-https-staging.sh` usa `LOCAL_RESOLVE=true` por defecto para mapear los subdominios a `127.0.0.1` sin depender de DNS externo; usar `LOCAL_RESOLVE=false` en un host con DNS real.
+- el script de pago guarda evidencia en `tmp-payment-evidence/`: `request_id`, `order_id`, `intent_id`, `provider_preference_id`, URL real de checkout, contrato de preferencia (`external_reference`, `back_urls`, `notification_url`) y polling hasta confirmación.
 
 ## Rollback
 
@@ -106,6 +134,7 @@ Eventos de producto activos:
   - `map_view`
   - `store_view`
   - `search_used`
+  - `search_no_results`
 - engagement:
   - `product_click`
   - `store_click`
@@ -125,6 +154,7 @@ Restricciones:
 - no guardar PII en telemetría
 - no guardar tokens
 - búsquedas sospechosas tipo email/teléfono/token no quedan rankeadas como top search
+- las rutas se muestran sin query string ni hash para evitar exponer emails, tokens o parámetros sensibles
 - cada evento incluye `requestId` si existe, `releaseId` y `environment`
 
 Endpoints:
@@ -141,9 +171,11 @@ Disponibles en `GET /api/admin/beta/summary` y en el bloque “Beta privada: mé
 - map views
 - store views
 - search used
+- search sin resultado
 - checkout started
 - checkout success
 - checkout failure
+- checkout abandonado estimado
 - checkout success rate
 - login success
 - login failure
@@ -151,6 +183,24 @@ Disponibles en `GET /api/admin/beta/summary` y en el bloque “Beta privada: mé
 - feedback enviados
 - top stores vistas
 - top búsquedas
+- rutas con más feedback
+- feedback reciente
+- fallos recientes de login/checkout con route, requestId, release y reason si existe
+
+Qué NO significan estas métricas:
+
+- `Search sin resultado` no prueba que el catálogo esté mal; puede ser typo, filtro demasiado específico o expectativa no soportada.
+- `Checkout abandonado` no es un funnel exacto; es una estimación global de starts sin success ni failure registrado.
+- `Top búsquedas` no representa demanda real de mercado; sirve para detectar fricción repetida durante beta.
+- `Fallos recientes` no reemplaza logs ni tracing; ayuda a encontrar rápido `requestId`, route y release para investigar.
+- `Feedback reciente` puede incluir percepción del usuario, no necesariamente bug técnico.
+
+Limitaciones:
+
+- la telemetría es best-effort; `sendBeacon`, ad blockers, cierres de pestaña o red intermitente pueden perder eventos
+- los conteos son agregados simples sobre tablas existentes, no analytics de sesión
+- el abandono se calcula sin unir eventos por sesión/orden
+- `reason` viene de metadata controlada y se recorta; si parece email/teléfono/token no se expone
 
 ## Feedback Flow
 
@@ -211,6 +261,40 @@ Revisar:
 - login al admin para leer `GET /api/admin/beta/summary`
 - release actual corresponde al deploy esperado
 
+### CI / test stability
+
+Riesgo observado: la suite frontend es sensible cuando `vite build`, Vitest y otros procesos corren en paralelo en máquinas chicas.
+
+Quick wins razonables:
+
+- usar `cd frontend && npm run validate:frontend` como validación oficial frontend en CI/máquinas chicas
+- `npm test` corre toda la suite Vitest con un solo worker y `--api.port=0`
+- usar `npm run test:watch` para modo interactivo local y `npm run test:fast` sólo para corrida paralela local
+- no correr `npm run build`, Vitest, Gradle y rebuilds Docker al mismo tiempo en el mismo runner chico
+- si vuelve a degradar bajo carga, separar suites con fake timers/`act` (`store-payments`, tracking ecosystem, `http-client`, toasts) de suites grandes de routing/admin
+- mirar primero memoria/CPU del runner antes de tocar código de producto; si hay starvation, bajar paralelismo del job es preferible a refactors grandes
+
+### Feedback loop operativo
+
+El admin home muestra el bloque `Beta privada: métricas mínimas`.
+
+Usarlo como primera pantalla cuando un tester dice “no anda”:
+
+- `Search sin resultado`: detecta queries que no dieron salida útil
+- `Checkout abandonado`: estimación simple de checkout iniciado sin éxito ni fallo registrado
+- `Rutas con más feedback`: dónde conviene reproducir primero
+- `Fallos recientes`: login/checkout con route, reason y `requestId`
+- `Feedback reciente`: mensaje, tipo, severidad, route, release y `requestId`
+
+Flujo recomendado:
+
+1. pedir al tester pantalla/URL y hora aproximada
+2. revisar `Feedback reciente` y `Fallos recientes`
+3. copiar `requestId` si existe
+4. buscar ese `requestId` en logs de API/nginx/frontend
+5. reproducir la ruta con el mismo flujo comprador/admin
+6. corregir sólo si hay bug real o fricción clara
+
 ## Qué monitorear diariamente
 
 Referencia principal:
@@ -242,6 +326,26 @@ Recorrido mínimo diario o por release:
 8. iniciar pago
 9. login/logout admin
 10. repetir puntos 1-8 en mobile y desktop
+
+## Payment Failure UX Pass
+
+Validar por release cuando haya cambios en checkout, pagos o sesión:
+
+1. pago cancelado desde el proveedor y vuelta al detalle
+2. pago rechazado por tarjeta/test user del proveedor
+3. pago pendiente o `in_process`
+4. refresh del browser durante checkout externo y al volver
+5. retorno con estado no esperado
+6. webhook tardío: el detalle queda pendiente, hace polling y conserva botón de actualizar
+7. retry sobre la misma orden pendiente no crea otro payment intent
+
+Evidencia mínima:
+
+- `X-Request-Id` de checkout y payment initiate
+- `payment_intents.intent_id` y `provider_preference_id`
+- transición de orden `PENDING_PAYMENT -> PAID`, o permanencia clara en `PENDING_PAYMENT` para cancelado/rechazado
+- log `webhook_accepted` con `provider_payment_id` cuando corresponde
+- captura o nota del copy mostrado al volver desde el provider
 
 Señales a registrar:
 

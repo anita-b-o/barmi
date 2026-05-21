@@ -122,11 +122,17 @@ export default function OrderDetailScreen() {
   const order = useStoreOrderDetail(orderId)
   const redirectStatus = (searchParams.get('status') ?? searchParams.get('collection_status') ?? '').toLowerCase()
   const paymentId = searchParams.get('payment_id') ?? searchParams.get('collection_id')
-  const paymentRedirectMessage = redirectStatus === 'rejected' || redirectStatus === 'failure'
-    ? 'El pago fue rechazado o cancelado por el proveedor. Podés reintentar desde esta misma pantalla.'
-    : redirectStatus === 'pending'
-      ? 'El pago quedó pendiente en el proveedor. Esta pantalla va a seguir consultando el backend para confirmar si se acredita.'
-      : null
+  const paymentRedirectMessage = redirectStatus === 'approved'
+    ? order.order?.status === 'PAID'
+      ? 'El proveedor aprobó el pago y el backend ya lo confirmó.'
+      : 'El proveedor informó el pago aprobado. Estamos esperando la confirmación del webhook; podés actualizar esta pantalla.'
+    : redirectStatus === 'rejected' || redirectStatus === 'failure' || redirectStatus === 'cancelled' || redirectStatus === 'cancelled_by_user'
+      ? 'El pago fue rechazado o cancelado por el proveedor. La orden sigue disponible para reintentar si continúa pendiente.'
+      : redirectStatus === 'pending' || redirectStatus === 'in_process'
+        ? 'El pago quedó pendiente en el proveedor. Esta pantalla va a seguir consultando el backend para confirmar si se acredita.'
+        : redirectStatus
+          ? 'Volviste desde el proveedor con un estado que no pudimos clasificar. Revisá el estado actual y actualizá si hace falta.'
+          : null
 
   const tracking = useMemo(() => {
     if (!order.order) return null
@@ -209,7 +215,7 @@ export default function OrderDetailScreen() {
                 </div>
                 <div style={{ color: theme.colors.textMuted }}>{tracking?.nextStep}</div>
                 {paymentRedirectMessage ? (
-                  <div style={{ color: redirectStatus === 'pending' ? theme.colors.warning : theme.colors.error }}>
+                  <div style={{ color: redirectStatus === 'approved' || redirectStatus === 'pending' || redirectStatus === 'in_process' ? theme.colors.warning : theme.colors.error }}>
                     {paymentRedirectMessage}
                     {paymentId ? ` Referencia provider: ${paymentId}.` : ''}
                   </div>

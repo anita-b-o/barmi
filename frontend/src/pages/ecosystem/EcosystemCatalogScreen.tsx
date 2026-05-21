@@ -29,6 +29,7 @@ export default function EcosystemCatalogScreen() {
   const hasProducts = productsCount > 0
   const title = catalog.ecosystem?.name ?? 'Marketplace Barmi'
   const trackedSearchRef = useRef('')
+  const trackedNoResultsRef = useRef('')
   const quickActions = useMemo(() => ([
     {
       id: 'delivery',
@@ -66,6 +67,19 @@ export default function EcosystemCatalogScreen() {
       metadata: { surface: 'ecosystem_catalog' }
     })
   }, [query])
+
+  useEffect(() => {
+    const normalized = query.trim().toLowerCase()
+    if (!normalized || catalog.isLoading || catalog.isFetchingProducts || productsCount > 0) return
+    if (trackedNoResultsRef.current === normalized) return
+    trackedNoResultsRef.current = normalized
+    trackBetaEvent({
+      eventName: 'search_no_results',
+      ecosystemSlug: appConfig.publicEcosystemSlug,
+      searchTerm: normalized,
+      metadata: { surface: 'ecosystem_catalog' }
+    })
+  }, [catalog.isFetchingProducts, catalog.isLoading, productsCount, query])
 
   const updateParams = (updates: Record<string, string | boolean>) => {
     const next = new URLSearchParams(searchParams)
@@ -120,6 +134,7 @@ export default function EcosystemCatalogScreen() {
                     : 'Usá la búsqueda o los filtros para encontrar productos del ecosystem.'}
                 </p>
                 <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                  {catalog.isFetchingProducts && !catalog.isLoading ? <Badge variant="neutral">Actualizando resultados</Badge> : null}
                   {quickActions.map((action) => (
                     <Button key={action.id} type="button" variant="secondary" onClick={action.onClick}>
                       {action.label}

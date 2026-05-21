@@ -4,6 +4,7 @@ import com.barmi.domain.beta.BetaProductEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,6 +24,15 @@ public interface BetaProductEventRepository extends JpaRepository<BetaProductEve
     interface TopSearchView {
         String getSearchTerm();
         long getUses();
+    }
+
+    interface RecentFailureView {
+        String getEventName();
+        String getRoute();
+        String getRequestId();
+        String getReleaseId();
+        Instant getOccurredAt();
+        String getMetadataJson();
     }
 
     @Query("""
@@ -51,4 +61,17 @@ public interface BetaProductEventRepository extends JpaRepository<BetaProductEve
             order by count(e) desc, e.searchTerm asc
             """)
     List<TopSearchView> findTopSearchTerms(org.springframework.data.domain.Pageable pageable);
+
+    @Query("""
+            select e.eventName as eventName,
+                   e.route as route,
+                   e.requestId as requestId,
+                   e.releaseId as releaseId,
+                   e.occurredAt as occurredAt,
+                   e.metadataJson as metadataJson
+            from BetaProductEvent e
+            where e.eventName in ('checkout_failure', 'login_failure')
+            order by e.occurredAt desc
+            """)
+    List<RecentFailureView> findRecentFailures(org.springframework.data.domain.Pageable pageable);
 }

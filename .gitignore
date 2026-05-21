@@ -31,3 +31,6 @@ backend/out/
 
 # Local operational artifacts
 backups/
+infra/nginx/certs/
+tmp-payment-evidence/
+tmp-qa-shots/

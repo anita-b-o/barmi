@@ -109,6 +109,64 @@ describe('store payment handoff and tracking', () => {
     await cleanup()
   })
 
+  it('explains approved provider returns while webhook confirmation is still pending', async () => {
+    mockFetch({
+      '/api/store/orders/order-provider-approved': {
+        body: {
+          orderId: 'order-provider-approved',
+          status: 'PENDING_PAYMENT',
+          createdAt: '2026-03-10T12:00:00.000Z',
+          currency: 'ARS',
+          subtotalAmount: 1000,
+          shippingCostAmount: 0,
+          totalAmount: 1000,
+          items: [],
+          shipping: null,
+          payment: null,
+          timeline: []
+        }
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/store/orders/order-provider-approved?status=approved&payment_id=mp-approved-pending')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Estamos esperando la confirmación del webhook')
+    expect(document.body.textContent).toContain('Referencia provider: mp-approved-pending')
+
+    await cleanup()
+  })
+
+  it('keeps the retry path clear after cancelled provider returns', async () => {
+    mockFetch({
+      '/api/store/orders/order-provider-cancelled': {
+        body: {
+          orderId: 'order-provider-cancelled',
+          status: 'PENDING_PAYMENT',
+          createdAt: '2026-03-10T12:00:00.000Z',
+          currency: 'ARS',
+          subtotalAmount: 1000,
+          shippingCostAmount: 0,
+          totalAmount: 1000,
+          items: [],
+          shipping: null,
+          payment: null,
+          timeline: []
+        }
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/store/orders/order-provider-cancelled?status=cancelled')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('El pago fue rechazado o cancelado por el proveedor')
+    expect(document.body.textContent).toContain('Reintentar pago')
+
+    await cleanup()
+  })
+
   it('polls store order detail while pending and stops when it becomes paid', async () => {
     vi.useFakeTimers()
     let calls = 0

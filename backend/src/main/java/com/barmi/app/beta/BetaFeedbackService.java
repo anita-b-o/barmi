@@ -41,7 +41,7 @@ public class BetaFeedbackService {
                 category,
                 score,
                 message,
-                requiredText(request.route(), "feedback_route_required", 255),
+                requiredRoute(request.route(), "feedback_route_required"),
                 request.storeId(),
                 cleanText(request.storeSlug(), 120),
                 cleanText(request.ecosystemSlug(), 120),
@@ -68,6 +68,24 @@ public class BetaFeedbackService {
             throw new IllegalArgumentException(errorCode);
         }
         return normalized;
+    }
+
+    private String requiredRoute(String value, String errorCode) {
+        String normalized = requiredText(value, errorCode, 255);
+        int queryIndex = normalized.indexOf('?');
+        int hashIndex = normalized.indexOf('#');
+        int endIndex = normalized.length();
+        if (queryIndex >= 0) {
+            endIndex = Math.min(endIndex, queryIndex);
+        }
+        if (hashIndex >= 0) {
+            endIndex = Math.min(endIndex, hashIndex);
+        }
+        String route = normalized.substring(0, endIndex).trim();
+        if (route.isEmpty()) {
+            throw new IllegalArgumentException(errorCode);
+        }
+        return route;
     }
 
     private String cleanText(String value, int maxLength) {

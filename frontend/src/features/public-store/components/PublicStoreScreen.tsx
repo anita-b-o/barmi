@@ -51,7 +51,10 @@ export default function PublicStoreScreen() {
   const [categoryId, setCategoryId] = useState('')
   const trackedStoreViewRef = useRef<string | null>(null)
   const trackedSearchRef = useRef('')
+  const trackedNoResultsRef = useRef('')
   const deferredSearchQuery = useDeferredValue(searchQuery)
+  const isInitialLoading = loading && !store && products.length === 0
+  const showCatalog = !error && store
 
   const loadStore = useCallback(() => {
     let active = true
@@ -124,6 +127,23 @@ export default function PublicStoreScreen() {
     })
   }, [deferredSearchQuery, store])
 
+  useEffect(() => {
+    const normalized = deferredSearchQuery.trim().toLowerCase()
+    if (!normalized || !store || loading || products.length > 0) return
+    if (trackedNoResultsRef.current === normalized) return
+    trackedNoResultsRef.current = normalized
+    trackBetaEvent({
+      eventName: 'search_no_results',
+      storeId: store.id,
+      storeSlug: store.slug,
+      storeName: store.name,
+      searchTerm: normalized,
+      metadata: {
+        surface: 'public_store_catalog'
+      }
+    })
+  }, [deferredSearchQuery, loading, products.length, store])
+
   if (!slug) return <PublicStoreLayout><ErrorAlert message="Slug requerido." /></PublicStoreLayout>
 
   return (
@@ -192,7 +212,7 @@ export default function PublicStoreScreen() {
           </div>
         </EcosystemSurfaceSection>
 
-        {loading ? (
+        {isInitialLoading ? (
           <EcosystemSurfaceSection>
             <LoadingBlock label="Cargando store..." />
           </EcosystemSurfaceSection>
@@ -209,7 +229,7 @@ export default function PublicStoreScreen() {
           </EcosystemSurfaceSection>
         ) : null}
 
-        {!loading && !error && store && store.promotions.length > 0 ? (
+        {showCatalog && store.promotions.length > 0 ? (
           <EcosystemSurfaceSection tone="warm">
             <div style={{ display: 'grid', gap: theme.spacing.lg }}>
               <div style={{ display: 'grid', gap: 6 }}>
@@ -253,7 +273,7 @@ export default function PublicStoreScreen() {
           </EcosystemSurfaceSection>
         ) : null}
 
-        {!loading && !error ? (
+        {showCatalog ? (
           <EcosystemSurfaceSection>
             <div style={{ display: 'grid', gap: theme.spacing.xl }}>
               <div
@@ -273,8 +293,11 @@ export default function PublicStoreScreen() {
                     Explorar catálogo con foco en productos propios de esta tienda y compra directa desde su carrito independiente.
                   </div>
                 </div>
-                <div style={{ color: theme.colors.textMuted }}>
-                  Subtotal actual: <strong style={{ color: theme.colors.textPrimary }}>{formatMoneyFromCents(subtotalCents)}</strong>
+                <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <span style={{ color: theme.colors.textMuted }}>
+                    Subtotal actual: <strong style={{ color: theme.colors.textPrimary }}>{formatMoneyFromCents(subtotalCents)}</strong>
+                  </span>
+                  {loading ? <Badge variant="neutral">Actualizando catálogo</Badge> : null}
                 </div>
               </div>
 

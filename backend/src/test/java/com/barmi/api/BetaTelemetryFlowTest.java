@@ -47,6 +47,41 @@ class BetaTelemetryFlowTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
+                                  "eventName":"search_used",
+                                  "ecosystemSlug":"demo-ecosystem",
+                                  "searchTerm":"pedido buyer@example.com",
+                                  "sessionId":"session-1",
+                                  "route":"/ecosystem/catalog?q=buyer@example.com",
+                                  "releaseId":"rel-1",
+                                  "environment":"test",
+                                  "occurredAt":"2026-05-17T20:00:03Z"
+                                }
+                                """)
+        ).andExpect(status().isAccepted());
+
+        mockMvc.perform(
+                post("/api/public/beta/telemetry")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventName":"search_no_results",
+                                  "ecosystemSlug":"demo-ecosystem",
+                                  "searchTerm":"cafes imposibles",
+                                  "sessionId":"session-1",
+                                  "route":"/ecosystem/catalog?q=cafes+imposibles",
+                                  "releaseId":"rel-1",
+                                  "environment":"test",
+                                  "occurredAt":"2026-05-17T20:00:03Z",
+                                  "metadata":{"surface":"ecosystem_catalog"}
+                                }
+                                """)
+        ).andExpect(status().isAccepted());
+
+        mockMvc.perform(
+                post("/api/public/beta/telemetry")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
                                   "eventName":"store_view",
                                   "storeSlug":"demo-store",
                                   "storeName":"Cafe del Parque",
@@ -55,6 +90,24 @@ class BetaTelemetryFlowTest {
                                   "releaseId":"rel-1",
                                   "environment":"test",
                                   "occurredAt":"2026-05-17T20:00:01Z"
+                                }
+                                """)
+        ).andExpect(status().isAccepted());
+
+        mockMvc.perform(
+                post("/api/public/beta/telemetry")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventName":"checkout_failure",
+                                  "storeSlug":"demo-store",
+                                  "requestId":"checkout-request-1",
+                                  "sessionId":"session-2",
+                                  "route":"/store/checkout?token=abcdefghijklmnopqrstuvwxyz123456",
+                                  "releaseId":"rel-1",
+                                  "environment":"test",
+                                  "occurredAt":"2026-05-17T20:00:07Z",
+                                  "metadata":{"surface":"store_checkout","reason":"coupon_not_found"}
                                 }
                                 """)
         ).andExpect(status().isAccepted());
@@ -181,8 +234,9 @@ class BetaTelemetryFlowTest {
                                   "category":"confusing",
                                   "score":4,
                                   "message":"No entendí si el pago empieza antes o después de crear la orden.",
-                                  "route":"/store/checkout",
+                                  "route":"/store/checkout?email=buyer@example.com",
                                   "storeSlug":"demo-store",
+                                  "requestId":"feedback-request-1",
                                   "sessionId":"session-2",
                                   "releaseId":"rel-1",
                                   "environment":"test"
@@ -200,17 +254,25 @@ class BetaTelemetryFlowTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.homeViews").value(1))
                 .andExpect(jsonPath("$.storeViews").value(1))
-                .andExpect(jsonPath("$.searchUses").value(2))
+                .andExpect(jsonPath("$.searchUses").value(3))
+                .andExpect(jsonPath("$.searchNoResults").value(1))
                 .andExpect(jsonPath("$.productClicks").value(1))
                 .andExpect(jsonPath("$.checkoutStarted").value(1))
                 .andExpect(jsonPath("$.paymentInitiated").value(1))
                 .andExpect(jsonPath("$.checkoutSuccess").value(1))
+                .andExpect(jsonPath("$.checkoutFailure").value(1))
+                .andExpect(jsonPath("$.checkoutAbandoned").value(0))
                 .andExpect(jsonPath("$.checkoutSuccessRate").value(100.0))
                 .andExpect(jsonPath("$.loginFailure").value(1))
                 .andExpect(jsonPath("$.loginFailureRate").value(100.0))
                 .andExpect(jsonPath("$.feedbackSubmitted").value(1))
                 .andExpect(jsonPath("$.feedbackConfusing").value(1))
                 .andExpect(jsonPath("$.topStores[0].storeSlug").value("demo-store"))
-                .andExpect(jsonPath("$.topSearches[0].query").value("cafes de especialidad"));
+                .andExpect(jsonPath("$.topSearches[0].query").value("cafes de especialidad"))
+                .andExpect(jsonPath("$.feedbackRoutes[0].route").value("/store/checkout"))
+                .andExpect(jsonPath("$.recentFeedback[0].requestId").value("feedback-request-1"))
+                .andExpect(jsonPath("$.recentFailures[0].eventName").value("checkout_failure"))
+                .andExpect(jsonPath("$.recentFailures[0].route").value("/store/checkout"))
+                .andExpect(jsonPath("$.recentFailures[0].reason").value("coupon_not_found"));
     }
 }

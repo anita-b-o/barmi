@@ -10,7 +10,14 @@ if [[ -f "$ROOT_DIR/.env" ]]; then
   set +a
 fi
 
-BASE_URL="${BASE_URL:-http://localhost:${STAGING_HTTP_PORT:-8088}}"
+DEFAULT_SCHEME="${STORE_PUBLIC_SCHEME:-http}"
+DEFAULT_PORT="${STAGING_HTTP_PORT:-8088}"
+DEFAULT_HOST="localhost"
+if [[ "$DEFAULT_SCHEME" == "https" ]]; then
+  DEFAULT_PORT="${STAGING_HTTPS_PORT:-8443}"
+  DEFAULT_HOST="${STORE_BASE_DOMAIN:-staging.127.0.0.1.sslip.io}"
+fi
+BASE_URL="${BASE_URL:-${DEFAULT_SCHEME}://${DEFAULT_HOST}:${DEFAULT_PORT}}"
 API_BASE_URL="${API_BASE_URL:-$BASE_URL}"
 PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-$BASE_URL}"
 ECOSYSTEM_SLUG="${ECOSYSTEM_SLUG:-${VITE_PUBLIC_ECOSYSTEM_SLUG:-demo-ecosystem}}"
@@ -24,6 +31,34 @@ RUN_OBSERVABILITY_SMOKE="${RUN_OBSERVABILITY_SMOKE:-false}"
 TMP_DIR="$(mktemp -d)"
 COOKIE_JAR="$TMP_DIR/cookies.txt"
 trap 'rm -rf "$TMP_DIR"' EXIT
+
+should_skip_tls_verification() {
+  local url="$1"
+  [[ "${CURL_INSECURE:-}" == "true" ]] \
+    || [[ "$url" == https://localhost* ]] \
+    || [[ "$url" == https://staging.127.0.0.1.sslip.io* ]] \
+    || [[ "$url" == https://*.staging.127.0.0.1.sslip.io* ]]
+}
+
+curl_common=(-sS)
+if should_skip_tls_verification "$BASE_URL" \
+  || should_skip_tls_verification "$API_BASE_URL" \
+  || should_skip_tls_verification "$PUBLIC_BASE_URL"
+then
+  curl_common+=(-k)
+fi
+if [[ "${LOCAL_RESOLVE:-true}" == "true" && "$DEFAULT_SCHEME" == "https" ]]; then
+  RESOLVE_BASE_DOMAIN="${STORE_BASE_DOMAIN:-staging.127.0.0.1.sslip.io}"
+  for host in \
+    "$RESOLVE_BASE_DOMAIN" \
+    "${VITE_PUBLIC_STORE_HOST:-demo-store.${RESOLVE_BASE_DOMAIN}}" \
+    "admin.${RESOLVE_BASE_DOMAIN}" \
+    "casa-roja.${RESOLVE_BASE_DOMAIN}" \
+    "mercado-centro.${RESOLVE_BASE_DOMAIN}"
+  do
+    curl_common+=(--resolve "${host}:${DEFAULT_PORT}:127.0.0.1")
+  done
+fi
 
 require_value() {
   local label="$1"
@@ -41,7 +76,7 @@ request_with_headers() {
   local headers_file="$4"
   local status
   shift 4
-  status="$(curl -sS -D "$headers_file" -o "$body_file" -w '%{http_code}' -X "$method" "$url" "$@")"
+  status="$(curl "${curl_common[@]}" -D "$headers_file" -o "$body_file" -w '%{http_code}' -X "$method" "$url" "$@")"
   echo "$status"
 }
 
@@ -73,7 +108,7 @@ PY
 
 extract_request_id() {
   local headers_file="$1"
-  awk 'BEGIN{IGNORECASE=1} /^X-Request-Id:/ {gsub("\r",""); print $2}' "$headers_file" | tail -n1
+  awk 'tolower($0) ~ /^x-request-id:/ {gsub("\r",""); sub(/^[^:]+:[[:space:]]*/, ""); print}' "$headers_file" | tail -n1
 }
 
 wait_for_readiness() {
@@ -173,7 +208,7 @@ if [[ "$readiness_status" != "UP" && "$readiness_status" != "DEGRADED" ]]; then
 fi
 
 echo "[post-deploy] frontend reachable"
-curl -fsS "${PUBLIC_BASE_URL}/auth/login" >/dev/null
+curl "${curl_common[@]}" -fsS "${PUBLIC_BASE_URL}/auth/login" >/dev/null
 
 echo "[post-deploy] auth login"
 status="$(request_with_startup_retry POST "${API_BASE_URL}/api/auth/login" "$TMP_DIR/login.json" "$TMP_DIR/login.headers" "auth login" \
@@ -194,13 +229,13 @@ require_value "EXPECT_FRONTEND_RELEASE_ID" "$EXPECT_FRONTEND_RELEASE_ID"
 require_value "EXPECT_FRONTEND_COMMIT_SHA" "$EXPECT_FRONTEND_COMMIT_SHA"
 require_value "EXPECT_FRONTEND_BUILD_TIMESTAMP" "$EXPECT_FRONTEND_BUILD_TIMESTAMP"
 require_value "EXPECT_FRONTEND_ENV" "$EXPECT_FRONTEND_ENV"
-curl -fsS "${PUBLIC_BASE_URL}/index.html" -o "$TMP_DIR/index.html"
+curl "${curl_common[@]}" -fsS "${PUBLIC_BASE_URL}/index.html" -o "$TMP_DIR/index.html"
 bundle_path="$(grep -oE '/assets/index-[^"]+\.js' "$TMP_DIR/index.html" | head -n1)"
 if [[ -z "$bundle_path" ]]; then
   echo "[post-deploy] could not find main frontend bundle in index.html" >&2
   exit 1
 fi
-curl -fsS "${PUBLIC_BASE_URL}${bundle_path}" -o "$TMP_DIR/main-bundle.js"
+curl "${curl_common[@]}" -fsS "${PUBLIC_BASE_URL}${bundle_path}" -o "$TMP_DIR/main-bundle.js"
 rg -F "$EXPECT_FRONTEND_RELEASE_ID" "$TMP_DIR/main-bundle.js" >/dev/null
 rg -F "$EXPECT_FRONTEND_COMMIT_SHA" "$TMP_DIR/main-bundle.js" >/dev/null
 rg -F "$EXPECT_FRONTEND_BUILD_TIMESTAMP" "$TMP_DIR/main-bundle.js" >/dev/null

@@ -65,6 +65,58 @@ describe('public store catalog discovery', () => {
     await cleanup()
   })
 
+  it('keeps the current catalog visible while filters refetch', async () => {
+    let resolveFilteredProducts: () => void = () => undefined
+    const filteredProductsReady = new Promise<void>((resolve) => {
+      resolveFilteredProducts = resolve
+    })
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.startsWith('/api/public/stores/demo-store/products')) {
+        const parsed = new URL(url, 'http://localhost')
+        if (parsed.searchParams.get('q') === 'cafe') {
+          await filteredProductsReady
+          return new Response(JSON.stringify([
+            { priceCents: 1000, id: 'p1', name: 'Cafe molido', sku: 'SKU-CAFE', stockQuantity: 5, isAvailable: true, categoryId: 'cat-1', categoryName: 'Bebidas' }
+          ]), { status: 200 })
+        }
+        return new Response(JSON.stringify([
+          { priceCents: 1000, id: 'p1', name: 'Cafe molido', sku: 'SKU-CAFE', stockQuantity: 5, isAvailable: true, categoryId: 'cat-1', categoryName: 'Bebidas' },
+          { priceCents: 800, id: 'p2', name: 'Te verde', sku: 'SKU-TE', stockQuantity: 2, isAvailable: true, categoryId: 'cat-2', categoryName: 'Snacks' }
+        ]), { status: 200 })
+      }
+      if (url.startsWith('/api/public/stores/demo-store')) {
+        return new Response(JSON.stringify(storeResponse), { status: 200 })
+      }
+      return new Response('', { status: 404 })
+    }) as unknown as typeof fetch
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Cafe molido')
+    expect(document.body.textContent).toContain('Te verde')
+
+    const searchInput = document.querySelector('input[aria-label="Buscar productos"]') as HTMLInputElement
+    await setInputElementValue(searchInput, 'cafe')
+    await flush()
+
+    expect(document.body.textContent).toContain('Actualizando catálogo')
+    expect(document.body.textContent).toContain('Te verde')
+    expect(document.body.textContent).not.toContain('Cargando store')
+
+    resolveFilteredProducts()
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Cafe molido')
+    expect(document.body.textContent).not.toContain('Te verde')
+
+    await cleanup()
+  })
+
   it('toggles availableOnly and keeps unavailable products clearly marked otherwise', async () => {
     mockFetch({
       '/api/public/stores/demo-store': { body: storeResponse },

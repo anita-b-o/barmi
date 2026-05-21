@@ -25,6 +25,7 @@ public class BetaTelemetryService {
             "map_view",
             "store_view",
             "search_used",
+            "search_no_results",
             "product_click",
             "store_click",
             "map_pin_click",
@@ -36,9 +37,9 @@ public class BetaTelemetryService {
             "login_failure",
             "logout"
     );
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
-    private static final Pattern TOKENISH_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{24,}$");
-    private static final Pattern PHONEISH_PATTERN = Pattern.compile("^\\+?[0-9][0-9\\s()-]{7,}$");
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("[^\\s@]+@[^\\s@]+\\.[^\\s@]+");
+    private static final Pattern TOKENISH_PATTERN = Pattern.compile("\\b[A-Za-z0-9_-]{24,}\\b");
+    private static final Pattern PHONEISH_PATTERN = Pattern.compile("\\+?[0-9][0-9\\s().-]{7,}[0-9]");
 
     private final BetaProductEventRepository betaProductEventRepository;
     private final MeterRegistry meterRegistry;
@@ -73,7 +74,7 @@ public class BetaTelemetryService {
                 searchTerm,
                 cleanText(request.requestId(), 120),
                 requiredText(request.sessionId(), "session_id_required", 120),
-                requiredText(request.route(), "route_required", 255),
+                requiredRoute(request.route(), "route_required"),
                 requiredText(request.releaseId(), "release_id_required", 120),
                 requiredText(request.environment(), "environment_required", 64),
                 toJson(metadata),
@@ -97,7 +98,7 @@ public class BetaTelemetryService {
 
     private String eventCategory(String eventName) {
         return switch (eventName) {
-            case "ecosystem_home_view", "catalog_view", "map_view", "store_view", "search_used" -> "DISCOVERY";
+            case "ecosystem_home_view", "catalog_view", "map_view", "store_view", "search_used", "search_no_results" -> "DISCOVERY";
             case "product_click", "store_click", "map_pin_click" -> "ENGAGEMENT";
             case "checkout_started", "payment_initiated", "checkout_success", "checkout_failure" -> "CHECKOUT";
             case "login_success", "login_failure", "logout" -> "AUTH";
@@ -114,7 +115,7 @@ public class BetaTelemetryService {
         if (compact.length() < 2) {
             return null;
         }
-        if (EMAIL_PATTERN.matcher(compact).matches() || PHONEISH_PATTERN.matcher(compact).matches() || TOKENISH_PATTERN.matcher(compact).matches()) {
+        if (containsSensitiveValue(compact)) {
             return null;
         }
         return compact;
@@ -149,6 +150,30 @@ public class BetaTelemetryService {
             throw new IllegalArgumentException(errorCode);
         }
         return normalized;
+    }
+
+    private String requiredRoute(String value, String errorCode) {
+        String normalized = requiredText(value, errorCode, 255);
+        int queryIndex = normalized.indexOf('?');
+        int hashIndex = normalized.indexOf('#');
+        int endIndex = normalized.length();
+        if (queryIndex >= 0) {
+            endIndex = Math.min(endIndex, queryIndex);
+        }
+        if (hashIndex >= 0) {
+            endIndex = Math.min(endIndex, hashIndex);
+        }
+        String route = normalized.substring(0, endIndex).trim();
+        if (route.isEmpty()) {
+            throw new IllegalArgumentException(errorCode);
+        }
+        return route;
+    }
+
+    private boolean containsSensitiveValue(String value) {
+        return EMAIL_PATTERN.matcher(value).find()
+                || PHONEISH_PATTERN.matcher(value).find()
+                || TOKENISH_PATTERN.matcher(value).find();
     }
 
     private String cleanText(String value, int maxLength) {

@@ -87,8 +87,20 @@ dependencies {
    4️⃣  TASKS
    ============================================================ */
 
-tasks.test {
+fun Test.useBackendTestEnvironment(profile: String) {
     useJUnitPlatform()
+    systemProperty("spring.profiles.active", profile)
+
+    environment("REFRESH_COOKIE_NAME", "barmi_refresh_token")
+    environment("REFRESH_COOKIE_PATH", "/api/auth")
+    environment("REFRESH_COOKIE_SECURE", "false")
+    environment("REFRESH_COOKIE_SAMESITE", "Lax")
+    environment("REFRESH_COOKIE_DOMAIN", "")
+    environment("STORE_BASE_DOMAIN", "example.com")
+}
+
+tasks.test {
+    useBackendTestEnvironment("test")
 }
 
 tasks.register<Test>("integrationTest") {
@@ -99,9 +111,7 @@ tasks.register<Test>("integrationTest") {
     classpath = integrationTest.runtimeClasspath
 
     shouldRunAfter(tasks.test)
-    useJUnitPlatform()
-
-    systemProperty("spring.profiles.active", "integrationtest")
+    useBackendTestEnvironment("integrationtest")
 }
 
 tasks.register("baselineCheck") {

@@ -37,6 +37,7 @@ export type BetaMetricsSummary = {
   mapViews: number
   storeViews: number
   searchUses: number
+  searchNoResults?: number
   productClicks: number
   storeClicks: number
   mapPinClicks: number
@@ -44,6 +45,7 @@ export type BetaMetricsSummary = {
   paymentInitiated: number
   checkoutSuccess: number
   checkoutFailure: number
+  checkoutAbandoned?: number
   checkoutSuccessRate: number
   loginSuccess: number
   loginFailure: number
@@ -55,6 +57,24 @@ export type BetaMetricsSummary = {
   feedbackLoveIt: number
   topStores: Array<{ storeSlug: string; storeName: string; views: number }>
   topSearches: Array<{ query: string; uses: number }>
+  feedbackRoutes?: Array<{ route: string; total: number }>
+  recentFeedback?: Array<{
+    category: string
+    score?: number | null
+    message: string
+    route: string
+    requestId?: string | null
+    releaseId: string
+    createdAt: string
+  }>
+  recentFailures?: Array<{
+    eventName: string
+    route: string
+    requestId?: string | null
+    releaseId: string
+    occurredAt: string
+    reason?: string | null
+  }>
 }
 
 export const betaAdapter = {

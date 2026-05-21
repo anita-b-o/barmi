@@ -21,6 +21,8 @@ Fuentes de apoyo:
 - feedback beta por pantalla
 - logs frontend/backend correlacionados por `X-Request-Id`
 - `scripts/smoke-post-deploy.sh`
+- `scripts/smoke-https-staging.sh`
+- `scripts/smoke-real-payment.sh`
 - `scripts/smoke-observability.sh`
 
 ## Qué mirar
@@ -38,6 +40,7 @@ Fuentes de apoyo:
 - feedback de sesión expirada
 - que no aparezcan loops de redirect a login
 - que el reingreso devuelva al usuario a la pantalla original
+- en staging prod-like: confirmar cookie `Secure`, `HttpOnly`, `SameSite` y refresh/logout sobre HTTPS con `scripts/smoke-https-staging.sh`
 
 ### Checkout
 
@@ -46,6 +49,7 @@ Fuentes de apoyo:
 - `checkout_failure`
 - `payment_initiated` versus `checkout_success`
 - feedback de “no entendí si la orden quedó creada”
+- evidencia de pago real: `intent_id`, `provider_preference_id`, redirect real, `webhook_accepted`, `provider_payment_id` y transición final de orden
 
 ### Stability
 
@@ -75,7 +79,59 @@ Fuentes de apoyo:
 2. revisar auth, checkout, top searches y feedback por tipo
 3. mirar si hubo restart o deploy desde la revisión anterior
 4. correr `scripts/smoke-post-deploy.sh` si hubo deploy o restart; el script ahora espera readiness con polling claro hasta 45s
-5. elegir hasta 3 acciones concretas para el día
+5. correr `scripts/smoke-https-staging.sh` después de cambios de dominio, CORS, auth o cookies
+6. correr `scripts/smoke-real-payment.sh` después de cambios de checkout, pagos, webhook o reverse proxy público
+7. elegir hasta 3 acciones concretas para el día
+
+## Checklist Diario De Beta Interna
+
+Revisar cada día de prueba con usuarios:
+
+- feedback pendiente de clasificar
+- feedback repetido por ruta
+- `login_failure_rate`
+- `checkout_started`, `checkout_success`, `checkout_failure`
+- `checkout_abandoned` estimado en admin como checkout iniciado sin éxito ni fallo registrado
+- órdenes creadas versus usuarios que reportaron bloqueo
+- top searches y búsquedas sin resultado
+- rutas con más feedback
+- feedback reciente con `requestId`, release y timestamp
+- fallos recientes de login/checkout con `requestId`, route, reason y timestamp
+- errores frontend visibles en rutas de home, catálogo, mapa, checkout y admin
+- errores backend `4xx` inesperados y `5xx`
+- rate limits o `429` en navegación normal
+- logs de `503` o restarts y duración de recovery
+- cualquier `502`, aunque sea breve
+
+Rutina recomendada:
+
+1. abrir `GET /api/admin/beta/summary` desde admin
+2. revisar feedback nuevo antes de mirar métricas
+3. buscar picos de login/checkout failures
+4. revisar si `Search sin resultado` sube y comparar contra `Top búsquedas`
+5. abrir las rutas con más feedback y reproducir el flujo
+6. copiar el `requestId` de feedback/fallo reciente y buscarlo en logs si hay bloqueo
+7. revisar logs de API/nginx desde la última pasada
+8. correr `scripts/smoke-post-deploy.sh` si hubo deploy, restart o dudas de salud
+9. actualizar una lista corta de acciones para el día
+
+No convertir la rutina diaria en backlog infinito. Si aparecen más de 3 issues, priorizar bloqueos de login, checkout, orden y mobile.
+
+## Cómo Interpretar Las Señales Nuevas
+
+- `Search sin resultado`: mirar si una misma intención aparece varias veces. No significa automáticamente que falte un producto; puede ser typo, filtros activos, copy confuso o expectativa fuera del alcance de la beta.
+- `Checkout abandonado`: usarlo como alarma temprana, no como conversión exacta. Es `checkout_started - checkout_success - checkout_failure`, sin unir por sesión ni orden.
+- `Feedback reciente`: leerlo junto con route, release y `requestId`. El mensaje puede describir percepción o confusión, no siempre bug.
+- `Fallos recientes`: copiar `requestId` y buscar logs de API/nginx/frontend antes de tocar código. `reason` es una pista recortada, no un diagnóstico completo.
+- `Rutas con más feedback`: reproducir primero esas pantallas. Si una ruta concentra feedback, revisar flujo/copy/estado vacío antes de ampliar métricas.
+
+Limitaciones best-effort:
+
+- puede perderse telemetría si el browser corta la navegación, bloquea beacon/fetch o queda sin red
+- las métricas usan tablas existentes y agregados simples
+- rutas se muestran sin query/hash para evitar PII accidental
+- búsquedas tipo email, teléfono o token no se rankean como top search
+- no usar estas señales para atribución comercial, scoring de usuarios ni análisis enterprise
 
 ## Daily Operations Pass
 

@@ -70,6 +70,8 @@ Scripts operativos principales:
 Guía operativa de beta privada:
 
 - `docs/production/BETA_OPERATIONS_GUIDE.md`
+- `docs/production/BETA_INTERNAL_RC_SUMMARY.md`
+- `docs/production/BETA_TEST_PLAN.md`
 - `docs/production/BETA_DAILY_MONITORING.md`
 - `docs/production/BETA_FEEDBACK_TRIAGE.md`
 - `docs/production/BETA_PRIVATE_GO_NO_GO.md`
@@ -93,10 +95,13 @@ Validación más completa:
 Validación frontend reproducible en serie:
 
 ```bash
-./scripts/validate-frontend-serial.sh
+cd frontend
+npm run validate:frontend
 ```
 
-Esto evita el caso inestable de correr `vite build` y `vitest` en paralelo sobre la misma máquina.
+`npm test` es el comando oficial de Vitest para CI/máquinas chicas: corre toda la suite con un solo worker y `--api.port=0`. Para desarrollo local interactivo usá `npm run test:watch`; para una corrida paralela rápida, `npm run test:fast`.
+
+Evitá correr `npm run build`, Vitest, Gradle y rebuilds de Docker en paralelo sobre el mismo runner chico. La suite completa pasa en serie; bajo saturación, la corrida paralela puede exponer timeouts/`act(...)` overlap sin que haya un bug de producto reproducible.
 
 ### 5) Demo data local / QA manual
 
@@ -228,25 +233,30 @@ Para un staging mínimo, reproducible y cercano a producción:
 ```bash
 export JWT_SECRET='replace-with-a-real-staging-secret-32-bytes-min'
 export MP_WEBHOOK_SECRET='replace-with-a-real-staging-webhook-secret'
-export STORE_BASE_DOMAIN='staging.barmi.local'
-export ALLOWED_ORIGINS='http://localhost:8088,http://staging.barmi.local:8088'
-export STORE_PUBLIC_SCHEME='http'
-export REFRESH_COOKIE_SECURE='false'
-export VITE_PUBLIC_STORE_HOST='demo-store.staging.barmi.local'
+export STORE_BASE_DOMAIN='staging.127.0.0.1.sslip.io'
+export ALLOWED_ORIGINS='https://staging.127.0.0.1.sslip.io:8443,https://demo-store.staging.127.0.0.1.sslip.io:8443,https://casa-roja.staging.127.0.0.1.sslip.io:8443,https://mercado-centro.staging.127.0.0.1.sslip.io:8443,https://admin.staging.127.0.0.1.sslip.io:8443'
+export STORE_PUBLIC_SCHEME='https'
+export REFRESH_COOKIE_SECURE='true'
+export REFRESH_COOKIE_DOMAIN='staging.127.0.0.1.sslip.io'
+export REFRESH_COOKIE_SAMESITE='Lax'
+export VITE_PUBLIC_STORE_HOST='demo-store.staging.127.0.0.1.sslip.io'
 export VITE_PUBLIC_ECOSYSTEM_SLUG='demo-ecosystem'
 export VITE_APP_ENV='staging'
 export VITE_APP_VERSION='staging-local'
 export STAGING_HTTP_PORT=8088
+export STAGING_HTTPS_PORT=8443
 export STAGING_DB_PORT=5435
 
 ./scripts/validate-env.sh staging
+./scripts/generate-staging-cert.sh
 docker compose -f docker-compose.staging.yml config
 docker compose -f docker-compose.staging.yml up --build
 set -a && source .env && set +a
 DB_PORT=${STAGING_DB_PORT:-5435} ./scripts/load-demo-data.sh
-BASE_URL=http://localhost:${STAGING_HTTP_PORT:-8088} \
+BASE_URL=https://${STORE_BASE_DOMAIN}:${STAGING_HTTPS_PORT:-8443} \
 STORE_HOST=${VITE_PUBLIC_STORE_HOST} \
 ./scripts/smoke-staging.sh
+./scripts/smoke-https-staging.sh
 
 EXPECT_FRONTEND_RELEASE_ID=${VITE_APP_RELEASE_ID} \
 EXPECT_FRONTEND_COMMIT_SHA=${VITE_APP_COMMIT_SHA} \
@@ -272,8 +282,10 @@ Notas de staging:
 - `ALLOWED_ORIGINS` es la variable canónica del backend para CORS. `BACKEND_CORS_ALLOWED_ORIGINS` se acepta como alias si necesitás compatibilidad.
 - staging local permite orígenes controlados de `localhost` y/o `.local`; prod los rechaza.
 - `VITE_PUBLIC_STORE_HOST` debe ser un subdominio real de `STORE_BASE_DOMAIN`.
-- `STORE_PUBLIC_SCHEME=http` y `REFRESH_COOKIE_SECURE=false` son la combinación levantable para staging local sin TLS. Para un staging con HTTPS real, subí ambos a `https`/`true`.
+- `STORE_PUBLIC_SCHEME=https` y `REFRESH_COOKIE_SECURE=true` son obligatorios para declarar validación de sesión prod-like. `scripts/generate-staging-cert.sh` genera un certificado self-signed local de 30 días para nginx.
 - el smoke test ataca el stack vía `nginx`, no directo a los contenedores internos.
+- `scripts/smoke-https-staging.sh` valida rutas HTTPS reales por subdominio, CORS con credenciales, cookie `Secure`/`HttpOnly`/`SameSite`, refresh y logout. Por defecto usa `curl --resolve` hacia `127.0.0.1` para no depender de DNS externo en staging local; seteá `LOCAL_RESOLVE=false` si querés usar DNS real.
+- `scripts/smoke-real-payment.sh` valida creación de orden, inicio real de Mercado Pago, contrato de preferencia, idempotencia del intent y, si `WAIT_FOR_WEBHOOK=true`, espera el webhook real hasta que la orden quede `PAID`. Para webhook real, el API debe arrancar con `MP_ACCESS_TOKEN` y `MP_PUBLIC_BASE_URL`; `MP_PUBLIC_BASE_URL` debe ser HTTPS público alcanzable por Mercado Pago, no localhost/self-signed.
 - si querés probar la ruta técnica de observability, habilitá explícitamente `APP_OBSERVABILITY_SMOKE_ENABLED=true` y `VITE_OBSERVABILITY_SMOKE_ENABLED=true`; no forman parte del smoke normal de post-deploy.
 
 ## Profiles

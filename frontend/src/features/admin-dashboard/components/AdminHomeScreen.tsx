@@ -35,6 +35,32 @@ const emptyOrderSummaryCounts: OrderSummaryCounts = {
 
 const COUNTS_PAGE_SIZE = 1
 
+const feedbackCategoryLabel: Record<string, string> = {
+  bug: 'Bug',
+  confusing: 'Confuso',
+  missing: 'Falta algo',
+  love_it: 'Funcionó bien'
+}
+
+const failureEventLabel: Record<string, string> = {
+  checkout_failure: 'Checkout',
+  login_failure: 'Login'
+}
+
+function formatDateTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('es-AR', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(date)
+}
+
+function shortId(value?: string | null) {
+  if (!value) return 'sin requestId'
+  return value.length <= 12 ? value : `${value.slice(0, 8)}...`
+}
+
 async function loadStoreCounts() {
   const [all, pending, paid, cancelled] = await Promise.all([
     storeAdapter.listOrders(0, COUNTS_PAGE_SIZE),
@@ -167,6 +193,15 @@ export default function AdminHomeScreen() {
         {betaMetrics.error ? <ErrorAlert message={betaMetrics.error} /> : null}
         {betaMetrics.summary ? (
           <>
+            {(() => {
+              const searchNoResults = betaMetrics.summary.searchNoResults ?? 0
+              const checkoutAbandoned = betaMetrics.summary.checkoutAbandoned ?? 0
+              const feedbackRoutes = betaMetrics.summary.feedbackRoutes ?? []
+              const recentFeedback = betaMetrics.summary.recentFeedback ?? []
+              const recentFailures = betaMetrics.summary.recentFailures ?? []
+
+              return (
+                <>
             <div style={{ color: theme.colors.textMuted, marginBottom: theme.spacing.lg, lineHeight: 1.6 }}>
               Este bloque resume discovery, checkout, auth y feedback de la beta real sin dashboards enterprise ni tracking invasivo.
             </div>
@@ -176,8 +211,10 @@ export default function AdminHomeScreen() {
               <MetricCard label="Map views" value={String(betaMetrics.summary.mapViews)} />
               <MetricCard label="Store views" value={String(betaMetrics.summary.storeViews)} />
               <MetricCard label="Search used" value={String(betaMetrics.summary.searchUses)} />
+              <MetricCard label="Search sin resultado" value={String(searchNoResults)} tone={searchNoResults > 0 ? 'warning' : 'neutral'} />
               <MetricCard label="Clicks discovery" value={String(betaMetrics.summary.productClicks + betaMetrics.summary.storeClicks + betaMetrics.summary.mapPinClicks)} />
               <MetricCard label="Checkout start" value={String(betaMetrics.summary.checkoutStarted)} tone="warning" />
+              <MetricCard label="Checkout abandonado" value={String(checkoutAbandoned)} tone={checkoutAbandoned > 0 ? 'warning' : 'neutral'} />
               <MetricCard label="Pago iniciado" value={String(betaMetrics.summary.paymentInitiated)} tone="warning" />
               <MetricCard label="Checkout success %" value={`${betaMetrics.summary.checkoutSuccessRate}%`} tone="success" />
               <MetricCard label="Login failure %" value={`${betaMetrics.summary.loginFailureRate}%`} tone="danger" />
@@ -231,7 +268,62 @@ export default function AdminHomeScreen() {
                   </div>
                 </div>
               </Card>
+              <Card variant="soft">
+                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Rutas con más feedback</div>
+                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+                  {feedbackRoutes.length === 0 ? (
+                    <div style={{ color: theme.colors.textMuted }}>Todavía no hay rutas con feedback agrupado.</div>
+                  ) : feedbackRoutes.map((item) => (
+                    <div key={item.route} style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                      <span style={{ overflowWrap: 'anywhere' }}>{item.route}</span>
+                      <strong>{item.total}</strong>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              <Card variant="soft">
+                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Fallos recientes</div>
+                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+                  {recentFailures.length === 0 ? (
+                    <div style={{ color: theme.colors.textMuted }}>Sin fallos recientes de login o checkout.</div>
+                  ) : recentFailures.map((item) => (
+                    <div key={`${item.eventName}-${item.occurredAt}-${item.requestId ?? item.route}`} style={{ display: 'grid', gap: 4, borderTop: `1px solid ${theme.colors.borderDefault}`, paddingTop: theme.spacing.sm }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                        <strong>{failureEventLabel[item.eventName] ?? item.eventName}</strong>
+                        <span style={{ color: theme.colors.textMuted }}>{formatDateTime(item.occurredAt)}</span>
+                      </div>
+                      <div style={{ color: theme.colors.textMuted, overflowWrap: 'anywhere' }}>{item.route}</div>
+                      <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', color: theme.colors.textMuted, fontSize: theme.typography.small.size }}>
+                        <span>requestId: {shortId(item.requestId)}</span>
+                        {item.reason ? <span>reason: {item.reason}</span> : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              <Card variant="soft">
+                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Feedback reciente</div>
+                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+                  {recentFeedback.length === 0 ? (
+                    <div style={{ color: theme.colors.textMuted }}>Todavía no hay feedback recibido.</div>
+                  ) : recentFeedback.map((item) => (
+                    <div key={`${item.createdAt}-${item.requestId ?? item.message}`} style={{ display: 'grid', gap: 4, borderTop: `1px solid ${theme.colors.borderDefault}`, paddingTop: theme.spacing.sm }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                        <strong>{feedbackCategoryLabel[item.category] ?? item.category}{item.score ? ` · ${item.score}/5` : ''}</strong>
+                        <span style={{ color: theme.colors.textMuted }}>{formatDateTime(item.createdAt)}</span>
+                      </div>
+                      <div style={{ overflowWrap: 'anywhere' }}>{item.message}</div>
+                      <div style={{ color: theme.colors.textMuted, fontSize: theme.typography.small.size, overflowWrap: 'anywhere' }}>
+                        {item.route} · requestId: {shortId(item.requestId)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
             </div>
+                </>
+              )
+            })()}
           </>
         ) : null}
       </Section>

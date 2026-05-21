@@ -12,10 +12,12 @@ fi
 
 DEFAULT_SCHEME="${STORE_PUBLIC_SCHEME:-http}"
 DEFAULT_PORT="${STAGING_HTTP_PORT:-8088}"
+DEFAULT_HOST="localhost"
 if [[ "$DEFAULT_SCHEME" == "https" ]]; then
   DEFAULT_PORT="${STAGING_HTTPS_PORT:-8443}"
+  DEFAULT_HOST="${STORE_BASE_DOMAIN:-staging.127.0.0.1.sslip.io}"
 fi
-BASE_URL="${BASE_URL:-${DEFAULT_SCHEME}://localhost:${DEFAULT_PORT}}"
+BASE_URL="${BASE_URL:-${DEFAULT_SCHEME}://${DEFAULT_HOST}:${DEFAULT_PORT}}"
 API_BASE_URL="${API_BASE_URL:-${BASE_URL}}"
 PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-$BASE_URL}"
 ECOSYSTEM_SLUG="${ECOSYSTEM_SLUG:-demo-ecosystem}"
@@ -27,6 +29,27 @@ TMP_DIR="$(mktemp -d)"
 COOKIE_JAR="$TMP_DIR/cookies.txt"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
+curl_resolve_args=()
+if [[ "${LOCAL_RESOLVE:-true}" == "true" && "$DEFAULT_SCHEME" == "https" ]]; then
+  for host in \
+    "${STORE_BASE_DOMAIN:-staging.127.0.0.1.sslip.io}" \
+    "${STORE_HOST}" \
+    "admin.${STORE_BASE_DOMAIN:-staging.127.0.0.1.sslip.io}" \
+    "casa-roja.${STORE_BASE_DOMAIN:-staging.127.0.0.1.sslip.io}" \
+    "mercado-centro.${STORE_BASE_DOMAIN:-staging.127.0.0.1.sslip.io}"
+  do
+    curl_resolve_args+=(--resolve "${host}:${DEFAULT_PORT}:127.0.0.1")
+  done
+fi
+
+should_skip_tls_verification() {
+  local url="$1"
+  [[ "${CURL_INSECURE:-}" == "true" ]] \
+    || [[ "$url" == https://localhost* ]] \
+    || [[ "$url" == https://staging.127.0.0.1.sslip.io* ]] \
+    || [[ "$url" == https://*.staging.127.0.0.1.sslip.io* ]]
+}
+
 request_json() {
   local method="$1"
   local url="$2"
@@ -35,7 +58,10 @@ request_json() {
   shift 3
   local curl_args=(-sS -o "$output" -w '%{http_code}' -X "$method")
   if [[ "$url" == https://* ]]; then
-    curl_args+=(-k)
+    if should_skip_tls_verification "$url"; then
+      curl_args+=(-k)
+    fi
+    curl_args+=("${curl_resolve_args[@]}")
   fi
   status="$(curl "${curl_args[@]}" "$url" "$@")"
   echo "$status"
@@ -142,7 +168,10 @@ fi
 echo "[smoke] frontend route reachability"
 curl_args=(-fsS)
 if [[ "$PUBLIC_BASE_URL" == https://* ]]; then
-  curl_args+=(-k)
+  if should_skip_tls_verification "$PUBLIC_BASE_URL"; then
+    curl_args+=(-k)
+  fi
+  curl_args+=("${curl_resolve_args[@]}")
 fi
 curl "${curl_args[@]}" "${PUBLIC_BASE_URL}/auth/login" >/dev/null
 curl "${curl_args[@]}" "${PUBLIC_BASE_URL}/ecosystem" >/dev/null
