@@ -197,17 +197,17 @@ export default function OrderDetailScreen() {
             <DetailCard>
               <div style={{ display: 'grid', gap: theme.spacing.md }}>
                 <div style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-                  <div style={{ padding: theme.spacing.md, borderRadius: theme.radius.md, background: theme.colors.surface }}>
+                  <div style={{ padding: theme.spacing.md, borderRadius: theme.radius.md, background: theme.colors.bgSurface }}>
                     <div style={{ color: theme.colors.textMuted, marginBottom: 6 }}>Pedido</div>
                     <StatusBadge status={tracking?.orderBadge ?? order.order.status} />
                     <div style={{ marginTop: 8, fontWeight: 600 }}>{tracking?.orderLabel}</div>
                   </div>
-                  <div style={{ padding: theme.spacing.md, borderRadius: theme.radius.md, background: theme.colors.surface }}>
+                  <div style={{ padding: theme.spacing.md, borderRadius: theme.radius.md, background: theme.colors.bgSurface }}>
                     <div style={{ color: theme.colors.textMuted, marginBottom: 6 }}>Pago</div>
                     <StatusBadge status={tracking?.paymentBadge ?? 'PENDING'} />
                     <div style={{ marginTop: 8, fontWeight: 600 }}>{tracking?.paymentLabel ?? 'Pago pendiente'}</div>
                   </div>
-                  <div style={{ padding: theme.spacing.md, borderRadius: theme.radius.md, background: theme.colors.surface }}>
+                  <div style={{ padding: theme.spacing.md, borderRadius: theme.radius.md, background: theme.colors.bgSurface }}>
                     <div style={{ color: theme.colors.textMuted, marginBottom: 6 }}>Entrega</div>
                     <StatusBadge status={tracking?.fulfillmentBadge ?? 'PENDING'} />
                     <div style={{ marginTop: 8, fontWeight: 600 }}>{tracking?.fulfillmentLabel ?? 'Sin datos'}</div>

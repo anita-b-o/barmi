@@ -275,4 +275,30 @@ class BetaTelemetryFlowTest {
                 .andExpect(jsonPath("$.recentFailures[0].route").value("/store/checkout"))
                 .andExpect(jsonPath("$.recentFailures[0].reason").value("coupon_not_found"));
     }
+
+    @Test
+    void acceptsPublicProductTelemetryWithProductSlug() throws Exception {
+        mockMvc.perform(
+                post("/api/public/beta/telemetry")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "eventName":"public_product_detail_viewed",
+                                  "storeSlug":"demo-store",
+                                  "productSlug":"pan-de-campo",
+                                  "sessionId":"session-1",
+                                  "route":"/public/demo-store/products/pan-de-campo",
+                                  "releaseId":"rel-1",
+                                  "environment":"test",
+                                  "occurredAt":"2026-05-17T20:00:02Z",
+                                  "metadata":{
+                                    "isAvailable":"true",
+                                    "hasDescription":"false",
+                                    "hasImage":"false",
+                                    "categoryName":"present"
+                                  }
+                                }
+                                """)
+        ).andExpect(status().isAccepted());
+    }
 }

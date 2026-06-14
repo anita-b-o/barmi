@@ -25,6 +25,16 @@ Resumen RC interno:
 ./scripts/validate-env.sh staging
 ```
 
+Para una beta real, definir credenciales explícitas de Grafana y activar la validación fuerte:
+
+```bash
+export GRAFANA_ADMIN_USER='replace-with-operator-user'
+export GRAFANA_ADMIN_PASSWORD='replace-with-strong-password'
+export OBSERVABILITY_REQUIRE_STRONG_GRAFANA=true
+```
+
+Prometheus y Grafana quedan ligados a `127.0.0.1` por defecto. Mantener ese bind y acceder por SSH/VPN; si se define `OBSERVABILITY_BIND_ADDRESS` con una interfaz no-loopback, debe estar protegido por firewall/VPN y `validate-env` rechazará credenciales locales/default.
+
 2. Reconstruir y levantar staging:
 
 ```bash
@@ -71,6 +81,42 @@ HTTPS/session prod-like:
 ./scripts/smoke-https-staging.sh
 ```
 
+Hardening desde edge/proxy:
+
+```bash
+BASE_URL=https://${STORE_BASE_DOMAIN}:${STAGING_HTTPS_PORT:-8443} \
+ALLOWED_ORIGIN=https://${STORE_BASE_DOMAIN}:${STAGING_HTTPS_PORT:-8443} \
+./scripts/smoke-prod-hardening.sh
+```
+
+Transactional email smoke:
+
+```bash
+# Default beta-safe mode: no real SMTP delivery, inspect backend logs.
+export NOTIFICATION_EMAIL_MODE=logging
+./scripts/validate-env.sh staging
+docker compose -f docker-compose.staging.yml up -d --build
+BASE_URL=https://${STORE_BASE_DOMAIN}:${STAGING_HTTPS_PORT:-8443} \
+STORE_HOST=${VITE_PUBLIC_STORE_HOST} \
+./scripts/smoke-staging.sh
+docker compose -f docker-compose.staging.yml logs api | grep notification_email_delivery
+```
+
+SMTP sandbox smoke:
+
+```bash
+export NOTIFICATION_EMAIL_MODE=smtp
+export NOTIFICATION_EMAIL_FROM='no-reply@staging.example.test'
+export SPRING_MAIL_HOST='<mailbox-sandbox-host>'
+export SPRING_MAIL_PORT='587'
+export SPRING_MAIL_USERNAME='<mailbox-sandbox-user>'
+export SPRING_MAIL_PASSWORD='<mailbox-sandbox-password>'
+./scripts/validate-env.sh staging
+docker compose -f docker-compose.staging.yml up -d --build
+```
+
+After triggering a paid STORE order in staging, confirm the mailbox sandbox received the buyer payment email and the store admin paid-order alert. If the same outbox event is retried, `barmi_notification_email_attempts_total{result="skipped_duplicate"}` should increase rather than sending again.
+
 Pago real Mercado Pago:
 
 ```bash
@@ -87,6 +133,7 @@ Notas:
 - el backend debe arrancar con `MP_ACCESS_TOKEN` y `MP_PUBLIC_BASE_URL`; exportarlos sólo al ejecutar el smoke no actualiza un contenedor API ya levantado.
 - `smoke-https-staging.sh` usa `LOCAL_RESOLVE=true` por defecto para mapear los subdominios a `127.0.0.1` sin depender de DNS externo; usar `LOCAL_RESOLVE=false` en un host con DNS real.
 - el script de pago guarda evidencia en `tmp-payment-evidence/`: `request_id`, `order_id`, `intent_id`, `provider_preference_id`, URL real de checkout, contrato de preferencia (`external_reference`, `back_urls`, `notification_url`) y polling hasta confirmación.
+- transactional email is at-least-once: Barmi writes `notification_email_deliveries` after SMTP/logging delivery. A process crash after SMTP accepts a message but before the delivery row commits can duplicate that email on retry.
 
 ## Rollback
 
@@ -123,6 +170,18 @@ Señales activas hoy:
 - metadata de release consistente en frontend, backend y startup logs
 - `smoke-observability.sh` para ruta técnica controlada
 - métricas Actuator básicas
+- emails transaccionales: `barmi_notification_email_attempts_total{template,result,mode}` y `barmi_notification_email_latency_seconds{template,mode}`
+
+Consultas Prometheus útiles:
+
+```promql
+sum by (template,result,mode) (increase(barmi_notification_email_attempts_total[15m]))
+sum by (template,mode) (rate(barmi_notification_email_latency_seconds_sum[15m]))
+  /
+sum by (template,mode) (rate(barmi_notification_email_latency_seconds_count[15m]))
+increase(barmi_notification_email_attempts_total{result="failure"}[15m])
+increase(barmi_notification_email_attempts_total{result="skipped_duplicate"}[15m])
+```
 
 ## Beta Telemetry Light
 

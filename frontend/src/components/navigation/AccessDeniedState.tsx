@@ -23,11 +23,11 @@ export default function AccessDeniedState({ email, userId, backHref = '/admin', 
         </Card>
       ) : null}
       <div style={{ marginTop: theme.spacing.lg, display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-        <Link to={backHref} style={{ color: theme.colors.primary, textDecoration: 'none', fontWeight: 600 }}>
+        <Link to={backHref} style={{ color: theme.colors.actionPrimary, textDecoration: 'none', fontWeight: 600 }}>
           Volver al admin
         </Link>
         {links.map((link) => (
-          <Link key={link.href} to={link.href} style={{ color: theme.colors.primary, textDecoration: 'none', fontWeight: 600 }}>
+          <Link key={link.href} to={link.href} style={{ color: theme.colors.actionPrimary, textDecoration: 'none', fontWeight: 600 }}>
             {link.label}
           </Link>
         ))}

@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /auth
+Disallow: /store/checkout
+Disallow: /store/orders
+Disallow: /ecosystem/checkout
+Disallow: /ecosystem/orders
+
+Sitemap: /sitemap.xml

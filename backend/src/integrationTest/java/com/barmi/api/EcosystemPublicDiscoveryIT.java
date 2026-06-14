@@ -125,9 +125,13 @@ class EcosystemPublicDiscoveryIT extends PostgresIntegrationTestBase {
     void listsPublicProductsWithoutOptionalQueryParams() throws Exception {
         mockMvc.perform(get("/api/public/ecosystems/demo-ecosystem/products"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].name").value("External Banana"))
-                .andExpect(jsonPath("$[1].name").value("External Apple"));
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].name").value("External Banana"))
+                .andExpect(jsonPath("$.content[1].name").value("External Apple"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(24))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(1));
     }
 
     @Test

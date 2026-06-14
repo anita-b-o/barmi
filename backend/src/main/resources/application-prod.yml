@@ -20,8 +20,8 @@ spring:
 management:
   endpoint:
     health:
-      show-details: always
-      show-components: always
+      show-details: never
+      show-components: never
       probes:
         enabled: true
       group:
@@ -31,9 +31,7 @@ management:
           include: livenessState
         readiness:
           include: readinessState,db,outboxBacklog
-        health:
-          include: readinessState,db,redis,outboxBacklog
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health

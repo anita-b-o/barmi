@@ -43,6 +43,11 @@ reject_default() {
   fi
 }
 
+is_loopback_bind_address() {
+  local value="${1:-127.0.0.1}"
+  [[ "$value" == "127.0.0.1" || "$value" == "localhost" || "$value" == "::1" ]]
+}
+
 require_explicit_origin_list() {
   local name="$1"
   local value="${!name:-}"
@@ -83,6 +88,61 @@ reject_contains_fragment() {
   local value="${!name:-}"
   if [[ "$value" == *"$fragment"* ]]; then
     echo "[env] $name contains forbidden fragment '$fragment' in $mode" >&2
+    exit 1
+  fi
+}
+
+is_placeholder_alert_webhook_url() {
+  local value="${1:-}"
+  [[ -z "$value" \
+    || "$value" == "http://127.0.0.1:9/barmi-alerts-placeholder" \
+    || "$value" == "http://localhost:9/barmi-alerts-placeholder" \
+    || "$value" == *"barmi-alerts-placeholder"* ]]
+}
+
+is_loopback_url() {
+  local value="${1:-}"
+  [[ "$value" =~ ^https?://(localhost|127\.0\.0\.1|\[::1\])([/:]|$) ]]
+}
+
+require_real_alert_webhook() {
+  local value="${GRAFANA_ALERT_WEBHOOK_URL:-}"
+  require_var GRAFANA_ALERT_WEBHOOK_URL
+  if [[ ! "$value" =~ ^https?://[^[:space:]]+$ ]]; then
+    echo "[env] GRAFANA_ALERT_WEBHOOK_URL must be an http(s) URL" >&2
+    exit 1
+  fi
+  if is_placeholder_alert_webhook_url "$value" || is_loopback_url "$value"; then
+    echo "[env] GRAFANA_ALERT_WEBHOOK_URL must be a real non-loopback webhook when OBSERVABILITY_REQUIRE_ALERTS=true" >&2
+    exit 1
+  fi
+}
+
+warn_if_alert_webhook_placeholder() {
+  local value="${GRAFANA_ALERT_WEBHOOK_URL:-}"
+  if is_placeholder_alert_webhook_url "$value"; then
+    echo "[env] warning: Grafana alerts will use the local placeholder webhook; set GRAFANA_ALERT_WEBHOOK_URL and OBSERVABILITY_REQUIRE_ALERTS=true for beta notifications" >&2
+  fi
+}
+
+validate_notification_email_env() {
+  local mode="${NOTIFICATION_EMAIL_MODE:-logging}"
+  mode="${mode,,}"
+  if [[ "$mode" != "logging" && "$mode" != "smtp" ]]; then
+    echo "[env] NOTIFICATION_EMAIL_MODE must be logging or smtp" >&2
+    exit 1
+  fi
+  if [[ "$mode" != "smtp" ]]; then
+    return 0
+  fi
+
+  require_var NOTIFICATION_EMAIL_FROM
+  require_var SPRING_MAIL_HOST
+  require_var SPRING_MAIL_PORT
+  require_var SPRING_MAIL_USERNAME
+  require_var SPRING_MAIL_PASSWORD
+  if [[ ! "$SPRING_MAIL_PORT" =~ ^[0-9]+$ || "$SPRING_MAIL_PORT" -le 0 ]]; then
+    echo "[env] SPRING_MAIL_PORT must be a positive integer when NOTIFICATION_EMAIL_MODE=smtp" >&2
     exit 1
   fi
 }
@@ -142,6 +202,7 @@ case "$MODE" in
         exit 1
       fi
     fi
+    validate_notification_email_env
     require_host_under_domain VITE_PUBLIC_STORE_HOST STORE_BASE_DOMAIN
     if [[ "${SENTRY_UPLOAD_REQUIRED:-false}" == "true" ]]; then
       require_var VITE_APP_COMMIT_SHA
@@ -154,6 +215,20 @@ case "$MODE" in
     if [[ "${VITE_OBSERVABILITY_SMOKE_ENABLED:-false}" == "true" && "${APP_OBSERVABILITY_SMOKE_ENABLED:-false}" != "true" ]]; then
       echo "[env] APP_OBSERVABILITY_SMOKE_ENABLED must be true when VITE_OBSERVABILITY_SMOKE_ENABLED=true" >&2
       exit 1
+    fi
+    observability_bind_address="${OBSERVABILITY_BIND_ADDRESS:-127.0.0.1}"
+    if [[ "${OBSERVABILITY_REQUIRE_STRONG_GRAFANA:-false}" == "true" ]] || ! is_loopback_bind_address "$observability_bind_address"; then
+      require_var GRAFANA_ADMIN_USER
+      require_var GRAFANA_ADMIN_PASSWORD
+      reject_default GRAFANA_ADMIN_USER "admin"
+      reject_default GRAFANA_ADMIN_PASSWORD "admin"
+      reject_default GRAFANA_ADMIN_USER "barmi-local-admin"
+      reject_default GRAFANA_ADMIN_PASSWORD "change-me-local-observability-password"
+    fi
+    if [[ "${OBSERVABILITY_REQUIRE_ALERTS:-false}" == "true" ]]; then
+      require_real_alert_webhook
+    else
+      warn_if_alert_webhook_placeholder
     fi
     ;;
   prod|production)
@@ -191,6 +266,7 @@ case "$MODE" in
       echo "[env] REFRESH_COOKIE_SECURE must be true in $MODE" >&2
       exit 1
     fi
+    validate_notification_email_env
     require_host_under_domain VITE_PUBLIC_STORE_HOST STORE_BASE_DOMAIN
     if [[ "${SENTRY_UPLOAD_REQUIRED:-false}" == "true" ]]; then
       require_var VITE_APP_COMMIT_SHA
@@ -203,6 +279,9 @@ case "$MODE" in
     if [[ "${VITE_OBSERVABILITY_SMOKE_ENABLED:-false}" == "true" || "${APP_OBSERVABILITY_SMOKE_ENABLED:-false}" == "true" ]]; then
       echo "[env] observability smoke flags must remain disabled in $MODE" >&2
       exit 1
+    fi
+    if [[ "${OBSERVABILITY_REQUIRE_ALERTS:-true}" == "true" ]]; then
+      require_real_alert_webhook
     fi
     ;;
   *)

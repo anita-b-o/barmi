@@ -54,6 +54,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
     implementation("org.springframework.boot:spring-boot-starter-mail")
+    runtimeOnly("io.micrometer:micrometer-registry-prometheus")
 
     // Flyway (en Flyway 10, PostgreSQL es módulo separado)
     implementation("org.flywaydb:flyway-core")

@@ -1,0 +1,109 @@
+groups:
+  - name: barmi.private-beta.mvp
+    interval: 30s
+    rules:
+      - alert: BarmiApiDown
+        expr: up{job="barmi-api"} == 0 or absent(up{job="barmi-api"})
+        for: 2m
+        labels:
+          severity: critical
+          service: barmi-api
+        annotations:
+          summary: "API backend is not scrapeable"
+          description: "Prometheus has not been able to scrape the Spring Boot API for more than 2 minutes."
+          runbook: "docs/production/OBSERVABILITY_RUNBOOK.md#alertas-mvp-beta-privada"
+
+      - alert: BarmiHigh5xxRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{job="barmi-api",status=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(http_server_requests_seconds_count{job="barmi-api"}[5m])), 0.001)
+          ) > 0.05
+          and
+          sum(increase(http_server_requests_seconds_count{job="barmi-api"}[5m])) >= 20
+        for: 5m
+        labels:
+          severity: warning
+          service: barmi-api
+        annotations:
+          summary: "Sustained API 5xx rate above 5%"
+          description: "At least 20 requests in 5 minutes and more than 5% are 5xx."
+          runbook: "docs/production/OBSERVABILITY_RUNBOOK.md#alertas-mvp-beta-privada"
+
+      - alert: BarmiCheckoutFailuresSpike
+        expr: sum(increase(barmi_checkout_failures_total[15m])) >= 5
+        for: 5m
+        labels:
+          severity: warning
+          service: barmi-api
+        annotations:
+          summary: "Checkout failures spike"
+          description: "Five or more checkout failures were recorded in the last 15 minutes."
+          runbook: "docs/production/OBSERVABILITY_RUNBOOK.md#alertas-mvp-beta-privada"
+
+      - alert: BarmiPaymentMismatch
+        expr: sum(increase(barmi_payments_mismatch_total[5m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+          service: barmi-api
+        annotations:
+          summary: "Payment amount or currency mismatch"
+          description: "At least one real payment confirmation did not match the expected order amount or currency."
+          runbook: "docs/production/OBSERVABILITY_RUNBOOK.md#alertas-mvp-beta-privada"
+
+      - alert: BarmiWebhookFailures
+        expr: sum(increase(barmi_webhooks_received_total{result=~"rejected|failure",reason!="replay"}[15m])) >= 3
+        for: 5m
+        labels:
+          severity: warning
+          service: barmi-api
+        annotations:
+          summary: "Sustained webhook failures"
+          description: "Three or more non-replay webhook rejects/failures were recorded in the last 15 minutes."
+          runbook: "docs/production/OBSERVABILITY_RUNBOOK.md#alertas-mvp-beta-privada"
+
+      - alert: BarmiOutboxFailed
+        expr: barmi_outbox_failed_events > 0
+        for: 2m
+        labels:
+          severity: critical
+          service: barmi-api
+        annotations:
+          summary: "Outbox has failed events"
+          description: "One or more outbox events are in FAILED state."
+          runbook: "docs/production/OBSERVABILITY_RUNBOOK.md#alertas-mvp-beta-privada"
+
+      - alert: BarmiOutboxStuck
+        expr: barmi_outbox_oldest_pending_age_seconds > 900
+        for: 5m
+        labels:
+          severity: warning
+          service: barmi-api
+        annotations:
+          summary: "Oldest pending outbox event is older than 15 minutes"
+          description: "The outbox dispatcher may be stuck or downstream processing may be failing."
+          runbook: "docs/production/OBSERVABILITY_RUNBOOK.md#alertas-mvp-beta-privada"
+
+      - alert: BarmiDbPoolPressure
+        expr: hikaricp_connections_pending > 0
+        for: 3m
+        labels:
+          severity: warning
+          service: barmi-api
+        annotations:
+          summary: "Database connection pool has pending threads"
+          description: "Hikari has had pending connection requests for more than 3 minutes."
+          runbook: "docs/production/OBSERVABILITY_RUNBOOK.md#alertas-mvp-beta-privada"
+
+      - alert: BarmiRateLimitAbuse
+        expr: sum(increase(barmi_rate_limited_total[15m])) >= 30
+        for: 5m
+        labels:
+          severity: warning
+          service: barmi-api
+        annotations:
+          summary: "Rate limit abuse spike"
+          description: "Thirty or more rate-limited requests were recorded in the last 15 minutes."
+          runbook: "docs/production/OBSERVABILITY_RUNBOOK.md#alertas-mvp-beta-privada"

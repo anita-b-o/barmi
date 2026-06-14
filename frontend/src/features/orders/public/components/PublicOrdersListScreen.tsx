@@ -150,7 +150,7 @@ export default function OrdersListScreen() {
                         </div>
                       </div>
                       <div style={{ marginTop: theme.spacing.lg }}>
-                        <Link to={`/store/orders/${order.orderId}`} style={{ color: theme.colors.primary, textDecoration: 'none' }}>
+                        <Link to={`/store/orders/${order.orderId}`} style={{ color: theme.colors.actionPrimary, textDecoration: 'none' }}>
                           {order.status === 'PENDING_PAYMENT' && !order.operationalIssue ? 'Completar pago y seguimiento' : 'Ver seguimiento'}
                         </Link>
                       </div>

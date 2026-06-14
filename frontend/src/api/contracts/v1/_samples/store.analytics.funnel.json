@@ -1,0 +1,12 @@
+{
+  "listViews": 1000,
+  "cardClicks": 400,
+  "detailViews": 320,
+  "addToCart": 80,
+  "orders": 25,
+  "revenueCents": 150000,
+  "clickRate": 0.4,
+  "detailRate": 0.8,
+  "addToCartRate": 0.25,
+  "purchaseRate": 0.3125
+}

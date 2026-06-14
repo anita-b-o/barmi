@@ -23,7 +23,7 @@ export function StoreFulfillmentDetailCard({
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.lg }}>
           <span style={{ color: theme.colors.textMuted }}>storeOrderId</span>
           {record?.storeOrderId ? (
-            <Link to={routes.adminOrderDetail(record.storeOrderId)} style={{ color: theme.colors.primary, textDecoration: 'none', fontWeight: 600 }}>
+            <Link to={routes.adminOrderDetail(record.storeOrderId)} style={{ color: theme.colors.actionPrimary, textDecoration: 'none', fontWeight: 600 }}>
               {record.storeOrderId}
             </Link>
           ) : (

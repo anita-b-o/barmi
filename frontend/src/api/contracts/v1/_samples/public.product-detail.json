@@ -1,0 +1,19 @@
+{
+  "store": {
+    "slug": "demo-store",
+    "name": "Demo Store",
+    "categoryName": "Panaderia"
+  },
+  "product": {
+    "slug": "pan-de-campo",
+    "name": "Pan de campo",
+    "priceCents": 1200,
+    "currency": "ARS",
+    "isAvailable": true,
+    "stockQuantity": 8,
+    "categoryName": "Panaderia",
+    "description": null,
+    "imageUrl": null,
+    "sku": "SKU-PAN"
+  }
+}

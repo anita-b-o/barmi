@@ -1,10 +1,10 @@
-import { memo, useEffect, useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import L, { type LatLngExpression } from 'leaflet'
-import { Marker, Popup, useMap } from 'react-leaflet'
+import { Marker, Popup } from 'react-leaflet'
 import type { PublicStoreMapStore } from '../../../../api/contracts/v1/public'
-import { ecosystemMapDefaultCenter, ecosystemMapDefaultZoom } from '../mapDefaults'
 import { appConfig } from '@/app/config/env'
 import { trackBetaEvent } from '@/features/beta'
+import { MapViewportController } from './MapViewportController'
 
 export type LocatedStore = PublicStoreMapStore & {
   latitude: number
@@ -35,35 +35,6 @@ const selectedMarkerIcon = L.divIcon({
 
 function toPosition(store: LocatedStore): LatLngExpression {
   return [store.latitude, store.longitude]
-}
-
-function MapViewportController({ stores, selectedStoreId }: Pick<MapMarkersLayerProps, 'stores' | 'selectedStoreId'>) {
-  const map = useMap()
-
-  useEffect(() => {
-    if (stores.length === 0) {
-      map.flyTo(ecosystemMapDefaultCenter, ecosystemMapDefaultZoom, { duration: 0.35 })
-      return
-    }
-
-    const selectedStore = stores.find((store) => store.id === selectedStoreId)
-    if (selectedStore) {
-      map.flyTo(toPosition(selectedStore), Math.max(map.getZoom(), 15), { duration: 0.45 })
-      return
-    }
-
-    if (stores.length === 1) {
-      map.flyTo(toPosition(stores[0]), 15, { duration: 0.45 })
-      return
-    }
-
-    if (stores.length > 1) {
-      const bounds = L.latLngBounds(stores.map(toPosition))
-      map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 })
-    }
-  }, [map, selectedStoreId, stores])
-
-  return null
 }
 
 function MapMarkersLayerBase({ stores, selectedStoreId, onSelectStore }: MapMarkersLayerProps) {

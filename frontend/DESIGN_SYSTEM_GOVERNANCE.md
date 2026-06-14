@@ -14,34 +14,80 @@ Use the existing theme and primitives first:
 - `src/components/primitives/Badge`
 - `src/components/primitives/Table`
 
+## Theme System v1
+
+Barmi supports three user preferences:
+
+- `system` (default)
+- `light`
+- `dark`
+
+The app stores the preference in `localStorage` under `barmi-theme-mode`. `system` follows `prefers-color-scheme`; `light` and `dark` are explicit user choices. The resolved runtime theme is always `light` or `dark` and is applied to `document.documentElement` as `data-theme="light|dark"` plus `color-scheme`.
+
+Use these public theme APIs:
+
+- `ThemeProvider` / `ThemeModeProvider`
+- `useTheme()`
+- `resolvedTheme`
+- `themePreference`
+- `setThemePreference(preference)`
+- `ThemeToggle`
+
+`ThemeToggle` is intentionally mounted only in admin chrome for v1. Do not add it to public storefront or checkout layouts until those surfaces are intentionally reviewed.
+
+## Migrated Surfaces
+
+Admin chrome is the first production surface migrated to Design System v1. The migrated scope is:
+
+- `AdminLayout`
+- admin sidebar and topbar shell
+- primary admin navigation links
+- active, hover, and focus states for admin navigation
+- admin hub entry cards in the home/store/ecosystem admin hubs
+
+This migration deliberately excludes checkout, public storefront, backend behavior, route changes, deep admin tables, and feature-specific screens outside hub/card entry points.
+
+Future migrations should move one coherent surface at a time. A surface is ready when its page shell, navigation, core cards/panels, interactive states, and light/dark rendering can all use semantic tokens without changing business logic or user flows. Prefer finishing a narrow surface completely over partially tokenizing unrelated screens.
+
 Preferred semantic tokens:
 
-- `brand`
 - `actionPrimary`
 - `actionHover`
-- `actionDisabled`
 - `bgPage`
 - `bgSurface`
 - `bgSurfaceAlt`
 - `bgHover`
-- `bgSelected`
-- `bgAccentSoft`
-- `borderDefault`
-- `borderStrong`
-- `borderHover`
-- `borderAccentSoft`
 - `textPrimary`
 - `textSecondary`
 - `textMuted`
+- `borderDefault`
+- `borderStrong`
+- `actionDisabled`
+- `focusRing`
 - `success`
 - `warning`
 - `error`
 - `info`
+
+Additional supported semantic aliases for existing primitives and soft surfaces:
+
+- `brand`
+- `bgSelected`
+- `bgAccentSoft`
+- `borderHover`
+- `borderAccentSoft`
 - `statusSuccessSoft`
 - `statusWarningSoft`
 - `statusErrorSoft`
 - `statusInfoSoft`
-- `focusRing`
+
+Policy:
+
+- Product UI must consume semantic tokens through `theme.colors.*`.
+- New reusable visual decisions belong in `tokens.ts` before they spread.
+- Do not hardcode theme-specific colors in screens or feature components.
+- Do not branch component code manually on light/dark unless a semantic token cannot express the need.
+- Keep public checkout/product surfaces stable unless a PR is explicitly scoped to migrate them.
 
 ## Forbidden By Default
 
@@ -57,7 +103,7 @@ Do not introduce these in normal product UI code:
   - `theme.colors.secondaryMedium`
   - `theme.colors.surfaceAlt`
 
-These are still tolerated only as transitional debt, and the guardrails track regressions:
+These legacy aliases have no accepted product UI usages. Do not introduce them:
 
 - `theme.colors.primary`
 - `theme.colors.secondary`
@@ -90,7 +136,6 @@ Raw colors are allowed only in the theme layer and the explicitly art-directed f
 - `src/components/primitives/Modal/ConfirmDialog.tsx`
 - `src/components/primitives/Modal/index.tsx`
 - `src/features/ecosystem/components/EcosystemExperience.tsx`
-- `src/features/ecosystem/stores-map/components/StoresMap.tsx`
 
 If a new file needs this status, document the reason and add it deliberately to the guardrail exception list in `scripts/design-system-rules.mjs`.
 
@@ -106,9 +151,9 @@ If a new file needs this status, document the reason and add it deliberately to 
 ## How The Guardrails Work
 
 - Raw hex colors are blocked outside explicit exceptions.
-- Raw `rgb(...)` and `rgba(...)` are blocked by baseline outside explicit exceptions.
+- Raw `rgb(...)` and `rgba(...)` are blocked outside explicit exceptions.
 - Deprecated theme aliases are blocked outright.
-- Transitional aliases are baseline-tracked so counts must not grow.
+- Transitional aliases are baseline-tracked at zero so they must not be reintroduced.
 - Files with heavy inline visual styling are reported as warnings to guide refactors.
 
 ## Maintenance
@@ -118,3 +163,13 @@ The baseline lives in `scripts/design-system-baseline.json`.
 - If a cleanup reduces baseline debt, update the baseline file downward.
 - Do not raise the baseline casually.
 - If a new exception is needed, prefer fixing the styling first; add an exception only when the file is genuinely art-directed or overlay-heavy.
+
+## Accepted Transitional Debt
+
+As of the current baseline, the accepted baseline-tracked debt is:
+
+- 0 discouraged legacy alias usages.
+- 0 baseline-tracked raw `rgb(...)`/`rgba(...)` usages outside explicit exceptions.
+- Raw colors inside the theme layer and explicit art-directed exceptions listed above.
+
+New product work should use semantic tokens and primitives instead of increasing the baseline.

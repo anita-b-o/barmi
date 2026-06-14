@@ -35,6 +35,7 @@ app:
     allowedOrigins: ${BACKEND_CORS_ALLOWED_ORIGINS:${ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}}
   tenant:
     baseDomain: ${STORE_BASE_DOMAIN:example.com}
+    trustProxyHeaders: ${TRUST_PROXY_HEADERS:true}
   notifications:
     email:
       mode: ${NOTIFICATION_EMAIL_MODE:logging}
@@ -46,6 +47,7 @@ management:
   endpoint:
     health:
       show-details: always
+      show-components: always
       probes:
         enabled: true
       group:

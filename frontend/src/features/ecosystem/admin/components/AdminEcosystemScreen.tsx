@@ -101,8 +101,8 @@ export default function AdminEcosystemScreen() {
                     flexWrap: 'wrap',
                     padding: theme.spacing.lg,
                     borderRadius: theme.radius.md,
-                    background: theme.colors.bgSurfaceAlt,
-                    border: `1px solid rgba(63, 175, 143, 0.18)`
+                    background: theme.colors.bgSurface,
+                    border: `1px solid ${theme.colors.borderDefault}`
                   }}
                 >
                   <div>
@@ -120,9 +120,9 @@ export default function AdminEcosystemScreen() {
       <Section title="Capacidades disponibles">
         <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
           {operationalAreas.map((area) => (
-            <Card key={area.href}>
+            <Card key={area.href} variant="soft">
               <div style={{ display: 'grid', gap: theme.spacing.md }}>
-                <div style={{ fontWeight: 700, color: theme.colors.secondary }}>{area.title}</div>
+                <div style={{ fontWeight: 700, color: theme.colors.textPrimary }}>{area.title}</div>
                 <div style={{ color: theme.colors.textMuted }}>{area.description}</div>
                 <div>
                   <Link to={area.href} style={{ textDecoration: 'none' }}>

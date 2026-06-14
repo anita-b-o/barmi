@@ -1,40 +1,52 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { getThemeMode, setThemeMode, subscribeThemeMode, type ThemeMode } from './theme'
+import { getThemeMode, setThemeMode, subscribeThemeMode, theme, type ResolvedTheme, type ThemeMode, type ThemePreference } from './theme'
 
-const STORAGE_KEY = 'barmi-theme-mode'
+export const THEME_STORAGE_KEY = 'barmi-theme-mode'
 
 type ThemeModeContextValue = {
-  mode: ThemeMode
+  mode: ResolvedTheme
+  resolvedTheme: ResolvedTheme
+  themePreference: ThemePreference
   setMode: (mode: ThemeMode) => void
+  setThemePreference: (preference: ThemePreference) => void
   toggleMode: () => void
 }
 
 const ThemeModeContext = createContext<ThemeModeContextValue | null>(null)
 
-function resolveInitialThemeMode(): ThemeMode {
-  if (typeof window === 'undefined') return 'light'
+function isThemePreference(value: string | null): value is ThemePreference {
+  return value === 'system' || value === 'light' || value === 'dark'
+}
 
-  const storedMode = window.localStorage.getItem(STORAGE_KEY)
-  if (storedMode === 'light' || storedMode === 'dark') {
-    return storedMode
-  }
+function getSystemTheme(): ResolvedTheme {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return 'light'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
 
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+function readInitialPreference(): ThemePreference {
+  if (typeof window === 'undefined') return 'system'
+
+  const storedPreference = window.localStorage.getItem(THEME_STORAGE_KEY)
+  return isThemePreference(storedPreference) ? storedPreference : 'system'
+}
+
+function resolveTheme(preference: ThemePreference, systemTheme: ResolvedTheme): ResolvedTheme {
+  return preference === 'system' ? systemTheme : preference
 }
 
 export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<ThemeMode>(() => {
-    const initialMode = resolveInitialThemeMode()
-    setThemeMode(initialMode)
-    return initialMode
-  })
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>(readInitialPreference)
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(getSystemTheme)
+  const [mode, setModeState] = useState<ResolvedTheme>(() => resolveTheme(readInitialPreference(), getSystemTheme()))
+  const resolvedTheme = resolveTheme(themePreference, systemTheme)
 
   useEffect(() => {
-    setThemeMode(mode)
+    setModeState(resolvedTheme)
+    setThemeMode(resolvedTheme)
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEY, mode)
+      window.localStorage.setItem(THEME_STORAGE_KEY, themePreference)
     }
-  }, [mode])
+  }, [resolvedTheme, themePreference])
 
   useEffect(() => subscribeThemeMode(setModeState), [])
 
@@ -43,9 +55,7 @@ export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
 
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
     const handleChange = (event: MediaQueryListEvent) => {
-      const storedMode = window.localStorage.getItem(STORAGE_KEY)
-      if (storedMode === 'light' || storedMode === 'dark') return
-      setModeState(event.matches ? 'dark' : 'light')
+      setSystemTheme(event.matches ? 'dark' : 'light')
     }
 
     mediaQuery.addEventListener('change', handleChange)
@@ -54,9 +64,12 @@ export function ThemeModeProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<ThemeModeContextValue>(() => ({
     mode,
-    setMode: setModeState,
-    toggleMode: () => setModeState((current) => (current === 'light' ? 'dark' : 'light'))
-  }), [mode])
+    resolvedTheme,
+    themePreference,
+    setMode: (nextMode) => setThemePreferenceState(nextMode),
+    setThemePreference: (nextPreference) => setThemePreferenceState(nextPreference),
+    toggleMode: () => setThemePreferenceState((current) => (resolveTheme(current, systemTheme) === 'light' ? 'dark' : 'light'))
+  }), [mode, resolvedTheme, systemTheme, themePreference])
 
   return (
     <ThemeModeContext.Provider value={value}>
@@ -74,5 +87,17 @@ export function useThemeMode() {
 }
 
 export function useActiveThemeMode() {
-  return useThemeMode().mode
+  return useThemeMode().resolvedTheme
 }
+
+export function useTheme() {
+  const context = useThemeMode()
+  return {
+    theme,
+    themePreference: context.themePreference,
+    resolvedTheme: context.resolvedTheme,
+    setThemePreference: context.setThemePreference
+  }
+}
+
+export const ThemeProvider = ThemeModeProvider

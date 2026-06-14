@@ -34,4 +34,22 @@ public class StoreAnalyticsController {
         storeAuthorizationService.requireAdmin();
         return ResponseEntity.ok(storeAnalyticsQueryService.report(range));
     }
+
+    @GetMapping("/products")
+    public ResponseEntity<?> products(@RequestParam(required = false) String range) {
+        storeAuthorizationService.requireAdmin();
+        return ResponseEntity.ok(storeAnalyticsQueryService.productAnalytics(range));
+    }
+
+    @GetMapping("/commerce")
+    public ResponseEntity<?> commerce(@RequestParam(required = false) String range) {
+        storeAuthorizationService.requireAdmin();
+        return ResponseEntity.ok(storeAnalyticsQueryService.commerceAnalytics(range));
+    }
+
+    @GetMapping("/funnel")
+    public ResponseEntity<?> funnel(@RequestParam(required = false) String range) {
+        storeAuthorizationService.requireAdmin();
+        return ResponseEntity.ok(storeAnalyticsQueryService.funnelAnalytics(range));
+    }
 }

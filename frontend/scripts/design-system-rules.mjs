@@ -13,8 +13,7 @@ export const rawColorExceptionPrefixes = ['app/theme/']
 export const rawColorExceptionFiles = new Set([
   'components/primitives/Modal/ConfirmDialog.tsx',
   'components/primitives/Modal/index.tsx',
-  'features/ecosystem/components/EcosystemExperience.tsx',
-  'features/ecosystem/stores-map/components/StoresMap.tsx'
+  'features/ecosystem/components/EcosystemExperience.tsx'
 ])
 
 export function normalize(p) {

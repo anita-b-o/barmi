@@ -101,7 +101,7 @@ export function EcosystemCheckoutShippingForm({
                   shippingAvailable
                     ? theme.colors.success
                     : shippingSummary.toLowerCase().includes('todav')
-                      ? theme.colors.secondary
+                      ? theme.colors.textPrimary
                       : theme.colors.warning,
                   0.1
                 ),
@@ -109,7 +109,7 @@ export function EcosystemCheckoutShippingForm({
                   shippingAvailable
                     ? theme.colors.success
                     : shippingSummary.toLowerCase().includes('todav')
-                      ? theme.colors.secondary
+                      ? theme.colors.textPrimary
                       : theme.colors.warning,
                   0.2
                 )}`,

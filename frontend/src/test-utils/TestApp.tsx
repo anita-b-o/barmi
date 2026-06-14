@@ -14,6 +14,9 @@ import {
   AdminEcosystemScreen,
   AdminStoreOrderDetailScreen,
   AdminStoreOrdersListScreen,
+  AdminStoreCommerceAnalyticsScreen,
+  AdminStoreFunnelAnalyticsScreen,
+  AdminStoreProductAnalyticsScreen,
   AdminStoreProductsScreen,
   AdminStorePromotionsScreen,
   AdminStoreShippingZonesScreen,
@@ -21,18 +24,20 @@ import {
   FulfillmentListScreen,
   MembersListScreen,
   AdminHomeScreen,
+  AdminSaasScreen,
   AdminStoreScreen
 } from '@/pages/admin'
 import {
   EcosystemHomeScreen,
   EcosystemCatalogScreen,
+  EcosystemCategoryScreen,
   EcosystemStoresMapScreen,
   EcosystemCheckoutScreen,
   EcosystemCheckoutSuccessScreen,
   EcosystemOrderDetailScreen,
   EcosystemOrdersListScreen
 } from '@/pages/ecosystem'
-import { CheckoutScreen, LoginScreen, OrderDetailScreen, OrdersListScreen, PublicStoreScreen, StoreCheckoutSuccessScreen } from '@/pages/public'
+import { CheckoutScreen, LoginScreen, OrderDetailScreen, OrdersListScreen, PublicStoreProductDetailScreen, PublicStoreScreen, StoreCheckoutSuccessScreen } from '@/pages/public'
 
 export default function TestApp() {
   return (
@@ -42,6 +47,7 @@ export default function TestApp() {
         <Routes>
         <Route path={routes.root} element={<Navigate to={routes.publicStore('demo-store')} replace />} />
         <Route path={routes.publicStorePattern} element={<PublicStoreScreen />} />
+        <Route path={routes.publicStoreProductPattern} element={<PublicStoreProductDetailScreen />} />
         <Route path={routes.storeCheckout} element={<CheckoutScreen />} />
         <Route path={routes.storeCheckoutSuccess} element={<StoreCheckoutSuccessScreen />} />
         <Route path={routes.storeOrders} element={<OrdersListScreen />} />
@@ -50,6 +56,7 @@ export default function TestApp() {
         <Route path={routes.ecosystemHome} element={<EcosystemHomeScreen />} />
         <Route path={routes.ecosystemStoresMap} element={<EcosystemStoresMapScreen />} />
         <Route path={routes.ecosystemCatalog} element={<EcosystemCatalogScreen />} />
+        <Route path={routes.ecosystemCategoryPattern} element={<EcosystemCategoryScreen />} />
         <Route path={routes.ecosystemCheckout} element={<EcosystemCheckoutScreen />} />
         <Route path={routes.ecosystemCheckoutSuccess} element={<EcosystemCheckoutSuccessScreen />} />
         <Route path={routes.ecosystemOrders} element={<EcosystemOrdersListScreen />} />
@@ -61,6 +68,14 @@ export default function TestApp() {
           element={
             <RequireAuth>
               <AdminHomeScreen />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={routes.adminSaas}
+          element={
+            <RequireAuth>
+              <AdminSaasScreen />
             </RequireAuth>
           }
         />
@@ -120,6 +135,36 @@ export default function TestApp() {
             <RequireAuth>
               <RequireStoreMembership>
                 <AdminStoreScreen />
+              </RequireStoreMembership>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={routes.adminStoreAnalytics}
+          element={
+            <RequireAuth>
+              <RequireStoreMembership>
+                <AdminStoreProductAnalyticsScreen />
+              </RequireStoreMembership>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={routes.adminStoreCommerceAnalytics}
+          element={
+            <RequireAuth>
+              <RequireStoreMembership>
+                <AdminStoreCommerceAnalyticsScreen />
+              </RequireStoreMembership>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={routes.adminStoreFunnelAnalytics}
+          element={
+            <RequireAuth>
+              <RequireStoreMembership>
+                <AdminStoreFunnelAnalyticsScreen />
               </RequireStoreMembership>
             </RequireAuth>
           }

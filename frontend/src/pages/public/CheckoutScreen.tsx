@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { type CSSProperties, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { PublicStoreLayout } from '../../layouts'
 import { alpha, theme } from '@/app/theme'
@@ -105,12 +105,7 @@ export default function CheckoutScreen() {
       />
 
       <Card
-        style={{
-          marginBottom: theme.spacing.xl,
-          padding: isMobile ? theme.spacing.lg : theme.spacing.xl,
-          borderColor: alpha(theme.colors.secondary, 0.08),
-          background: theme.colors.bgSurfaceAlt
-        }}
+        style={getHeroCardStyle(isMobile)}
       >
         <div
           style={{
@@ -127,10 +122,10 @@ export default function CheckoutScreen() {
               <Badge variant="neutral">Carrito independiente del ecosystem</Badge>
             </div>
             <div style={{ display: 'grid', gap: theme.spacing.sm }}>
-              <h1 style={{ margin: 0, fontSize: 'clamp(30px, 5vw, 40px)', lineHeight: 1.05, letterSpacing: 0, color: theme.colors.secondary }}>
+              <h1 style={checkoutHeroTitleStyle}>
                 Checkout de la tienda
               </h1>
-              <p style={{ margin: 0, color: theme.colors.textMuted, fontSize: 16, lineHeight: 1.55 }}>
+              <p style={checkoutHeroDescriptionStyle}>
                 Compra simple, total transparente. Revisá tu compra antes de pagar dentro del carrito propio de esta tienda, sin mezclar productos externos del ecosystem.
               </p>
             </div>
@@ -140,28 +135,15 @@ export default function CheckoutScreen() {
             </div>
           </div>
 
-          <div
-            style={{
-              minWidth: isMobile ? 0 : 280,
-              maxWidth: isMobile ? '100%' : 360,
-              flex: '1 1 320px',
-              display: 'grid',
-              gap: theme.spacing.md,
-              padding: theme.spacing.lg,
-              borderRadius: theme.radius.lg,
-              border: `1px solid ${alpha(theme.colors.secondary, 0.08)}`,
-              background: alpha(theme.colors.surface, 0.88),
-              boxShadow: 'none'
-            }}
-          >
+          <div style={getNavigationPanelStyle(isMobile)}>
             <div style={{ display: 'grid', gap: 6 }}>
-              <div style={{ fontSize: theme.typography.small.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.textMuted, textTransform: 'uppercase' }}>
+              <div style={checkoutEyebrowStyle}>
                 Navegación cruzada
               </div>
-              <div style={{ fontSize: theme.typography.title.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.secondary }}>
+              <div style={checkoutPanelTitleStyle}>
                 Seguir comprando o volver al ecosystem
               </div>
-              <div style={{ color: theme.colors.textMuted, lineHeight: 1.6 }}>
+              <div style={checkoutPanelTextStyle}>
                 Composición clara de carrito, entrega y resumen para cerrar la compra de esta tienda sin mezclar el flujo del ecosystem.
               </div>
             </div>
@@ -177,18 +159,13 @@ export default function CheckoutScreen() {
 
       <Card
         variant="soft"
-        style={{
-          marginBottom: theme.spacing.xl,
-          padding: theme.spacing.lg,
-          borderColor: alpha(theme.colors.secondary, 0.08),
-          background: theme.colors.bgSurfaceAlt
-        }}
+        style={checkoutIntroCardStyle}
       >
         <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', marginBottom: theme.spacing.sm }}>
           <Badge variant="neutral">Carrito de {store?.name ?? 'esta tienda'}</Badge>
           <Badge variant="neutral">Los productos externos del ecosystem se gestionan por separado</Badge>
         </div>
-        <div style={{ color: theme.colors.textMuted, lineHeight: 1.5 }}>
+        <div style={checkoutIntroTextStyle}>
           Ajustá el carrito, cotizá envío, aplicá cupón si corresponde y recién después confirmá la orden con el total final a la vista.
         </div>
       </Card>
@@ -197,7 +174,7 @@ export default function CheckoutScreen() {
         <div style={{ marginTop: theme.spacing.lg }}>
           <div style={{ display: 'grid', gap: theme.spacing.sm }}>
             <ErrorState message={checkout.error} />
-            <div style={{ color: theme.colors.textMuted, lineHeight: 1.6 }}>
+            <div style={checkoutPanelTextStyle}>
               Revisá email, carrito y código postal. Si vuelve a fallar, enviá feedback beta desde esta pantalla con el paso exacto donde quedó trabado.
             </div>
           </div>
@@ -206,13 +183,7 @@ export default function CheckoutScreen() {
 
       <Card
         variant="soft"
-        style={{
-          marginBottom: theme.spacing.xl,
-          display: 'grid',
-          gap: theme.spacing.md,
-          background: theme.colors.bgSurfaceAlt,
-          borderColor: alpha(theme.colors.secondary, 0.08)
-        }}
+        style={checkoutStepsCardStyle}
       >
         <div
           style={{
@@ -224,8 +195,8 @@ export default function CheckoutScreen() {
           }}
         >
           <div style={{ display: 'grid', gap: 6 }}>
-            <div style={{ fontWeight: 700, fontSize: theme.typography.title.size }}>Compra simple, total transparente</div>
-            <div style={{ color: theme.colors.textMuted, maxWidth: 720 }}>
+            <div style={checkoutPanelTitleStyle}>Compra simple, total transparente</div>
+            <div style={checkoutStepsDescriptionStyle}>
               Revisá cantidades, confirmá el destino, aplicá tu cupón si corresponde y generá la orden con el total final claro antes de salir al pago.
             </div>
           </div>
@@ -241,17 +212,17 @@ export default function CheckoutScreen() {
             gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))'
           }}
         >
-          <div style={{ padding: theme.spacing.md, borderRadius: theme.radius.md, background: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}>
+          <div style={checkoutStepItemStyle}>
             <div style={{ fontWeight: 700 }}>Carrito</div>
-            <div style={{ color: theme.colors.textMuted, marginTop: 4 }}>Ajustá items y validá stock visible.</div>
+            <div style={checkoutStepTextStyle}>Ajustá items y validá stock visible.</div>
           </div>
-          <div style={{ padding: theme.spacing.md, borderRadius: theme.radius.md, background: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}>
+          <div style={checkoutStepItemStyle}>
             <div style={{ fontWeight: 700 }}>Entrega</div>
-            <div style={{ color: theme.colors.textMuted, marginTop: 4 }}>Calculá envío para este código postal.</div>
+            <div style={checkoutStepTextStyle}>Calculá envío para este código postal.</div>
           </div>
-          <div style={{ padding: theme.spacing.md, borderRadius: theme.radius.md, background: theme.colors.surface, border: `1px solid ${theme.colors.border}` }}>
+          <div style={checkoutStepItemStyle}>
             <div style={{ fontWeight: 700 }}>Pago</div>
-            <div style={{ color: theme.colors.textMuted, marginTop: 4 }}>La orden se crea primero y el pago continúa después.</div>
+            <div style={checkoutStepTextStyle}>La orden se crea primero y el pago continúa después.</div>
           </div>
         </div>
       </Card>
@@ -324,4 +295,104 @@ export default function CheckoutScreen() {
       </div>
     </PublicStoreLayout>
   )
+}
+
+const checkoutMutedTextStyle: CSSProperties = {
+  color: theme.colors.textMuted
+}
+
+const checkoutHeroTitleStyle: CSSProperties = {
+  margin: 0,
+  fontSize: 'clamp(30px, 5vw, 40px)',
+  lineHeight: 1.05,
+  letterSpacing: 0,
+  color: theme.colors.textPrimary
+}
+
+const checkoutHeroDescriptionStyle: CSSProperties = {
+  ...checkoutMutedTextStyle,
+  margin: 0,
+  fontSize: 16,
+  lineHeight: 1.55
+}
+
+const checkoutEyebrowStyle: CSSProperties = {
+  ...checkoutMutedTextStyle,
+  fontSize: theme.typography.small.size,
+  fontWeight: 700,
+  letterSpacing: 0,
+  textTransform: 'uppercase'
+}
+
+const checkoutPanelTitleStyle: CSSProperties = {
+  fontSize: theme.typography.title.size,
+  fontWeight: 700,
+  letterSpacing: 0,
+  color: theme.colors.textPrimary
+}
+
+const checkoutPanelTextStyle: CSSProperties = {
+  ...checkoutMutedTextStyle,
+  lineHeight: 1.6
+}
+
+const checkoutIntroCardStyle: CSSProperties = {
+  marginBottom: theme.spacing.xl,
+  padding: theme.spacing.lg,
+  borderColor: alpha(theme.colors.textPrimary, 0.08),
+  background: theme.colors.bgSurfaceAlt
+}
+
+const checkoutIntroTextStyle: CSSProperties = {
+  ...checkoutMutedTextStyle,
+  lineHeight: 1.5
+}
+
+const checkoutStepsCardStyle: CSSProperties = {
+  marginBottom: theme.spacing.xl,
+  display: 'grid',
+  gap: theme.spacing.md,
+  background: theme.colors.bgSurfaceAlt,
+  borderColor: alpha(theme.colors.textPrimary, 0.08)
+}
+
+const checkoutStepsDescriptionStyle: CSSProperties = {
+  ...checkoutMutedTextStyle,
+  maxWidth: 720
+}
+
+const checkoutStepItemStyle: CSSProperties = {
+  padding: theme.spacing.md,
+  borderRadius: theme.radius.md,
+  background: theme.colors.bgSurface,
+  border: `1px solid ${theme.colors.borderDefault}`
+}
+
+const checkoutStepTextStyle: CSSProperties = {
+  ...checkoutMutedTextStyle,
+  marginTop: 4
+}
+
+function getHeroCardStyle(isMobile: boolean): CSSProperties {
+  return {
+    marginBottom: theme.spacing.xl,
+    padding: isMobile ? theme.spacing.lg : theme.spacing.xl,
+    borderColor: alpha(theme.colors.textPrimary, 0.08),
+    background: theme.colors.bgSurfaceAlt
+  }
+}
+
+function getNavigationPanelStyle(isMobile: boolean): CSSProperties {
+  return {
+    minWidth: isMobile ? 0 : 280,
+    maxWidth: isMobile ? '100%' : 360,
+    flex: '1 1 320px',
+    display: 'grid',
+    gap: theme.spacing.md,
+    padding: theme.spacing.lg,
+    borderRadius: theme.radius.lg,
+    border: `1px solid ${alpha(theme.colors.textPrimary, 0.08)}`,
+    background: alpha(theme.colors.bgSurface, 0.88),
+    boxShadow: 'none'
+  }
 }

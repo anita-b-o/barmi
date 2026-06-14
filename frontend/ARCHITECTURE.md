@@ -54,6 +54,12 @@ Use aliases for cross-layer imports and avoid deep relatives when crossing top-l
 - Generic button/card/table/form atoms: `components/*`.
 - Access control UI state shared by pages and guards: `components/navigation/*`.
 
+## Cart State
+
+- STORE cart source of truth: `features/store/cart/cartContext.tsx`, persisted under `barmi.cart.v1`.
+- ECOSYSTEM cart source of truth: `features/ecosystem/cart/ecosystemCartContext.tsx`, persisted under `barmi.ecosystemCart.v1`.
+- Do not add parallel cart stores; checkout should consume these contexts and let the backend recalculate totals and validate stock/price.
+
 ## UX Conventions
 
 - Loading states: use `LoadingBlock` for async screen and section loading. Keep labels explicit about the resource being fetched.

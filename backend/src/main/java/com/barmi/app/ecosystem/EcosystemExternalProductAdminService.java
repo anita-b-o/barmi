@@ -76,7 +76,7 @@ public class EcosystemExternalProductAdminService {
     public List<EcosystemExternalProduct> list(UUID ecosystemId, boolean activeOnly, String query) {
         requireActiveEcosystem(ecosystemId);
         String normalizedQuery = (query == null || query.isBlank()) ? "" : query.trim();
-        return ecosystemExternalProductRepository.findByEcosystemWithFilters(ecosystemId, activeOnly, normalizedQuery);
+        return ecosystemExternalProductRepository.findByEcosystemWithFilters(ecosystemId, activeOnly, toLikePattern(normalizedQuery));
     }
 
     @Transactional
@@ -154,5 +154,12 @@ public class EcosystemExternalProductAdminService {
         }
 
         return ecosystem;
+    }
+
+    private String toLikePattern(String query) {
+        if (query == null || query.isBlank()) {
+            return "";
+        }
+        return "%" + query.trim().toLowerCase() + "%";
     }
 }

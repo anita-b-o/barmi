@@ -1,3 +1,5 @@
 export { publicAdapter } from '../../api/adapters/publicAdapter'
 export { useStoreProducts } from '@/core/hooks/useStoreProducts'
+export { usePublicStoreProductDetail } from './hooks/usePublicStoreProductDetail'
+export { default as PublicStoreProductDetailScreen } from './components/PublicStoreProductDetailScreen'
 export { default as PublicStoreScreen } from './components/PublicStoreScreen'

@@ -11,6 +11,7 @@ type EcosystemCatalogFiltersProps = {
   onQueryChange: (value: string) => void
   onSortChange: (value: PublicEcosystemCatalogSort) => void
   onDeliverySupportedOnlyChange: (value: boolean) => void
+  onClearFilters?: () => void
   onClose?: () => void
 }
 
@@ -29,6 +30,7 @@ export function EcosystemCatalogFilters({
   onQueryChange,
   onSortChange,
   onDeliverySupportedOnlyChange,
+  onClearFilters,
   onClose
 }: EcosystemCatalogFiltersProps) {
   return (
@@ -42,11 +44,11 @@ export function EcosystemCatalogFilters({
       ) : (
         <Button
           variant="ghost"
-          onClick={() => {
+          onClick={onClearFilters ?? (() => {
             onQueryChange('')
             onSortChange('default')
             onDeliverySupportedOnlyChange(false)
-          }}
+          })}
           style={{ width: '100%' }}
         >
           Limpiar filtros

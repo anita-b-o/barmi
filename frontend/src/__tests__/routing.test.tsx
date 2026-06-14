@@ -1,10 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setAuthSession } from '../test-utils/testUtils'
 
-const storeResponse = { slug: 'demo-store', id: 's1', name: 'Demo Store' }
+const storeResponse = { id: 's1', slug: 'demo-store', name: 'Demo Store' }
 const productsResponse = [
-  { priceCents: 1000, id: 'p1', name: 'Producto 1', sku: 'SKU1', stockQuantity: 4, isAvailable: true }
+  { priceCents: 1000, id: 'p1', slug: 'p1', name: 'Producto 1', sku: 'SKU1', stockQuantity: 4, isAvailable: true }
 ]
+const productsPageResponse = {
+  content: productsResponse,
+  page: 0,
+  size: 20,
+  totalElements: productsResponse.length,
+  totalPages: 1
+}
 
 const authMeNoMemberships = {
   userId: 'u1',
@@ -31,7 +38,7 @@ beforeEach(() => {
   document.body.innerHTML = ''
   mockFetch({
     '/api/public/stores/demo-store': { body: storeResponse },
-    '/api/public/stores/demo-store/products': { body: productsResponse },
+    '/api/public/stores/demo-store/products': { body: productsPageResponse },
     '/api/auth/me': { body: authMeNoMemberships }
   })
 })
@@ -64,9 +71,18 @@ describe('router basics', () => {
       '/api/public/stores/demo-store/products': () => {
         productCalls += 1
         if (productCalls <= 1) {
-          return { status: 500, body: { code: 'unexpected_error', message: 'Error cargando store' } }
+          return {
+            status: 400,
+            body: {
+              error: {
+                code: 'unexpected_error',
+                message: 'Error cargando store',
+                status: 400
+              }
+            }
+          }
         }
-        return { body: productsResponse }
+        return { body: productsPageResponse }
       },
       '/api/auth/me': { body: authMeNoMemberships }
     })

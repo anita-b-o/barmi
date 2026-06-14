@@ -1,8 +1,10 @@
 import { tokens } from './tokens'
 
-export type ThemeMode = 'light' | 'dark'
+export type ResolvedTheme = 'light' | 'dark'
+export type ThemeMode = ResolvedTheme
+export type ThemePreference = 'system' | ResolvedTheme
 
-export function getTheme(mode: ThemeMode = 'light') {
+export function getTheme(mode: ResolvedTheme = 'light') {
   const palette = mode === 'dark' ? tokens.colors.dark : tokens.colors.light
   return {
     mode,
@@ -17,11 +19,11 @@ export function getTheme(mode: ThemeMode = 'light') {
 
 type ThemeShape = ReturnType<typeof getTheme>
 
-let currentMode: ThemeMode = 'light'
+let currentMode: ResolvedTheme = 'light'
 let currentTheme = getTheme(currentMode)
-const subscribers = new Set<(mode: ThemeMode) => void>()
+const subscribers = new Set<(mode: ResolvedTheme) => void>()
 
-function syncDocumentTheme(mode: ThemeMode) {
+function syncDocumentTheme(mode: ResolvedTheme) {
   if (typeof document === 'undefined') return
   document.documentElement.dataset.theme = mode
   document.documentElement.style.colorScheme = mode
@@ -31,7 +33,7 @@ export function getThemeMode() {
   return currentMode
 }
 
-export function setThemeMode(mode: ThemeMode) {
+export function setThemeMode(mode: ResolvedTheme) {
   if (mode === currentMode) {
     syncDocumentTheme(mode)
     return
@@ -43,7 +45,7 @@ export function setThemeMode(mode: ThemeMode) {
   subscribers.forEach((listener) => listener(mode))
 }
 
-export function subscribeThemeMode(listener: (mode: ThemeMode) => void) {
+export function subscribeThemeMode(listener: (mode: ResolvedTheme) => void) {
   subscribers.add(listener)
   return () => {
     subscribers.delete(listener)

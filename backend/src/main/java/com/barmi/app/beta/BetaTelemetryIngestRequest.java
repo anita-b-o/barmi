@@ -11,6 +11,7 @@ public record BetaTelemetryIngestRequest(
         String storeName,
         String ecosystemSlug,
         String productId,
+        String productSlug,
         String searchTerm,
         String requestId,
         String sessionId,

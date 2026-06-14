@@ -14,6 +14,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -33,6 +34,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final AuthCookieService authCookieService;
     private final RedisFixedWindowRateLimiter rateLimiter;
+    private final ClientIpResolver clientIpResolver;
+    private final int maxCachedBodyBytes;
     private final Counter rateLimitedCounter;
     private final List<RateLimitPolicy> policies;
     private final AntPathMatcher antPathMatcher = new AntPathMatcher();
@@ -41,11 +44,15 @@ public class RateLimitFilter extends OncePerRequestFilter {
             ObjectMapper objectMapper,
             AuthCookieService authCookieService,
             RedisFixedWindowRateLimiter rateLimiter,
-            MeterRegistry meterRegistry
+            MeterRegistry meterRegistry,
+            @Value("${app.tenant.trustProxyHeaders:false}") boolean trustProxyHeaders,
+            @Value("${app.rateLimit.maxCachedBodyBytes:262144}") int maxCachedBodyBytes
     ) {
         this.objectMapper = objectMapper;
         this.authCookieService = authCookieService;
         this.rateLimiter = rateLimiter;
+        this.clientIpResolver = new ClientIpResolver(trustProxyHeaders);
+        this.maxCachedBodyBytes = maxCachedBodyBytes;
         this.rateLimitedCounter = meterRegistry.counter("barmi_rate_limited_total");
         this.policies = buildPolicies();
     }
@@ -62,10 +69,21 @@ public class RateLimitFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        HttpServletRequest requestToUse = wrapIfNeeded(request);
-        RateLimitPolicy policy = findPolicy(requestToUse);
+        RateLimitPolicy policy = findPolicy(request);
         if (policy == null) {
-            filterChain.doFilter(requestToUse, response);
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        HttpServletRequest requestToUse;
+        try {
+            requestToUse = wrapIfNeeded(request);
+        } catch (CachedBodyHttpServletRequest.BodyTooLargeException exception) {
+            writePayloadTooLargeResponse(
+                    response,
+                    String.valueOf(request.getAttribute(RequestCorrelationFilter.REQUEST_ID_ATTRIBUTE)),
+                    exception.maxBodyBytes()
+            );
             return;
         }
 
@@ -125,7 +143,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         String method = request.getMethod();
         if (HttpMethod.POST.matches(method) || HttpMethod.PUT.matches(method) || HttpMethod.PATCH.matches(method)) {
-            return new CachedBodyHttpServletRequest(request);
+            return new CachedBodyHttpServletRequest(request, maxCachedBodyBytes);
         }
         return request;
     }
@@ -146,6 +164,13 @@ public class RateLimitFilter extends OncePerRequestFilter {
         response.setHeader("Retry-After", Long.toString(Math.max(1L, retryAfterSeconds)));
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.getWriter().write("{\"error\":{\"code\":\"rate_limited\",\"message\":\"Too many requests\",\"status\":429,\"requestId\":\"" + requestId + "\"}}");
+    }
+
+    private void writePayloadTooLargeResponse(HttpServletResponse response, String requestId, int maxBodyBytes) throws IOException {
+        response.setStatus(413);
+        response.setHeader("X-Max-Request-Body-Bytes", Integer.toString(maxBodyBytes));
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write("{\"error\":{\"code\":\"payload_too_large\",\"message\":\"Payload too large\",\"status\":413,\"requestId\":\"" + requestId + "\"}}");
     }
 
     private List<RateLimitPolicy> buildPolicies() {
@@ -387,15 +412,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
 
         private String ipAddress() {
-            String forwardedFor = request.getHeader("X-Forwarded-For");
-            if (forwardedFor != null && !forwardedFor.isBlank()) {
-                return forwardedFor.split(",")[0].trim();
-            }
-            String realIp = request.getHeader("X-Real-IP");
-            if (realIp != null && !realIp.isBlank()) {
-                return realIp.trim();
-            }
-            return normalize(request.getRemoteAddr());
+            return clientIpResolver.resolve(request);
         }
 
         private String normalize(String value) {

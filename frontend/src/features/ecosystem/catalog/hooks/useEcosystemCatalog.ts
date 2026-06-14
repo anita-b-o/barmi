@@ -3,33 +3,52 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { appConfig } from '@/app/config/env'
 import { extractBackendErrorMessage } from '@/core/errors'
 import { publicEcosystemAdapter } from '../api'
+import { DEFAULT_ECOSYSTEM_CATALOG_PAGE_SIZE, ecosystemDiscoveryQueryKeys, normalizeEcosystemCatalogFilters } from '@/features/ecosystem/discovery'
 import type { PublicEcosystemCatalogSort } from '../../../../api/contracts/v1/public'
 
-export function useEcosystemCatalog(query: string, sort: PublicEcosystemCatalogSort, deliverySupportedOnly: boolean) {
+export function useEcosystemCatalog(
+  query: string,
+  sort: PublicEcosystemCatalogSort,
+  deliverySupportedOnly: boolean,
+  page = 0,
+  size = DEFAULT_ECOSYSTEM_CATALOG_PAGE_SIZE
+) {
   const slug = appConfig.publicEcosystemSlug
   const deferredQuery = useDeferredValue(query)
+  const filters = normalizeEcosystemCatalogFilters({
+    query: deferredQuery,
+    sort,
+    deliverySupported: deliverySupportedOnly,
+    page,
+    size
+  })
 
   const ecosystemQuery = useQuery({
-    queryKey: ['public-ecosystem', slug],
+    queryKey: ecosystemDiscoveryQueryKeys.publicEcosystem(slug),
     queryFn: () => publicEcosystemAdapter.getEcosystem(slug)
   })
 
   const productsQuery = useQuery({
-    queryKey: ['public-ecosystem-products', slug, deferredQuery, sort, deliverySupportedOnly],
+    queryKey: ecosystemDiscoveryQueryKeys.products(slug, filters),
     queryFn: () => publicEcosystemAdapter.listProducts(slug, {
-      query: deferredQuery,
+      query: filters.query,
       activeOnly: true,
-      sort,
-      deliverySupported: deliverySupportedOnly ? true : undefined
+      sort: filters.sort,
+      deliverySupported: filters.deliverySupported ? true : undefined,
+      page: filters.page,
+      size: filters.size
     }),
     placeholderData: keepPreviousData
   })
 
+  const productsPage = productsQuery.data ?? null
+
   return {
     slug,
     ecosystem: ecosystemQuery.data ?? null,
-    products: productsQuery.data ?? [],
-    isLoading: productsQuery.isLoading && !productsQuery.data,
+    productsPage,
+    products: productsPage?.content ?? [],
+    isLoading: productsQuery.isLoading && !productsPage,
     isFetchingProducts: productsQuery.isFetching,
     isMetadataLoading: ecosystemQuery.isLoading && !ecosystemQuery.data,
     ecosystemError: ecosystemQuery.error

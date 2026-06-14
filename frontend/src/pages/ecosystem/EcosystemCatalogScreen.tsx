@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { theme } from '@/app/theme'
 import { appConfig } from '@/app/config/env'
 import Badge from '@/components/primitives/Badge'
@@ -13,21 +13,62 @@ import { SurfaceCard } from '@/features/ecosystem/components/SurfaceCard'
 import '@/features/ecosystem/components/ecosystem-marketplace.css'
 import { useEcosystemCart } from '@/features/ecosystem/cart/ecosystemCartContext'
 import { EcosystemLayout } from '../../layouts'
-import type { PublicEcosystemCatalogSort } from '../../api/contracts/v1/public'
 import { trackBetaEvent } from '@/features/beta'
+import { useEcosystemCatalogUrlState } from '@/features/ecosystem/discovery/urlState'
+import { buildCanonicalUrl, useJsonLd, useSeoMetadata } from '@/core/seo'
 
 export default function EcosystemCatalogScreen() {
   const navigate = useNavigate()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const query = searchParams.get('q') ?? ''
-  const sort = (searchParams.get('sort') ?? 'default') as PublicEcosystemCatalogSort
-  const deliverySupportedOnly = searchParams.get('deliverySupported') === 'true'
-  const catalog = useEcosystemCatalog(query, sort, deliverySupportedOnly)
+  const {
+    query,
+    sort,
+    deliverySupportedOnly,
+    page,
+    updateParams,
+    clearFilters
+  } = useEcosystemCatalogUrlState()
+  const catalog = useEcosystemCatalog(query, sort, deliverySupportedOnly, page)
   const cart = useEcosystemCart()
   const cartQtyByProductId = Object.fromEntries(cart.items.map((item) => [item.externalProductId, item.qty]))
-  const productsCount = catalog.products.length
-  const hasProducts = productsCount > 0
+  const visibleProductsCount = catalog.products.length
+  const productsCount = catalog.productsPage?.totalElements ?? catalog.products.length
+  const currentPage = catalog.productsPage?.page ?? page
+  const totalPages = catalog.productsPage?.totalPages ?? 0
+  const displayPage = totalPages > 0 ? currentPage + 1 : 1
+  const displayTotalPages = Math.max(totalPages, 1)
+  const canGoPrevious = currentPage > 0
+  const canGoNext = totalPages > 0 && currentPage < totalPages - 1
+  const hasProducts = visibleProductsCount > 0
   const title = catalog.ecosystem?.name ?? 'Marketplace Barmi'
+  useSeoMetadata({
+    title: `Productos en ${title} | Barmi`,
+    description: `Explora productos publicados en ${title}. Busca, filtra y compara opciones disponibles en el marketplace.`,
+    path: routes.ecosystemCatalog
+  })
+  const jsonLd = useMemo(() => catalog.ecosystem?.name ? {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: `Productos en ${catalog.ecosystem.name}`,
+    url: buildCanonicalUrl(routes.ecosystemCatalog),
+    ...(catalog.products.length > 0 ? {
+      mainEntity: {
+        '@type': 'ItemList',
+        itemListElement: catalog.products.map((product, index) => ({
+          '@type': 'ListItem',
+          position: index + 1,
+          item: {
+            '@type': 'Thing',
+            name: product.name
+          }
+        }))
+      }
+    } : {})
+  } : null, [catalog.ecosystem?.name, catalog.products])
+  useJsonLd({
+    id: 'ecosystem-catalog',
+    path: routes.ecosystemCatalog,
+    data: jsonLd
+  })
   const trackedSearchRef = useRef('')
   const trackedNoResultsRef = useRef('')
   const quickActions = useMemo(() => ([
@@ -44,9 +85,9 @@ export default function EcosystemCatalogScreen() {
     {
       id: 'clear',
       label: query.trim() ? 'Limpiar búsqueda' : 'Ver todo',
-      onClick: () => updateParams({ q: '', sort: 'default', deliverySupported: false })
+      onClick: clearFilters
     }
-  ]), [deliverySupportedOnly, query, sort, searchParams])
+  ]), [clearFilters, deliverySupportedOnly, query, sort, updateParams])
 
   useEffect(() => {
     trackBetaEvent({
@@ -81,15 +122,6 @@ export default function EcosystemCatalogScreen() {
     })
   }, [catalog.isFetchingProducts, catalog.isLoading, productsCount, query])
 
-  const updateParams = (updates: Record<string, string | boolean>) => {
-    const next = new URLSearchParams(searchParams)
-    Object.entries(updates).forEach(([key, value]) => {
-      if (value === '' || value === false || value === 'default') next.delete(key)
-      else next.set(key, String(value))
-    })
-    setSearchParams(next)
-  }
-
   return (
     <EcosystemLayout>
       <main className="ecosystem-catalog-page">
@@ -120,6 +152,7 @@ export default function EcosystemCatalogScreen() {
             onQueryChange={(value) => updateParams({ q: value })}
             onSortChange={(value) => updateParams({ sort: value })}
             onDeliverySupportedOnlyChange={(value) => updateParams({ deliverySupported: value })}
+            onClearFilters={clearFilters}
           />
 
           <section className="ecosystem-stack">
@@ -145,7 +178,7 @@ export default function EcosystemCatalogScreen() {
                   </Button>
                 </div>
               </div>
-              <Button type="button" variant="ghost" onClick={() => updateParams({ q: '', sort: 'default', deliverySupported: false })}>
+              <Button type="button" variant="ghost" onClick={clearFilters}>
                 Limpiar filtros
               </Button>
             </SurfaceCard>
@@ -171,13 +204,34 @@ export default function EcosystemCatalogScreen() {
                 title="No hay productos para esos filtros"
                 description="No encontramos coincidencias. Probá una búsqueda más corta, quitá filtros o abrí el mapa para entrar por tienda cuando todavía no sabés el nombre exacto del producto."
                 actionLabel="Ver todo"
-                onAction={() => setSearchParams(new URLSearchParams())}
+                onAction={clearFilters}
               />
             ) : null}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!canGoPrevious}
+                onClick={() => updateParams({ page: Math.max(0, currentPage - 1) })}
+              >
+                Anterior
+              </Button>
+              <span style={{ color: 'var(--barmi-color-text-muted)', fontWeight: 700 }}>
+                Página {displayPage} de {displayTotalPages}
+              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!canGoNext}
+                onClick={() => updateParams({ page: currentPage + 1 })}
+              >
+                Siguiente
+              </Button>
+            </div>
             {catalog.ecosystemError && !hasProducts ? (
               <ErrorState message={catalog.ecosystemError} />
             ) : null}
-            <Button type="button" variant="ghost" onClick={() => updateParams({ q: '', sort: 'default', deliverySupported: false })}>
+            <Button type="button" variant="ghost" onClick={clearFilters}>
               Volver al inicio del ecosystem
             </Button>
           </section>

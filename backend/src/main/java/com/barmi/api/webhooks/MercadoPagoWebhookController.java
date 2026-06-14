@@ -2,6 +2,7 @@ package com.barmi.api.webhooks;
 
 import com.barmi.app.config.ObservabilitySupport;
 import com.barmi.app.payments.StorePaymentConfirmationService;
+import com.barmi.infra.metrics.PaymentOperationalMetrics;
 import com.barmi.infra.payments.MercadoPagoApiClient;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
@@ -26,19 +27,23 @@ import java.util.UUID;
 public class MercadoPagoWebhookController {
     private static final Logger log = LoggerFactory.getLogger(MercadoPagoWebhookController.class);
     private static final String PROVIDER = "mercadopago_store";
+    private static final String SCOPE = "store";
 
     private final StorePaymentConfirmationService storePaymentConfirmationService;
     private final MercadoPagoWebhookSecurityService webhookSecurityService;
     private final MercadoPagoApiClient mercadoPagoApiClient;
+    private final PaymentOperationalMetrics paymentOperationalMetrics;
 
     public MercadoPagoWebhookController(
             StorePaymentConfirmationService storePaymentConfirmationService,
             MercadoPagoWebhookSecurityService webhookSecurityService,
-            MercadoPagoApiClient mercadoPagoApiClient
+            MercadoPagoApiClient mercadoPagoApiClient,
+            PaymentOperationalMetrics paymentOperationalMetrics
     ) {
         this.storePaymentConfirmationService = storePaymentConfirmationService;
         this.webhookSecurityService = webhookSecurityService;
         this.mercadoPagoApiClient = mercadoPagoApiClient;
+        this.paymentOperationalMetrics = paymentOperationalMetrics;
     }
 
     @PostMapping
@@ -68,6 +73,7 @@ public class MercadoPagoWebhookController {
         }
         webhookSecurityService.validate(PROVIDER, headerSecret, timestampHeader, payload.eventId(), request);
         if (!"approved".equalsIgnoreCase(payload.status())) {
+            paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "ignored", "unsupported");
             return ResponseEntity.ok(java.util.Map.of("status", "ignored"));
         }
         if (payload.operationId() == null || payload.operationId().isBlank()) {
@@ -93,14 +99,20 @@ public class MercadoPagoWebhookController {
         BigDecimal amount = payload.amount();
         String currency = payload.currency().trim().toUpperCase();
 
-        storePaymentConfirmationService.confirmStorePayment(
-                eventId,
-                operationId,
-                providerPaymentId,
-                amount,
-                currency
-        );
+        try {
+            storePaymentConfirmationService.confirmStorePayment(
+                    eventId,
+                    operationId,
+                    providerPaymentId,
+                    amount,
+                    currency
+            );
+        } catch (RuntimeException ex) {
+            paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "failure", reasonForFailure(ex));
+            throw ex;
+        }
 
+        paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "accepted", "processed");
         log.info("webhook_accepted provider={} event_id={} operation_id={} request_id={} retry_count={} event_type={} provider_payment_id={}",
                 PROVIDER,
                 payload.eventId(),
@@ -126,29 +138,36 @@ public class MercadoPagoWebhookController {
         }
 
         webhookSecurityService.validateMercadoPagoSignature(PROVIDER, signatureHeader, requestIdHeader, paymentId, payload.eventId(), request);
-        MercadoPagoApiClient.PaymentDetails payment = mercadoPagoApiClient.getPayment(paymentId);
-        if (!"approved".equalsIgnoreCase(payment.status())) {
-            return ResponseEntity.ok(java.util.Map.of("status", "ignored"));
+        try {
+            MercadoPagoApiClient.PaymentDetails payment = mercadoPagoApiClient.getPayment(paymentId);
+            if (!"approved".equalsIgnoreCase(payment.status())) {
+                paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "ignored", "unsupported");
+                return ResponseEntity.ok(java.util.Map.of("status", "ignored"));
+            }
+
+            UUID orderId = parseExternalReference(payment.externalReference(), "STORE");
+            storePaymentConfirmationService.confirmStorePayment(
+                    java.util.UUID.nameUUIDFromBytes(("MERCADOPAGO:" + paymentId).getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                    orderId,
+                    payment.id(),
+                    payment.transactionAmount(),
+                    payment.currencyId()
+            );
+
+            paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "accepted", "processed");
+            log.info("webhook_accepted provider={} event_id={} operation_id={} request_id={} retry_count={} event_type={} provider_payment_id={}",
+                    PROVIDER,
+                    paymentId,
+                    orderId,
+                    ObservabilitySupport.requestId(request),
+                    ObservabilitySupport.retryCount(request),
+                    firstNonBlank(payload.action(), payload.type(), payment.status()),
+                    payment.id());
+            return ResponseEntity.ok(java.util.Map.of("status", "accepted"));
+        } catch (RuntimeException ex) {
+            paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "failure", reasonForFailure(ex));
+            throw ex;
         }
-
-        UUID orderId = parseExternalReference(payment.externalReference(), "STORE");
-        storePaymentConfirmationService.confirmStorePayment(
-                java.util.UUID.nameUUIDFromBytes(("MERCADOPAGO:" + paymentId).getBytes(java.nio.charset.StandardCharsets.UTF_8)),
-                orderId,
-                payment.id(),
-                payment.transactionAmount(),
-                payment.currencyId()
-        );
-
-        log.info("webhook_accepted provider={} event_id={} operation_id={} request_id={} retry_count={} event_type={} provider_payment_id={}",
-                PROVIDER,
-                paymentId,
-                orderId,
-                ObservabilitySupport.requestId(request),
-                ObservabilitySupport.retryCount(request),
-                firstNonBlank(payload.action(), payload.type(), payment.status()),
-                payment.id());
-        return ResponseEntity.ok(java.util.Map.of("status", "accepted"));
     }
 
     private UUID parseUuid(String value, String errorCode) {
@@ -180,5 +199,24 @@ public class MercadoPagoWebhookController {
             }
         }
         return null;
+    }
+
+    private String reasonForFailure(RuntimeException ex) {
+        if (ex instanceof ResponseStatusException responseStatusException) {
+            String reason = responseStatusException.getReason();
+            if (reason == null) {
+                return "unknown";
+            }
+            if (reason.contains("provider")) {
+                return "provider_unavailable";
+            }
+            if (reason.contains("mismatch")) {
+                return "mismatch";
+            }
+            if (reason.contains("not_found")) {
+                return "order_not_found";
+            }
+        }
+        return "unknown";
     }
 }

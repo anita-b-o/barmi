@@ -1,9 +1,30 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Barmi conecta tiendas, productos y compras locales en una experiencia pública de marketplace." />
+    <meta name="robots" content="index,follow" />
+    <meta property="og:title" content="Barmi" />
+    <meta property="og:description" content="Marketplace público para descubrir tiendas y productos locales." />
+    <meta property="og:type" content="website" />
     <title>Barmi</title>
+    <script>
+      (function () {
+        try {
+          var key = 'barmi-theme-mode';
+          var preference = window.localStorage.getItem(key);
+          var isExplicit = preference === 'light' || preference === 'dark';
+          var systemDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var resolved = isExplicit ? preference : systemDark ? 'dark' : 'light';
+          document.documentElement.dataset.theme = resolved;
+          document.documentElement.style.colorScheme = resolved;
+        } catch (error) {
+          document.documentElement.dataset.theme = 'light';
+          document.documentElement.style.colorScheme = 'light';
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

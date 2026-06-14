@@ -129,9 +129,25 @@ public interface StoreOrderRepository extends JpaRepository<StoreOrder, UUID> {
     long countByStoreId(UUID storeId);
     long countByStoreIdAndStatus(UUID storeId, StoreOrderStatus status);
     long countByStoreIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(UUID storeId, Instant fromInclusive, Instant toExclusive);
+    long countByStoreIdAndStatusAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(UUID storeId, StoreOrderStatus status, Instant fromInclusive, Instant toExclusive);
 
     @Query("select coalesce(sum(o.totalAmount), 0) from StoreOrder o where o.storeId = :storeId and o.status = :status")
     BigDecimal sumTotalAmountByStoreIdAndStatus(@Param("storeId") UUID storeId, @Param("status") StoreOrderStatus status);
+
+    @Query("""
+            select coalesce(sum(o.totalAmount), 0)
+            from StoreOrder o
+            where o.storeId = :storeId
+              and o.status = :status
+              and o.createdAt >= :fromInclusive
+              and o.createdAt < :toExclusive
+            """)
+    BigDecimal sumTotalAmountByStoreIdAndStatusInRange(
+            @Param("storeId") UUID storeId,
+            @Param("status") StoreOrderStatus status,
+            @Param("fromInclusive") Instant fromInclusive,
+            @Param("toExclusive") Instant toExclusive
+    );
 
     @Query("select distinct o.currency from StoreOrder o where o.storeId = :storeId and o.status = :status")
     List<String> findDistinctCurrenciesByStoreIdAndStatus(@Param("storeId") UUID storeId, @Param("status") StoreOrderStatus status);

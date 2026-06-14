@@ -29,6 +29,19 @@ const initialState: CartState = {
   items: []
 }
 
+function isValidQuantity(qty: number) {
+  return Number.isInteger(qty) && Number.isFinite(qty)
+}
+
+function isValidCartItemInput(item: Omit<CartItem, 'qty'>) {
+  return (
+    item.productId.trim().length > 0 &&
+    item.name.trim().length > 0 &&
+    Number.isFinite(item.priceCents) &&
+    item.priceCents >= 0
+  )
+}
+
 type Action =
   | { type: 'ADD_ITEM'; storeSlug: string; item: Omit<CartItem, 'qty'> }
   | { type: 'REMOVE_ITEM'; productId: string }
@@ -42,14 +55,20 @@ function isValidState(state: unknown): state is CartState {
   const data = state as { storeSlug?: unknown; items?: unknown }
   if (!(data.storeSlug === null || typeof data.storeSlug === 'string')) return false
   if (!Array.isArray(data.items)) return false
+  if (data.items.length > 0 && (typeof data.storeSlug !== 'string' || data.storeSlug.trim().length === 0)) return false
   return data.items.every((item) => {
     if (!item || typeof item !== 'object') return false
     const v = item as Record<string, unknown>
     return (
       typeof v.productId === 'string' &&
+      v.productId.trim().length > 0 &&
       typeof v.name === 'string' &&
       typeof v.priceCents === 'number' &&
-      typeof v.qty === 'number'
+      Number.isFinite(v.priceCents) &&
+      v.priceCents >= 0 &&
+      typeof v.qty === 'number' &&
+      Number.isInteger(v.qty) &&
+      v.qty > 0
     )
   })
 }
@@ -74,6 +93,7 @@ function reducer(state: CartState, action: Action): CartState {
     case 'CLEAR':
       return initialState
     case 'ADD_ITEM': {
+      if (action.storeSlug.trim().length === 0 || !isValidCartItemInput(action.item)) return state
       if (state.storeSlug && state.storeSlug !== action.storeSlug) {
         return {
           storeSlug: action.storeSlug,
@@ -108,6 +128,7 @@ function reducer(state: CartState, action: Action): CartState {
       }
     }
     case 'SET_ITEM_QUANTITY': {
+      if (!isValidQuantity(action.qty)) return state
       if (action.qty <= 0) {
         const nextItems = state.items.filter((item) => item.productId !== action.productId)
         return {

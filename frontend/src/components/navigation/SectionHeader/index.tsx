@@ -21,7 +21,7 @@ export default function SectionHeader({ title, subtitle, actions, eyebrow, tone 
         gap: 16,
         marginBottom: theme.spacing.xl,
         paddingBottom: theme.spacing.lg,
-        borderBottom: `1px solid ${theme.colors.border}`
+        borderBottom: `1px solid ${theme.colors.borderDefault}`
       }}
     >
       <div>
@@ -37,7 +37,7 @@ export default function SectionHeader({ title, subtitle, actions, eyebrow, tone 
             fontWeight: theme.typography.display.weight,
             lineHeight: 1.1,
             letterSpacing: 0,
-            color: tone === 'admin' ? theme.colors.secondary : theme.colors.text
+            color: theme.colors.textPrimary
           }}
         >
           {title}

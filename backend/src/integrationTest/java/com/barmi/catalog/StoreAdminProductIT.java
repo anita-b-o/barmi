@@ -30,6 +30,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestConstructor;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -258,13 +259,15 @@ class StoreAdminProductIT {
         String slug = "store-public-catalog-" + UUID.randomUUID();
         Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Store Public Catalog"));
 
-        productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-APPLE", "Apple", 1500, 8));
+        Product apple = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-APPLE", "Apple", 1500, 8));
         productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-BANANA", "Banana", 900, 0));
         productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-CARROT", "Carrot", 1200, 3));
 
         List<Map<String, Object>> searchByName = getList("/api/public/stores/" + slug + "/products?q=app", null);
         assertThat(searchByName).hasSize(1);
         assertThat(searchByName.get(0).get("name")).isEqualTo("Apple");
+        assertThat(searchByName.get(0).get("slug")).isEqualTo(apple.getPublicSlug());
+        assertThat(searchByName.get(0)).doesNotContainKeys("storeId");
 
         List<Map<String, Object>> searchBySku = getList("/api/public/stores/" + slug + "/products?q=banana", null);
         assertThat(searchBySku).hasSize(1);
@@ -279,6 +282,150 @@ class StoreAdminProductIT {
 
         List<Map<String, Object>> sortByPriceAsc = getList("/api/public/stores/" + slug + "/products?sort=price,asc", null);
         assertThat(sortByPriceAsc).extracting(item -> item.get("priceCents")).containsExactly(900, 1200, 1500);
+    }
+
+    @Test
+    void publicCatalogKeepsLegacyArrayResponseWithoutPaginationParams() throws Exception {
+        String slug = "store-public-catalog-legacy-" + UUID.randomUUID();
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Store Public Catalog Legacy"));
+
+        Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-APPLE", "Apple", 1500, 8));
+
+        MvcResult result = mockMvc.perform(get("/api/public/stores/" + slug + "/products")).andReturn();
+        assertThat(result.getResponse().getStatus()).isEqualTo(200);
+        String body = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(body.trim()).startsWith("[");
+        assertThat(body).doesNotContain("totalElements");
+
+        List<Map<String, Object>> products = readList(body);
+        assertThat(products).hasSize(1);
+        assertThat(products.get(0).get("name")).isEqualTo("Apple");
+        assertThat(products.get(0).get("slug")).isEqualTo(product.getPublicSlug());
+        assertThat(products.get(0)).doesNotContainKeys("storeId");
+    }
+
+    @Test
+    void publicCatalogSupportsOptInPaginationShapeAndFiltering() throws Exception {
+        String slug = "store-public-catalog-page-" + UUID.randomUUID();
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Store Public Catalog Page"));
+
+        productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-APPLE-1", "Apple one", 1500, 8));
+        Product appleTwo = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-APPLE-2", "Apple two", 1200, 2));
+        productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-BANANA", "Banana", 900, 5));
+
+        ApiTestClient.ApiTestResponse response = api.get(
+                "/api/public/stores/" + slug + "/products?q=apple&page=0&size=1&sort=price,asc",
+                null
+        );
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body().get("page")).isEqualTo(0);
+        assertThat(response.body().get("size")).isEqualTo(1);
+        assertThat(response.body().get("totalElements")).isEqualTo(2);
+        assertThat(response.body().get("totalPages")).isEqualTo(2);
+        List<Map<String, Object>> content = (List<Map<String, Object>>) response.body().get("content");
+        assertThat(content).hasSize(1);
+        assertThat(content.get(0).get("name")).isEqualTo("Apple two");
+        assertThat(content.get(0).get("slug")).isEqualTo(appleTwo.getPublicSlug());
+        assertThat(content.get(0).get("priceCents")).isEqualTo(1200);
+        assertThat(content.get(0)).doesNotContainKeys("storeId");
+    }
+
+    @Test
+    void publicCatalogPaginatesAfterCategoryAndAvailabilityFilters() throws Exception {
+        String slug = "store-public-catalog-category-page-" + UUID.randomUUID();
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Store Public Catalog Category Page"));
+        StoreCategory bebidas = storeCategoryRepository.save(new StoreCategory(UUID.randomUUID(), store.getId(), "Bebidas", true, 10));
+        StoreCategory snacks = storeCategoryRepository.save(new StoreCategory(UUID.randomUUID(), store.getId(), "Snacks", true, 20));
+
+        productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-CAFE", "Cafe", 1500, 4, bebidas.getId()));
+        productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-TE", "Te", 900, 0, bebidas.getId()));
+        productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-PAPAS", "Papas", 700, 6, snacks.getId()));
+
+        ApiTestClient.ApiTestResponse response = api.get(
+                "/api/public/stores/" + slug + "/products?categoryId=" + bebidas.getId() + "&availableOnly=true&page=0&size=10",
+                null
+        );
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body().get("totalElements")).isEqualTo(1);
+        assertThat(response.body().get("totalPages")).isEqualTo(1);
+        List<Map<String, Object>> content = (List<Map<String, Object>>) response.body().get("content");
+        assertThat(content).hasSize(1);
+        assertThat(content.get(0).get("name")).isEqualTo("Cafe");
+        assertThat(content.get(0).get("categoryId")).isEqualTo(bebidas.getId().toString());
+    }
+
+    @Test
+    void publicCatalogReturnsEmptyContentForOutOfRangePage() throws Exception {
+        String slug = "store-public-catalog-empty-page-" + UUID.randomUUID();
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Store Public Catalog Empty Page"));
+
+        productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-APPLE", "Apple", 1500, 8));
+
+        ApiTestClient.ApiTestResponse response = api.get(
+                "/api/public/stores/" + slug + "/products?page=5&size=2",
+                null
+        );
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body().get("page")).isEqualTo(5);
+        assertThat(response.body().get("size")).isEqualTo(2);
+        assertThat(response.body().get("totalElements")).isEqualTo(1);
+        assertThat(response.body().get("totalPages")).isEqualTo(1);
+        assertThat((List<Map<String, Object>>) response.body().get("content")).isEmpty();
+    }
+
+    @Test
+    void publicCatalogCapsPageSizeAndRejectsInvalidPaginationParams() throws Exception {
+        String slug = "store-public-catalog-page-limits-" + UUID.randomUUID();
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Store Public Catalog Page Limits"));
+
+        productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-APPLE", "Apple", 1500, 8));
+
+        ApiTestClient.ApiTestResponse cappedResponse = api.get(
+                "/api/public/stores/" + slug + "/products?page=0&size=500",
+                null
+        );
+        assertThat(cappedResponse.status()).isEqualTo(200);
+        assertThat(cappedResponse.body().get("size")).isEqualTo(100);
+        assertThat(cappedResponse.body().get("totalElements")).isEqualTo(1);
+
+        assertThat(api.get("/api/public/stores/" + slug + "/products?page=-1&size=20", null).status()).isEqualTo(400);
+        assertThat(api.get("/api/public/stores/" + slug + "/products?page=0&size=0", null).status()).isEqualTo(400);
+    }
+
+    @Test
+    void publicCatalogKeepsStableOrderingAcrossPages() throws Exception {
+        String slug = "store-public-catalog-stable-page-" + UUID.randomUUID();
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Store Public Catalog Stable Page"));
+
+        UUID firstId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID secondId = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        UUID thirdId = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        productRepository.save(new Product(thirdId, store.getId(), "SKU-C", "Same", 1000, 3));
+        productRepository.save(new Product(firstId, store.getId(), "SKU-A", "Same", 1000, 3));
+        productRepository.save(new Product(secondId, store.getId(), "SKU-B", "Same", 1000, 3));
+
+        ApiTestClient.ApiTestResponse firstPage = api.get(
+                "/api/public/stores/" + slug + "/products?sort=name,asc&page=0&size=2",
+                null
+        );
+        ApiTestClient.ApiTestResponse secondPage = api.get(
+                "/api/public/stores/" + slug + "/products?sort=name,asc&page=1&size=2",
+                null
+        );
+
+        assertThat(firstPage.status()).isEqualTo(200);
+        assertThat(secondPage.status()).isEqualTo(200);
+        List<Map<String, Object>> firstContent = (List<Map<String, Object>>) firstPage.body().get("content");
+        List<Map<String, Object>> secondContent = (List<Map<String, Object>>) secondPage.body().get("content");
+        assertThat(firstContent).hasSize(2);
+        assertThat(secondContent).hasSize(1);
+        assertThat(firstContent).extracting(item -> item.get("id"))
+                .doesNotContain(secondContent.get(0).get("id"));
+        assertThat(firstPage.body().get("totalElements")).isEqualTo(3);
+        assertThat(secondPage.body().get("totalElements")).isEqualTo(3);
     }
 
     @Test
@@ -352,6 +499,113 @@ class StoreAdminProductIT {
 
         StoreCategory category = storeCategoryRepository.findById(UUID.fromString(categoryId)).orElseThrow();
         assertThat(category.isActive()).isFalse();
+    }
+
+    @Test
+    void publicProductDetailReturnsSeoSafeContractForActiveProducts() throws Exception {
+        String slug = "store-public-product-detail-" + UUID.randomUUID();
+        Store store = new Store(UUID.randomUUID(), slug, "Store Product Detail");
+        store.updatePublicCategoryKey("panaderia");
+        storeRepository.save(store);
+        StoreCategory category = storeCategoryRepository.save(new StoreCategory(UUID.randomUUID(), store.getId(), "Bebidas", true, 10));
+        Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-APPLE", "Apple", 1500, 8, category.getId()));
+
+        ApiTestClient.ApiTestResponse response = api.get(
+                "/api/public/stores/" + slug + "/products/" + product.getPublicSlug(),
+                null
+        );
+
+        assertThat(response.status()).isEqualTo(200);
+        Map<String, Object> storePayload = (Map<String, Object>) response.body().get("store");
+        Map<String, Object> productPayload = (Map<String, Object>) response.body().get("product");
+        assertThat(storePayload).containsEntry("slug", slug);
+        assertThat(storePayload).containsEntry("name", "Store Product Detail");
+        assertThat(storePayload).containsEntry("categoryName", "Panaderia");
+        assertThat(storePayload).doesNotContainKeys("id", "storeId");
+        assertThat(productPayload).containsEntry("slug", product.getPublicSlug());
+        assertThat(productPayload).containsEntry("name", "Apple");
+        assertThat(productPayload).containsEntry("priceCents", 1500);
+        assertThat(productPayload).containsEntry("currency", "ARS");
+        assertThat(productPayload).containsEntry("isAvailable", true);
+        assertThat(productPayload).containsEntry("stockQuantity", 8);
+        assertThat(productPayload).containsEntry("categoryName", "Bebidas");
+        assertThat(productPayload).containsEntry("description", null);
+        assertThat(productPayload).containsEntry("imageUrl", null);
+        assertThat(productPayload).containsEntry("sku", "SKU-APPLE");
+        assertThat(productPayload).doesNotContainKeys("id", "storeId", "categoryId");
+        assertThat(response.rawBody()).doesNotContain(product.getId().toString());
+        assertThat(response.rawBody()).doesNotContain(store.getId().toString());
+        assertThat(response.rawBody()).doesNotContain(category.getId().toString());
+    }
+
+    @Test
+    void publicProductDetailReturnsUnavailableProductWhenActiveButOutOfStock() throws Exception {
+        String slug = "store-public-product-out-stock-" + UUID.randomUUID();
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Store Product Out Stock"));
+        Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-0", "Sin stock", 1000, 0));
+
+        ApiTestClient.ApiTestResponse response = api.get(
+                "/api/public/stores/" + slug + "/products/" + product.getPublicSlug(),
+                null
+        );
+
+        assertThat(response.status()).isEqualTo(200);
+        Map<String, Object> productPayload = (Map<String, Object>) response.body().get("product");
+        assertThat(productPayload).containsEntry("isAvailable", false);
+        assertThat(productPayload).containsEntry("stockQuantity", 0);
+    }
+
+    @Test
+    void publicProductDetailReturnsNotFoundForMissingInactiveOrForeignResources() throws Exception {
+        String slug = "store-public-product-404-" + UUID.randomUUID();
+        String otherSlug = "store-public-product-other-" + UUID.randomUUID();
+        String inactiveSlug = "store-public-product-inactive-store-" + UUID.randomUUID();
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Store Product 404"));
+        Store otherStore = storeRepository.save(new Store(UUID.randomUUID(), otherSlug, "Store Product Other"));
+        Store inactiveStore = storeRepository.save(new Store(UUID.randomUUID(), inactiveSlug, "Inactive Store Product"));
+        ReflectionTestUtils.setField(inactiveStore, "active", false);
+        storeRepository.save(inactiveStore);
+
+        Product activeProduct = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-ACTIVE", "Active", 1500, 8));
+        Product inactiveProduct = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-INACTIVE", "Inactive", 1500, 8));
+        inactiveProduct.setActive(false);
+        productRepository.save(inactiveProduct);
+        Product foreignProduct = productRepository.save(new Product(UUID.randomUUID(), otherStore.getId(), "SKU-FOREIGN", "Foreign", 1500, 8));
+
+        assertThat(api.get("/api/public/stores/missing-store/products/" + activeProduct.getPublicSlug(), null).status()).isEqualTo(404);
+        assertThat(api.get("/api/public/stores/" + inactiveSlug + "/products/" + activeProduct.getPublicSlug(), null).status()).isEqualTo(404);
+        assertThat(api.get("/api/public/stores/" + slug + "/products/missing-product", null).status()).isEqualTo(404);
+        assertThat(api.get("/api/public/stores/" + slug + "/products/" + inactiveProduct.getPublicSlug(), null).status()).isEqualTo(404);
+        assertThat(api.get("/api/public/stores/" + slug + "/products/" + foreignProduct.getPublicSlug(), null).status()).isEqualTo(404);
+    }
+
+    @Test
+    void publicProductDetailHidesInactiveCategoryName() throws Exception {
+        String slug = "store-public-product-inactive-category-" + UUID.randomUUID();
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), slug, "Store Product Inactive Category"));
+        StoreCategory category = storeCategoryRepository.save(new StoreCategory(UUID.randomUUID(), store.getId(), "Bebidas", false, 10));
+        Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-CAT", "Cafe", 1500, 8, category.getId()));
+
+        ApiTestClient.ApiTestResponse response = api.get(
+                "/api/public/stores/" + slug + "/products/" + product.getPublicSlug(),
+                null
+        );
+
+        assertThat(response.status()).isEqualTo(200);
+        Map<String, Object> productPayload = (Map<String, Object>) response.body().get("product");
+        assertThat(productPayload).containsEntry("categoryName", null);
+        assertThat(productPayload).doesNotContainKeys("categoryId");
+    }
+
+    @Test
+    void productPublicSlugsAreUniqueWithinStoreWhenNamesCollide() {
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), "store-public-slugs-" + UUID.randomUUID(), "Store Public Slugs"));
+        Product first = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-A", "Same product", 1000, 3));
+        Product second = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-B", "Same product", 1200, 4));
+
+        assertThat(first.getPublicSlug()).startsWith("same-product");
+        assertThat(second.getPublicSlug()).startsWith("same-product");
+        assertThat(first.getPublicSlug()).isNotEqualTo(second.getPublicSlug());
     }
 
     @Test

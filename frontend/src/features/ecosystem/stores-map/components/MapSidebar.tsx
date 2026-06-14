@@ -11,7 +11,8 @@ type MapSidebarProps = {
   exploreGroups: MapExploreGroup[]
   stores: PublicStoreMapStore[]
   selectedStoreId: string | null
-  isLoading: boolean
+  isInitialLoading: boolean
+  isUpdating: boolean
   error: string | null
   onSearch: (query: string) => void
   onSelectStore: (storeId: string) => void
@@ -23,7 +24,8 @@ export function MapSidebar({
   exploreGroups,
   stores,
   selectedStoreId,
-  isLoading,
+  isInitialLoading,
+  isUpdating,
   error,
   onSearch,
   onSelectStore
@@ -53,7 +55,8 @@ export function MapSidebar({
         <MapResultsList
           stores={stores}
           selectedStoreId={selectedStoreId}
-          isLoading={isLoading}
+          isInitialLoading={isInitialLoading}
+          isUpdating={isUpdating}
           error={error}
           onSelectStore={onSelectStore}
           onResetSearch={() => onSearch('')}

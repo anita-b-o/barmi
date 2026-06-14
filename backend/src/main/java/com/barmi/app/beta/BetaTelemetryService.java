@@ -35,7 +35,12 @@ public class BetaTelemetryService {
             "checkout_failure",
             "login_success",
             "login_failure",
-            "logout"
+            "logout",
+            "public_product_list_viewed",
+            "public_product_card_clicked",
+            "public_product_detail_viewed",
+            "public_product_detail_add_to_cart",
+            "public_product_detail_not_found"
     );
     private static final Pattern EMAIL_PATTERN = Pattern.compile("[^\\s@]+@[^\\s@]+\\.[^\\s@]+");
     private static final Pattern TOKENISH_PATTERN = Pattern.compile("\\b[A-Za-z0-9_-]{24,}\\b");
@@ -70,7 +75,7 @@ public class BetaTelemetryService {
                 cleanText(request.storeSlug(), 120),
                 cleanText(request.storeName(), 160),
                 cleanText(request.ecosystemSlug(), 120),
-                cleanText(request.productId(), 120),
+                cleanText(request.productSlug() == null ? request.productId() : request.productSlug(), 120),
                 searchTerm,
                 cleanText(request.requestId(), 120),
                 requiredText(request.sessionId(), "session_id_required", 120),
@@ -98,8 +103,10 @@ public class BetaTelemetryService {
 
     private String eventCategory(String eventName) {
         return switch (eventName) {
-            case "ecosystem_home_view", "catalog_view", "map_view", "store_view", "search_used", "search_no_results" -> "DISCOVERY";
-            case "product_click", "store_click", "map_pin_click" -> "ENGAGEMENT";
+            case "ecosystem_home_view", "catalog_view", "map_view", "store_view", "search_used", "search_no_results",
+                    "public_product_list_viewed", "public_product_detail_not_found" -> "DISCOVERY";
+            case "product_click", "store_click", "map_pin_click", "public_product_card_clicked",
+                    "public_product_detail_viewed", "public_product_detail_add_to_cart" -> "ENGAGEMENT";
             case "checkout_started", "payment_initiated", "checkout_success", "checkout_failure" -> "CHECKOUT";
             case "login_success", "login_failure", "logout" -> "AUTH";
             default -> "OTHER";

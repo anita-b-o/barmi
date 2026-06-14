@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setInputElementValue, waitForMs } from '../test-utils/testUtils'
+import { MapSearchInput } from '@/features/ecosystem/stores-map/components/MapSearchInput'
+import { clearStorage, clickElement, flush, mockFetch, renderAppAt, renderWithProviders, setInputElementValue, waitForMs } from '../test-utils/testUtils'
 
 const storesMapResponse = {
   ecosystem: {
@@ -38,16 +39,67 @@ const storesMapResponse = {
   ]
 }
 
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status })
+}
+
+function createDeferredResponse() {
+  let resolve!: (value: Response) => void
+  const promise = new Promise<Response>((next) => {
+    resolve = next
+  })
+  return { promise, resolve }
+}
+
 beforeEach(() => {
   clearStorage()
   document.body.innerHTML = ''
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
 describe('ecosystem stores map', () => {
+  it('submits immediately and cancels a pending debounced search', async () => {
+    vi.useFakeTimers()
+    const onSearch = vi.fn()
+    const { cleanup, container } = await renderWithProviders(<MapSearchInput value="" onSearch={onSearch} />)
+
+    const input = container.querySelector('input[aria-label="Buscar tiendas en mapa"]') as HTMLInputElement
+    const button = container.querySelector('button[aria-label="Buscar en el mapa"]')
+    expect(input).toBeTruthy()
+    expect(button).toBeTruthy()
+
+    await setInputElementValue(input, '  Casa  ')
+    expect(onSearch).not.toHaveBeenCalled()
+
+    await clickElement(button)
+    expect(onSearch).toHaveBeenCalledTimes(1)
+    expect(onSearch).toHaveBeenLastCalledWith('Casa')
+
+    await vi.advanceTimersByTimeAsync(300)
+    expect(onSearch).toHaveBeenCalledTimes(1)
+
+    await cleanup()
+  })
+
+  it('clears a pending debounced search on unmount', async () => {
+    vi.useFakeTimers()
+    const onSearch = vi.fn()
+    const { cleanup, container } = await renderWithProviders(<MapSearchInput value="" onSearch={onSearch} />)
+
+    const input = container.querySelector('input[aria-label="Buscar tiendas en mapa"]') as HTMLInputElement
+    expect(input).toBeTruthy()
+
+    await setInputElementValue(input, 'Casa')
+    await cleanup()
+    await vi.advanceTimersByTimeAsync(300)
+
+    expect(onSearch).not.toHaveBeenCalled()
+  })
+
   it('renders the exploratory map state from the public API', async () => {
     mockFetch({
       '/api/public/ecosystems/demo-ecosystem/stores/map': { body: storesMapResponse }
@@ -64,6 +116,28 @@ describe('ecosystem stores map', () => {
     expect(document.body.textContent).toContain('Hospedaje')
     expect(document.body.textContent).not.toContain('Demo Store Barmi')
 
+    await cleanup()
+  })
+
+  it('shows the initial loading state before stores map data is available', async () => {
+    const initialStoresMap = createDeferredResponse()
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/public/ecosystems/demo-ecosystem/stores/map')) {
+        return initialStoresMap.promise
+      }
+      return jsonResponse({})
+    }) as unknown as typeof fetch
+
+    const { cleanup } = await renderAppAt('/ecosystem/stores/map?location=all')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Cargando tiendas...')
+    expect(document.body.textContent).not.toContain('No encontramos tiendas con esos filtros')
+
+    initialStoresMap.resolve(jsonResponse(storesMapResponse))
+    await flush()
     await cleanup()
   })
 
@@ -90,6 +164,89 @@ describe('ecosystem stores map', () => {
     expect(window.location.search).toContain('q=Casa')
     expect(document.body.textContent).toContain('Casa Roja Market')
     expect(handler).toHaveBeenCalled()
+
+    await cleanup()
+  })
+
+  it('keeps previous stores visible and shows a subtle update indicator during refetch', async () => {
+    const searchStoresMap = createDeferredResponse()
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/public/ecosystems/demo-ecosystem/stores/map') && url.includes('q=Casa')) {
+        return searchStoresMap.promise
+      }
+      if (url.includes('/api/public/ecosystems/demo-ecosystem/stores/map')) {
+        return jsonResponse(storesMapResponse)
+      }
+      return jsonResponse({})
+    })
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const { cleanup } = await renderAppAt('/ecosystem/stores/map?location=all')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Demo Store Barmi')
+    expect(document.body.textContent).toContain('Casa Roja Market')
+
+    const input = document.querySelector('input[aria-label="Buscar tiendas en mapa"]') as HTMLInputElement
+    await setInputElementValue(input, 'Casa')
+    await waitForMs(300)
+    await flush()
+
+    expect(window.location.search).toContain('q=Casa')
+    expect(document.body.textContent).toContain('Actualizando tiendas...')
+    expect(document.body.textContent).toContain('Demo Store Barmi')
+    expect(document.body.textContent).toContain('Casa Roja Market')
+    expect(document.body.textContent).not.toContain('No encontramos tiendas con esos filtros')
+
+    searchStoresMap.resolve(jsonResponse({
+      ...storesMapResponse,
+      stores: [storesMapResponse.stores[1]]
+    }))
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).not.toContain('Actualizando tiendas...')
+    expect(document.body.textContent).not.toContain('Demo Store Barmi')
+    expect(document.body.textContent).toContain('Casa Roja Market')
+
+    await cleanup()
+  })
+
+  it('debounces continuous typing before updating the map URL and query', async () => {
+    const handler = mockFetch({
+      '/api/public/ecosystems/demo-ecosystem/stores/map': (url: string) => ({
+        body: url.includes('q=Casa')
+          ? { ...storesMapResponse, stores: [storesMapResponse.stores[1]] }
+          : storesMapResponse
+      })
+    })
+
+    const { cleanup } = await renderAppAt('/ecosystem/stores/map')
+    await flush()
+    await flush()
+    const callsBeforeTyping = handler.mock.calls.filter(([url]) => String(url).includes('/stores/map')).length
+
+    const input = document.querySelector('input[aria-label="Buscar tiendas en mapa"]') as HTMLInputElement
+    expect(input).toBeTruthy()
+    await setInputElementValue(input, 'C')
+    await setInputElementValue(input, 'Ca')
+    await setInputElementValue(input, 'Cas')
+    await setInputElementValue(input, 'Casa')
+
+    expect(input.value).toBe('Casa')
+    expect(window.location.search).not.toContain('q=Casa')
+    expect(handler.mock.calls.filter(([url]) => String(url).includes('/stores/map')).length).toBe(callsBeforeTyping)
+
+    await waitForMs(300)
+    await flush()
+    await flush()
+
+    const searchCalls = handler.mock.calls.filter(([url]) => String(url).includes('/stores/map') && String(url).includes('q=Casa'))
+    expect(window.location.search).toContain('q=Casa')
+    expect(searchCalls).toHaveLength(1)
+    expect(document.body.textContent).toContain('Casa Roja Market')
 
     await cleanup()
   })
@@ -161,6 +318,29 @@ describe('ecosystem stores map', () => {
     await cleanup()
   })
 
+  it('shows the error state when stores map loading fails', async () => {
+    mockFetch({
+      '/api/public/ecosystems/demo-ecosystem/stores/map': {
+        status: 500,
+        body: {
+          error: {
+            code: 'stores_map_failed',
+            message: 'No se pudo cargar el mapa de tiendas',
+            status: 500
+          }
+        }
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/ecosystem/stores/map?location=all')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('No se pudo cargar el mapa de tiendas')
+
+    await cleanup()
+  })
+
   it('offers direct navigation to the public store from results', async () => {
     mockFetch({
       '/api/public/ecosystems/demo-ecosystem/stores/map': { body: storesMapResponse }
@@ -178,7 +358,7 @@ describe('ecosystem stores map', () => {
   })
 
   it('keeps map and list selection aligned when choosing a store from the list', async () => {
-    mockFetch({
+    const handler = mockFetch({
       '/api/public/ecosystems/demo-ecosystem/stores/map?location=all': { body: storesMapResponse },
       '/api/public/ecosystems/demo-ecosystem/stores/map': { body: storesMapResponse }
     })
@@ -186,6 +366,7 @@ describe('ecosystem stores map', () => {
     const { cleanup } = await renderAppAt('/ecosystem/stores/map?location=all')
     await flush()
     await flush()
+    const callsBeforeSelection = handler.mock.calls.filter(([url]) => String(url).includes('/stores/map')).length
 
     const storeButtons = Array.from(document.querySelectorAll('button')).filter((item) => item.textContent?.includes('Casa Roja Market'))
     expect(storeButtons[0]).toBeTruthy()
@@ -194,6 +375,8 @@ describe('ecosystem stores map', () => {
 
     expect(window.location.search).toContain('store=store-2')
     expect(document.body.textContent).toContain('Casa Roja Market')
+    expect(handler.mock.calls.filter(([url]) => String(url).includes('/stores/map')).length).toBe(callsBeforeSelection)
+    expect(document.body.textContent).not.toContain('Actualizando tiendas...')
 
     await cleanup()
   })
@@ -237,6 +420,60 @@ describe('ecosystem stores map', () => {
     expect(window.location.search).toContain('category=panaderia')
     expect(window.location.search).toContain('q=Casa')
     expect(handler).toHaveBeenCalled()
+
+    await cleanup()
+  })
+
+  it('cleans empty/default map URL params while preserving unrelated params', async () => {
+    mockFetch({
+      '/api/public/ecosystems/demo-ecosystem/stores/map': { body: storesMapResponse }
+    })
+
+    const { cleanup } = await renderAppAt('/ecosystem/stores/map?q=Casa&category=panaderia&location=all&store=store-2&utm=keep')
+    await flush()
+    await flush()
+
+    const input = document.querySelector('input[aria-label="Buscar tiendas en mapa"]') as HTMLInputElement
+    expect(input).toBeTruthy()
+    await setInputElementValue(input, '   ')
+    await waitForMs(300)
+    await flush()
+    await flush()
+
+    expect(window.location.search).toBe('?category=panaderia&location=all&utm=keep')
+
+    await cleanup()
+  })
+
+  it('restores map filters with browser back navigation', async () => {
+    mockFetch({
+      '/api/public/ecosystems/demo-ecosystem/stores/map': (url: string) => ({
+        body: url.includes('q=Casa')
+          ? { ...storesMapResponse, stores: [storesMapResponse.stores[1]] }
+          : url.includes('q=Demo')
+            ? { ...storesMapResponse, stores: [storesMapResponse.stores[0]] }
+            : storesMapResponse
+      })
+    })
+
+    const { cleanup } = await renderAppAt('/ecosystem/stores/map?location=all&q=Casa')
+    await flush()
+    await flush()
+
+    const input = document.querySelector('input[aria-label="Buscar tiendas en mapa"]') as HTMLInputElement
+    expect(input.value).toBe('Casa')
+    await setInputElementValue(input, 'Demo')
+    await waitForMs(300)
+    await flush()
+    await flush()
+    expect(window.location.search).toContain('q=Demo')
+
+    window.history.back()
+    await waitForMs(50)
+    await flush()
+
+    expect(window.location.search).toContain('q=Casa')
+    expect((document.querySelector('input[aria-label="Buscar tiendas en mapa"]') as HTMLInputElement).value).toBe('Casa')
 
     await cleanup()
   })

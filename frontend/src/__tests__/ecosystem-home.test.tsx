@@ -94,6 +94,14 @@ const ecosystemProductsResponse = [
   }
 ]
 
+const ecosystemProductsPageResponse = {
+  content: ecosystemProductsResponse,
+  page: 0,
+  size: 12,
+  totalElements: 3,
+  totalPages: 1
+}
+
 const storesMapResponse = {
   ecosystem: ecosystemHomeResponse.ecosystem,
   categories: ecosystemHomeResponse.storeCategories,
@@ -139,9 +147,9 @@ afterEach(() => {
 })
 
 function mockHomeRequests() {
-  mockFetch({
+  return mockFetch({
     '/api/public/ecosystems/demo-ecosystem/home': { body: ecosystemHomeResponse },
-    '/api/public/ecosystems/demo-ecosystem/products?activeOnly=true': { body: ecosystemProductsResponse },
+    '/api/public/ecosystems/demo-ecosystem/products?activeOnly=true': { body: ecosystemProductsPageResponse },
     '/api/public/ecosystems/demo-ecosystem/stores/map?location=all': { body: storesMapResponse }
   })
 }
@@ -187,6 +195,22 @@ describe('ecosystem home', () => {
     expect(links).toContain('/ecosystem/stores/map')
     expect(links).toContain('/ecosystem/catalog')
     expect(links).toContain('/public/new-store')
+
+    await cleanup()
+  })
+
+  it('requests a fixed product page for home rails instead of an unbounded list', async () => {
+    const fetchMock = mockHomeRequests()
+
+    const { cleanup } = await renderAppAt('/ecosystem')
+    await flush()
+    await flush()
+
+    const productsCall = fetchMock.mock.calls.find(([url]) => String(url).includes('/api/public/ecosystems/demo-ecosystem/products'))
+    expect(productsCall).toBeTruthy()
+    const parsed = new URL(String(productsCall?.[0]), 'http://localhost')
+    expect(parsed.searchParams.get('page')).toBe('0')
+    expect(parsed.searchParams.get('size')).toBe('12')
 
     await cleanup()
   })

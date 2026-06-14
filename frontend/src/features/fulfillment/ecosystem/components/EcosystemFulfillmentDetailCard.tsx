@@ -21,7 +21,7 @@ export function EcosystemFulfillmentDetailCard({ record, ecosystemId }: Ecosyste
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.lg }}>
         <span style={{ color: theme.colors.textMuted }}>Orden relacionada</span>
-        <Link to={`${routes.adminEcosystemOrderDetail(record.ecosystemOrderId)}?ecosystemId=${encodeURIComponent(ecosystemId)}`} style={{ color: theme.colors.primary, textDecoration: 'none' }}>
+        <Link to={`${routes.adminEcosystemOrderDetail(record.ecosystemOrderId)}?ecosystemId=${encodeURIComponent(ecosystemId)}`} style={{ color: theme.colors.actionPrimary, textDecoration: 'none' }}>
           {record.ecosystemOrderId}
         </Link>
       </div>

@@ -82,6 +82,63 @@ export type StoreOperationalReport = {
   }
 }
 
+export type StoreProductAnalyticsRange = '7d'
+
+export type StoreProductAnalyticsRow = {
+  productSlug: string
+  detailViews: number
+  cardClicks: number
+  addToCart: number
+  ctrPercent: number
+  addToCartRatePercent: number
+}
+
+export type StoreProductAnalytics = {
+  storeId: string
+  storeSlug: string
+  rangeKey: StoreProductAnalyticsRange
+  rangeLabel: string
+  from: string
+  to: string
+  timezone: string
+  totals: {
+    detailViews: number
+    cardClicks: number
+    addToCart: number
+    ctrPercent: number
+    addToCartRatePercent: number
+  }
+  products: StoreProductAnalyticsRow[]
+}
+
+export type StoreCommerceAnalyticsTopProduct = {
+  productSlug: string
+  productName: string
+  quantitySold: number
+  revenueCents: number
+}
+
+export type StoreCommerceAnalytics = {
+  orders: number
+  revenueCents: number
+  averageOrderValueCents: number
+  productsSold: number
+  topProducts: StoreCommerceAnalyticsTopProduct[]
+}
+
+export type StoreFunnelAnalytics = {
+  listViews: number
+  cardClicks: number
+  detailViews: number
+  addToCart: number
+  orders: number
+  revenueCents: number
+  clickRate: number
+  detailRate: number
+  addToCartRate: number
+  purchaseRate: number
+}
+
 export type StoreShippingZone = {
   zoneId: string
   storeId: string

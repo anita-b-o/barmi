@@ -13,10 +13,14 @@ CREATE TABLE products (
   store_id      UUID NOT NULL REFERENCES stores(id),
   sku           TEXT NOT NULL,
   name          TEXT NOT NULL,
+  public_slug   TEXT NOT NULL,
   price_cents   BIGINT NOT NULL CHECK (price_cents >= 0),
+  stock_quantity BIGINT NOT NULL DEFAULT 999999,
+  category_id    UUID,
   is_active     BOOLEAN NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE (store_id, sku)
+  UNIQUE (store_id, sku),
+  UNIQUE (store_id, public_slug)
 );
 
 CREATE TABLE external_products (
@@ -67,16 +71,32 @@ CREATE TABLE ecosystem_promotions (
 CREATE TABLE outbox_events (
   event_id        UUID PRIMARY KEY,
   event_type      TEXT NOT NULL,
-  scope           TEXT NOT NULL,
+  scope           TEXT NOT NULL CHECK (scope IN ('STORE', 'ECOSYSTEM')),
   aggregate_id    UUID,
   payload_json    CLOB NOT NULL,
   occurred_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  published_at    TIMESTAMP NULL
+  published_at    TIMESTAMP NULL,
+  status          TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'PUBLISHED', 'FAILED')),
+  attempt_count   INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+  next_attempt_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  claimed_at      TIMESTAMP NULL,
+  claimed_by      TEXT NULL,
+  last_attempt_at TIMESTAMP NULL,
+  last_error      TEXT NULL,
+  failed_at       TIMESTAMP NULL
 );
 
 CREATE TABLE processed_events (
   event_id        UUID PRIMARY KEY,
   processed_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE notification_email_deliveries (
+  idempotency_key TEXT PRIMARY KEY,
+  event_id        UUID NOT NULL,
+  template        TEXT NOT NULL,
+  recipient       TEXT NOT NULL,
+  sent_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE beta_product_events (
@@ -113,6 +133,53 @@ CREATE TABLE beta_feedback_entries (
   release_id      TEXT NOT NULL,
   environment     TEXT NOT NULL,
   created_at      TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE saas_plans (
+  id                  UUID PRIMARY KEY,
+  code                TEXT NOT NULL UNIQUE,
+  name                TEXT NOT NULL,
+  active              BOOLEAN NOT NULL DEFAULT TRUE,
+  description         TEXT NULL,
+  max_products        INTEGER NOT NULL CHECK (max_products >= 0),
+  analytics_enabled   BOOLEAN NOT NULL DEFAULT FALSE,
+  seo_enabled         BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE saas_subscriptions (
+  id                  UUID PRIMARY KEY,
+  store_id            UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  plan_id             UUID NOT NULL REFERENCES saas_plans(id),
+  status              TEXT NOT NULL CHECK (status IN ('TRIAL', 'ACTIVE', 'PAST_DUE', 'SUSPENDED', 'CANCELLED')),
+  started_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at          TIMESTAMP NULL,
+  created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (store_id)
+);
+
+CREATE INDEX idx_saas_subscriptions_plan_id ON saas_subscriptions(plan_id);
+
+INSERT INTO saas_plans (
+  id,
+  code,
+  name,
+  active,
+  description,
+  max_products,
+  analytics_enabled,
+  seo_enabled
+) VALUES (
+  '00000000-0000-0000-0000-000000000034',
+  'FREE',
+  'Free',
+  TRUE,
+  'Default free plan for new stores',
+  50,
+  FALSE,
+  FALSE
 );
 
 ALTER TABLE stores

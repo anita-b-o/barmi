@@ -17,6 +17,7 @@ function lazyWithPreload<T extends { default: ComponentType<any> }>(factory: Laz
 }
 
 const PublicStoreScreen = lazyWithPreload(() => import('@/pages/public/PublicStoreScreen'))
+const PublicStoreProductDetailScreen = lazyWithPreload(() => import('@/pages/public/PublicStoreProductDetailScreen'))
 const CheckoutScreen = lazyWithPreload(() => import('@/pages/public/CheckoutScreen'))
 const StoreCheckoutSuccessScreen = lazyWithPreload(() => import('@/pages/public/StoreCheckoutSuccessScreen'))
 const OrdersListScreen = lazyWithPreload(() => import('@/pages/public/OrdersListScreen'))
@@ -25,6 +26,7 @@ const LoginScreen = lazyWithPreload(() => import('@/pages/public/LoginScreen'))
 
 const EcosystemHomeScreen = lazyWithPreload(() => import('@/pages/ecosystem/EcosystemHomeScreen'))
 const EcosystemCatalogScreen = lazyWithPreload(() => import('@/pages/ecosystem/EcosystemCatalogScreen'))
+const EcosystemCategoryScreen = lazyWithPreload(() => import('@/pages/ecosystem/EcosystemCategoryScreen'))
 const EcosystemStoresMapScreen = lazyWithPreload(() => import('@/pages/ecosystem/EcosystemStoresMapScreen'))
 const EcosystemCheckoutScreen = lazyWithPreload(() => import('@/pages/ecosystem/EcosystemCheckoutScreen'))
 const EcosystemCheckoutSuccessScreen = lazyWithPreload(() => import('@/pages/ecosystem/EcosystemCheckoutSuccessScreen'))
@@ -32,12 +34,16 @@ const EcosystemOrdersListScreen = lazyWithPreload(() => import('@/pages/ecosyste
 const EcosystemOrderDetailScreen = lazyWithPreload(() => import('@/pages/ecosystem/EcosystemOrderDetailScreen'))
 
 const AdminHomeScreen = lazyWithPreload(() => import('@/pages/admin/AdminHomeScreen'))
+const AdminSaasScreen = lazyWithPreload(() => import('@/pages/admin/AdminSaasScreen'))
 const AdminStoreOrdersListScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreOrdersListScreen'))
 const FulfillmentListScreen = lazyWithPreload(() => import('@/pages/admin/FulfillmentListScreen'))
 const FulfillmentDetailScreen = lazyWithPreload(() => import('@/pages/admin/FulfillmentDetailScreen'))
 const MembersListScreen = lazyWithPreload(() => import('@/pages/admin/MembersListScreen'))
 const AdminStoreOrderDetailScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreOrderDetailScreen'))
 const AdminStoreScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreScreen'))
+const AdminStoreProductAnalyticsScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreProductAnalyticsScreen'))
+const AdminStoreCommerceAnalyticsScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreCommerceAnalyticsScreen'))
+const AdminStoreFunnelAnalyticsScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreFunnelAnalyticsScreen'))
 const AdminStoreProductsScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreProductsScreen'))
 const AdminStorePromotionsScreen = lazyWithPreload(() => import('@/pages/admin/AdminStorePromotionsScreen'))
 const AdminStoreShippingZonesScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreShippingZonesScreen'))
@@ -53,6 +59,7 @@ const AdminEcosystemPromotionsScreen = lazyWithPreload(() => import('@/pages/adm
 function collectRoutePreloaders(pathname: string) {
   if (pathname === routes.root) return [PublicStoreScreen]
   if (pathname.startsWith('/public/')) {
+    if (/^\/public\/[^/]+\/products\/[^/]+/.test(pathname)) return [PublicStoreProductDetailScreen]
     if (pathname === routes.storeCheckout) return [CheckoutScreen]
     if (pathname === routes.storeCheckoutSuccess) return [StoreCheckoutSuccessScreen]
     if (pathname === routes.storeOrders) return [OrdersListScreen]
@@ -65,6 +72,7 @@ function collectRoutePreloaders(pathname: string) {
 
   if (pathname === routes.ecosystemHome) return [EcosystemHomeScreen]
   if (pathname === routes.ecosystemCatalog) return [EcosystemCatalogScreen]
+  if (pathname.startsWith('/ecosystem/categories/')) return [EcosystemCategoryScreen]
   if (pathname === routes.ecosystemStoresMap) return [EcosystemStoresMapScreen]
   if (pathname === routes.ecosystemCheckout) return [EcosystemCheckoutScreen]
   if (pathname === routes.ecosystemCheckoutSuccess) return [EcosystemCheckoutSuccessScreen]
@@ -73,12 +81,16 @@ function collectRoutePreloaders(pathname: string) {
 
   if (pathname === routes.login) return [LoginScreen]
   if (pathname === routes.adminHome) return [AdminHomeScreen]
+  if (pathname === routes.adminSaas) return [AdminSaasScreen]
   if (pathname === routes.adminOrders) return [AdminStoreOrdersListScreen]
   if (pathname.startsWith('/admin/orders/')) return [AdminStoreOrderDetailScreen]
   if (pathname === routes.adminFulfillments) return [FulfillmentListScreen]
   if (pathname.startsWith('/admin/fulfillments/')) return [FulfillmentDetailScreen]
   if (pathname === routes.adminMembers) return [MembersListScreen]
   if (pathname === routes.adminStore) return [AdminStoreScreen]
+  if (pathname === routes.adminStoreFunnelAnalytics) return [AdminStoreFunnelAnalyticsScreen]
+  if (pathname === routes.adminStoreCommerceAnalytics) return [AdminStoreCommerceAnalyticsScreen]
+  if (pathname === routes.adminStoreAnalytics) return [AdminStoreProductAnalyticsScreen]
   if (pathname === routes.adminStoreProducts) return [AdminStoreProductsScreen]
   if (pathname === routes.adminStorePromotions) return [AdminStorePromotionsScreen]
   if (pathname === routes.adminShippingZones) return [AdminStoreShippingZonesScreen]
@@ -137,6 +149,7 @@ function RoutedScreens() {
             <Route path={routes.observabilitySmoke} element={<ObservabilitySmokeScreen />} />
           ) : null}
           <Route path={routes.publicStorePattern} element={<PublicStoreScreen />} />
+          <Route path={routes.publicStoreProductPattern} element={<PublicStoreProductDetailScreen />} />
           <Route path={routes.storeCheckout} element={<CheckoutScreen />} />
           <Route path={routes.storeCheckoutSuccess} element={<StoreCheckoutSuccessScreen />} />
           <Route path={routes.storeOrders} element={<OrdersListScreen />} />
@@ -145,6 +158,7 @@ function RoutedScreens() {
           <Route path={routes.ecosystemHome} element={<EcosystemHomeScreen />} />
           <Route path={routes.ecosystemStoresMap} element={<EcosystemStoresMapScreen />} />
           <Route path={routes.ecosystemCatalog} element={<EcosystemCatalogScreen />} />
+          <Route path={routes.ecosystemCategoryPattern} element={<EcosystemCategoryScreen />} />
           <Route path={routes.ecosystemCheckout} element={<EcosystemCheckoutScreen />} />
           <Route path={routes.ecosystemCheckoutSuccess} element={<EcosystemCheckoutSuccessScreen />} />
           <Route path={routes.ecosystemOrders} element={<EcosystemOrdersListScreen />} />
@@ -156,6 +170,14 @@ function RoutedScreens() {
             element={
               <RequireAuth>
                 <AdminHomeScreen />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={routes.adminSaas}
+            element={
+              <RequireAuth>
+                <AdminSaasScreen />
               </RequireAuth>
             }
           />
@@ -215,6 +237,36 @@ function RoutedScreens() {
               <RequireAuth>
                 <RequireStoreMembership>
                   <AdminStoreScreen />
+                </RequireStoreMembership>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={routes.adminStoreAnalytics}
+            element={
+              <RequireAuth>
+                <RequireStoreMembership>
+                  <AdminStoreProductAnalyticsScreen />
+                </RequireStoreMembership>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={routes.adminStoreCommerceAnalytics}
+            element={
+              <RequireAuth>
+                <RequireStoreMembership>
+                  <AdminStoreCommerceAnalyticsScreen />
+                </RequireStoreMembership>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={routes.adminStoreFunnelAnalytics}
+            element={
+              <RequireAuth>
+                <RequireStoreMembership>
+                  <AdminStoreFunnelAnalyticsScreen />
                 </RequireStoreMembership>
               </RequireAuth>
             }

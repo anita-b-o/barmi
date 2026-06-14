@@ -14,6 +14,7 @@ import com.barmi.infra.repo.EcosystemOrderRepository;
 import com.barmi.infra.repo.PaymentIntentRepository;
 import com.barmi.infra.repo.StoreOrderRepository;
 import com.barmi.infra.repo.StoreRepository;
+import com.barmi.infra.metrics.PaymentOperationalMetrics;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -55,6 +56,9 @@ class PaymentInitiationServiceTest {
 
     @Mock
     private PaymentProviderClient paymentProviderClient;
+
+    @Mock
+    private PaymentOperationalMetrics paymentOperationalMetrics;
 
     @InjectMocks
     private PaymentInitiationService paymentInitiationService;
@@ -106,6 +110,7 @@ class PaymentInitiationServiceTest {
         verify(paymentProviderClient).createCheckout(captor.capture());
         assertThat(captor.getValue().metadata()).containsEntry("storeOrderId", orderId);
         assertThat(captor.getValue().metadata()).containsEntry("storeId", storeId);
+        verify(paymentOperationalMetrics).recordPaymentInitiation(PaymentScope.STORE, "MERCADOPAGO", "success");
     }
 
     @Test
@@ -195,6 +200,7 @@ class PaymentInitiationServiceTest {
                     assertThat(rse.getStatusCode().value()).isEqualTo(503);
                     assertThat(rse.getReason()).isEqualTo("payment_provider_unavailable");
                 });
+        verify(paymentOperationalMetrics).recordPaymentInitiation(PaymentScope.STORE, "MERCADOPAGO", "failure");
     }
 
     @Test

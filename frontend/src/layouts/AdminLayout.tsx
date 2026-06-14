@@ -1,7 +1,7 @@
 import React from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { routes } from '@/core/constants/routes'
-import { alpha, getContextPalette, theme } from '@/app/theme'
+import { ThemeToggle, theme } from '@/app/theme'
 import { useAuth } from '@/core/auth'
 import { hasActiveEcosystemMembership, hasActiveStoreMembership } from '@/core/auth/routeGuards'
 import { useViewportMode } from '@/core/hooks/useViewportMode'
@@ -9,9 +9,10 @@ import Sidebar from '@/components/navigation/Sidebar'
 import Topbar from '@/components/navigation/Topbar'
 import { BetaFeedbackWidget } from '@/features/beta'
 
-type AdminScope = 'home' | 'store' | 'ecosystem'
+type AdminScope = 'home' | 'platform' | 'store' | 'ecosystem'
 
 function resolveScope(pathname: string): AdminScope {
+  if (pathname.startsWith('/admin/saas')) return 'platform'
   if (pathname.startsWith('/admin/ecosystem')) return 'ecosystem'
   if (
     pathname.startsWith('/admin/store') ||
@@ -33,16 +34,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const scope = resolveScope(location.pathname)
   const hasStore = hasActiveStoreMembership(memberships)
   const hasEcosystem = hasActiveEcosystemMembership(memberships)
-  const palette = getContextPalette(scope === 'store' ? 'store' : scope === 'ecosystem' ? 'ecosystem' : 'admin')
-  const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
-    color: isActive ? theme.colors.bgSurfaceAlt : theme.colors.textSecondary,
-    textDecoration: 'none',
-    padding: '10px 12px',
-    borderRadius: theme.radius.md,
-    background: isActive ? alpha(palette.accent, 0.22) : 'transparent',
-    border: `1px solid ${isActive ? alpha(theme.colors.bgSurfaceAlt, 0.12) : 'transparent'}`,
-    fontWeight: isActive ? 600 : 500
-  })
   const sectionTitleStyle: React.CSSProperties = {
     color: theme.colors.textMuted,
     fontSize: theme.typography.small.size,
@@ -56,23 +47,78 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { to: routes.adminOrders, label: 'Órdenes' },
     { to: routes.adminFulfillments, label: 'Fulfillments' },
     { to: routes.adminMembers, label: 'Miembros' },
+    { to: routes.adminStoreProducts, label: 'Productos' },
+    { to: routes.adminStorePromotions, label: 'Promociones' },
     { to: routes.adminShippingZones, label: 'Shipping zones' }
   ]
   const ecosystemLinks = [
     { to: routes.adminEcosystem, label: 'Hub ecosystem', end: true },
     { to: routes.adminEcosystemOrders, label: 'Órdenes' },
+    { to: routes.adminEcosystemFulfillments, label: 'Fulfillments' },
     { to: routes.adminEcosystemProducts, label: 'Productos' },
+    { to: routes.adminEcosystemPromotions, label: 'Promociones' },
     { to: routes.adminEcosystemShipping, label: 'Shipping zones' }
   ]
-  const scopedLinks = scope === 'ecosystem' ? ecosystemLinks : scope === 'store' ? storeLinks : []
-  const contextLabel = scope === 'ecosystem' ? 'Dominio activo: Ecosystem' : scope === 'store' ? 'Dominio activo: Store' : 'Elegí un dominio operativo'
+  const platformLinks = [
+    { to: routes.adminSaas, label: 'Planes SaaS', end: true }
+  ]
+  const scopedLinks = scope === 'ecosystem' ? ecosystemLinks : scope === 'store' ? storeLinks : scope === 'platform' ? platformLinks : []
+  const contextLabel = scope === 'ecosystem' ? 'Dominio activo: Ecosystem' : scope === 'store' ? 'Dominio activo: Store' : scope === 'platform' ? 'Administración platform' : 'Elegí un dominio operativo'
   const navStyle: React.CSSProperties = {
     display: 'grid',
     gap: 10
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: theme.colors.bgPage, color: theme.colors.textPrimary }}>
+    <div className="barmi-admin-shell" style={{ minHeight: '100vh', background: theme.colors.bgPage, color: theme.colors.textPrimary }}>
+      <style>
+        {`
+          .barmi-admin-shell {
+            --admin-bg-page: var(--barmi-color-bg-page);
+            --admin-bg-surface: var(--barmi-color-bg-surface);
+            --admin-bg-surface-alt: var(--barmi-color-bg-surface-alt);
+            --admin-bg-hover: var(--barmi-color-bg-hover);
+            --admin-text-primary: var(--barmi-color-text-primary);
+            --admin-text-secondary: var(--barmi-color-text-secondary);
+            --admin-text-muted: var(--barmi-color-text-muted);
+            --admin-border-default: var(--barmi-color-border-default);
+            --admin-border-strong: var(--barmi-color-border-strong);
+            --admin-action-primary: var(--barmi-color-action-primary);
+            --admin-action-hover: var(--barmi-color-action-hover);
+            --admin-focus-ring: var(--barmi-focus-ring);
+          }
+
+          .barmi-admin-nav-link {
+            color: var(--admin-text-secondary);
+            text-decoration: none;
+            padding: 10px 12px;
+            border-radius: var(--barmi-radius-md);
+            background: transparent;
+            border: 1px solid transparent;
+            font-weight: 500;
+            transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+          }
+
+          .barmi-admin-nav-link:hover {
+            color: var(--admin-text-primary);
+            background: var(--admin-bg-hover);
+            border-color: var(--admin-border-default);
+          }
+
+          .barmi-admin-nav-link[aria-current="page"] {
+            color: var(--admin-text-primary);
+            background: var(--admin-bg-surface);
+            border-color: var(--admin-border-strong);
+            font-weight: 700;
+          }
+
+          .barmi-admin-shell a:focus-visible,
+          .barmi-admin-shell button:focus-visible {
+            outline: 3px solid var(--admin-focus-ring);
+            outline-offset: 2px;
+          }
+        `}
+      </style>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '260px 1fr', minHeight: '100vh' }}>
         <Sidebar
           style={isMobile ? {
@@ -81,21 +127,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             padding: `${theme.spacing.lg}px`,
           } : undefined}
         >
-          <div style={{ fontWeight: 700, fontSize: 22, marginBottom: theme.spacing.xs, color: theme.colors.bgSurfaceAlt, letterSpacing: 0 }}>Barmi Admin</div>
+          <div style={{ fontWeight: 700, fontSize: 22, marginBottom: theme.spacing.xs, color: theme.colors.textPrimary, letterSpacing: 0 }}>Barmi Admin</div>
           <div style={{ color: theme.colors.textSecondary, marginBottom: theme.spacing.xl }}>{contextLabel}</div>
 
           <div style={{ marginBottom: theme.spacing.xl }}>
             <div style={sectionTitleStyle}>Entrada</div>
             <nav style={navStyle}>
-              <NavLink to={routes.adminHome} end style={navLinkStyle}>Selección de dominios</NavLink>
+              <NavLink to={routes.adminHome} end className="barmi-admin-nav-link">Selección de dominios</NavLink>
             </nav>
           </div>
 
           <div style={{ marginBottom: theme.spacing.xl }}>
             <div style={sectionTitleStyle}>Dominios</div>
             <nav style={navStyle}>
-              {hasStore ? <NavLink to={routes.adminStore} style={navLinkStyle}>Admin Store</NavLink> : null}
-              {hasEcosystem ? <NavLink to={routes.adminEcosystem} style={navLinkStyle}>Admin Ecosystem</NavLink> : null}
+              <NavLink to={routes.adminSaas} className="barmi-admin-nav-link">Admin SaaS</NavLink>
+              {hasStore ? <NavLink to={routes.adminStore} className="barmi-admin-nav-link">Admin Store</NavLink> : null}
+              {hasEcosystem ? <NavLink to={routes.adminEcosystem} className="barmi-admin-nav-link">Admin Ecosystem</NavLink> : null}
             </nav>
           </div>
 
@@ -104,7 +151,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <div style={sectionTitleStyle}>Navegación</div>
               <nav style={navStyle}>
                 {scopedLinks.map((link) => (
-                  <NavLink key={link.to} to={link.to} end={link.end} style={navLinkStyle}>{link.label}</NavLink>
+                  <NavLink key={link.to} to={link.to} end={link.end} className="barmi-admin-nav-link">{link.label}</NavLink>
                 ))}
               </nav>
             </div>
@@ -113,12 +160,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div>
           <Topbar
             title="Barmi Platform"
-            eyebrow={scope === 'home' ? 'Backoffice' : scope === 'store' ? 'Store admin' : 'Ecosystem admin'}
-            subtitle={scope === 'home' ? 'Consola operativa' : scope === 'store' ? 'Contexto STORE activo' : 'Contexto ECOSYSTEM activo'}
+            eyebrow={scope === 'home' ? 'Backoffice' : scope === 'store' ? 'Store admin' : scope === 'ecosystem' ? 'Ecosystem admin' : 'SaaS admin'}
+            subtitle={scope === 'home' ? 'Consola operativa' : scope === 'store' ? 'Contexto STORE activo' : scope === 'ecosystem' ? 'Contexto ECOSYSTEM activo' : 'Planes y suscripciones'}
             tone={scope === 'store' ? 'store' : scope === 'ecosystem' ? 'ecosystem' : 'admin'}
             actions={(
-              <div style={{ color: theme.colors.textMuted, fontWeight: 500, textAlign: isMobile ? 'left' : 'right' }}>
-              {scope === 'home' ? 'Elegí el dominio desde el que vas a operar.' : `Navegación contextual para ${scope === 'store' ? 'STORE' : 'ECOSYSTEM'}.`}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: isMobile ? 'flex-start' : 'flex-end', gap: theme.spacing.md, flexWrap: 'wrap' }}>
+                <div style={{ color: theme.colors.textMuted, fontWeight: 500, textAlign: isMobile ? 'left' : 'right' }}>
+                  {scope === 'home' ? 'Elegí el dominio desde el que vas a operar.' : scope === 'platform' ? 'Administración SaaS global.' : `Navegación contextual para ${scope === 'store' ? 'STORE' : 'ECOSYSTEM'}.`}
+                </div>
+                <ThemeToggle />
               </div>
             )}
           />

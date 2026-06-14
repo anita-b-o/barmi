@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Button from '@/components/primitives/Button'
 import Card from '@/components/primitives/Card'
+import { appConfig } from '@/app/config/env'
 import { theme } from '@/app/theme'
 import { releaseMetadata } from './release'
 import { reportRuntimeError, updateLastBackendRequestId } from './client'
@@ -85,6 +86,7 @@ export default function ObservabilitySmokeScreen() {
             <div data-testid="observability-commit">commitSha: {releaseMetadata.commitSha}</div>
             <div data-testid="observability-build-timestamp">buildTimestamp: {releaseMetadata.buildTimestamp}</div>
             <div data-testid="observability-environment">environment: {releaseMetadata.env}</div>
+            <div data-testid="observability-sentry-smoke">sentrySmoke: {appConfig.sentrySmokeEnabled ? 'enabled' : 'disabled'}</div>
           </div>
         </Card>
 

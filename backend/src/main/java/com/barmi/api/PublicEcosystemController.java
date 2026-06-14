@@ -10,6 +10,8 @@ import com.barmi.infra.repo.EcosystemExternalProductRepository;
 import com.barmi.infra.repo.EcosystemPromotionRepository;
 import com.barmi.infra.repo.EcosystemRepository;
 import com.barmi.infra.repo.StoreRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,11 +25,17 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/public/ecosystems")
 public class PublicEcosystemController {
+
+    private static final int DEFAULT_PUBLIC_ECOSYSTEM_PRODUCT_PAGE = 0;
+    private static final int DEFAULT_PUBLIC_ECOSYSTEM_PRODUCT_PAGE_SIZE = 24;
+    private static final int MAX_PUBLIC_ECOSYSTEM_PRODUCT_PAGE_SIZE = 100;
+    private static final int ECOSYSTEM_HOME_PRODUCT_RAIL_SIZE = 12;
 
     private final EcosystemRepository ecosystemRepository;
     private final EcosystemExternalProductRepository ecosystemExternalProductRepository;
@@ -96,6 +104,14 @@ public class PublicEcosystemController {
             boolean deliverySupported
     ) {}
 
+    public record EcosystemExternalProductsPagePublicView(
+            List<EcosystemExternalProductPublicView> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages
+    ) {}
+
     @GetMapping("/{slug}")
     public ResponseEntity<?> getBySlug(@PathVariable String slug) {
         Ecosystem ecosystem = resolveActiveEcosystem(slug);
@@ -116,25 +132,25 @@ public class PublicEcosystemController {
 
         List<EcosystemExternalProductPublicView> promotionProducts = visiblePromotions.isEmpty()
                 ? List.of()
-                : searchPublicProducts(
+                : searchPublicProductsPage(
                         ecosystem.getId(),
                         true,
                         "",
                         null,
-                        Sort.by(Sort.Order.desc("createdAt"))
-                ).stream()
-                .limit(6)
+                        null,
+                        PageRequest.of(0, ECOSYSTEM_HOME_PRODUCT_RAIL_SIZE, Sort.by(Sort.Order.desc("createdAt")))
+                ).getContent().stream()
                 .map(this::toPublicProduct)
                 .toList();
 
-        List<EcosystemExternalProductPublicView> deliveryProducts = searchPublicProducts(
+        List<EcosystemExternalProductPublicView> deliveryProducts = searchPublicProductsPage(
                         ecosystem.getId(),
                         true,
                         "",
                         true,
-                        Sort.by(Sort.Order.desc("createdAt"))
-                ).stream()
-                .limit(6)
+                        null,
+                        PageRequest.of(0, ECOSYSTEM_HOME_PRODUCT_RAIL_SIZE, Sort.by(Sort.Order.desc("createdAt")))
+                ).getContent().stream()
                 .map(this::toPublicProduct)
                 .toList();
 
@@ -202,55 +218,121 @@ public class PublicEcosystemController {
             @RequestParam(required = false) String query,
             @RequestParam(defaultValue = "true") boolean activeOnly,
             @RequestParam(required = false) Boolean deliverySupported,
-            @RequestParam(required = false) String sort
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size
     ) {
         Ecosystem ecosystem = resolveActiveEcosystem(slug);
         String rawQuery = (q != null && !q.isBlank()) ? q : query;
         String normalizedQuery = (rawQuery == null || rawQuery.isBlank()) ? "" : rawQuery.trim();
-        List<EcosystemExternalProduct> products = searchPublicProducts(
+        int resolvedPage = page == null ? DEFAULT_PUBLIC_ECOSYSTEM_PRODUCT_PAGE : page;
+        int resolvedSize = size == null ? DEFAULT_PUBLIC_ECOSYSTEM_PRODUCT_PAGE_SIZE : size;
+        if (resolvedPage < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be greater than or equal to 0");
+        }
+        if (resolvedSize < 1) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "size must be greater than or equal to 1");
+        }
+        int cappedSize = Math.min(resolvedSize, MAX_PUBLIC_ECOSYSTEM_PRODUCT_PAGE_SIZE);
+
+        Page<EcosystemExternalProduct> products = searchPublicProductsPage(
                 ecosystem.getId(),
                 activeOnly,
                 normalizedQuery,
                 deliverySupported,
-                parsePublicProductSort(sort)
+                sort,
+                PageRequest.of(resolvedPage, cappedSize, parsePublicProductSort(sort))
         );
 
-        List<EcosystemExternalProductPublicView> body = products.stream()
-                .map(p -> new EcosystemExternalProductPublicView(
-                        p.getId(),
-                        p.getName(),
-                        p.getPriceAmount(),
-                        p.getCurrency(),
-                        p.isDeliverySupported()
-                ))
+        List<EcosystemExternalProductPublicView> content = products.getContent().stream()
+                .map(this::toPublicProduct)
                 .toList();
 
-        return ResponseEntity.ok(body);
+        return ResponseEntity.ok(new EcosystemExternalProductsPagePublicView(
+                content,
+                products.getNumber(),
+                products.getSize(),
+                products.getTotalElements(),
+                products.getTotalPages()
+        ));
     }
 
-    private List<EcosystemExternalProduct> searchPublicProducts(
+    private Page<EcosystemExternalProduct> searchPublicProductsPage(
             UUID ecosystemId,
             boolean activeOnly,
             String query,
             Boolean deliverySupported,
-            Sort sort
+            String sort,
+            PageRequest pageRequest
     ) {
-        if (deliverySupported == null) {
-            return ecosystemExternalProductRepository.searchPublicCatalog(
+        if (usesRelevanceSort(query, sort)) {
+            PageRequest relevancePageRequest = PageRequest.of(pageRequest.getPageNumber(), pageRequest.getPageSize());
+            if (deliverySupported == null) {
+                return ecosystemExternalProductRepository.searchPublicCatalogByRelevancePage(
+                        ecosystemId,
+                        activeOnly,
+                        toNormalizedQuery(query),
+                        toPrefixPattern(query),
+                        toLikePattern(query),
+                        relevancePageRequest
+                );
+            }
+
+            return ecosystemExternalProductRepository.searchPublicCatalogByDeliverySupportedRelevancePage(
                     ecosystemId,
                     activeOnly,
-                    query,
-                    sort
+                    toNormalizedQuery(query),
+                    toPrefixPattern(query),
+                    toLikePattern(query),
+                    deliverySupported,
+                    relevancePageRequest
             );
         }
 
-        return ecosystemExternalProductRepository.searchPublicCatalogByDeliverySupported(
+        if (deliverySupported == null) {
+            return ecosystemExternalProductRepository.searchPublicCatalogPage(
+                    ecosystemId,
+                    activeOnly,
+                    toLikePattern(query),
+                    pageRequest
+            );
+        }
+
+        return ecosystemExternalProductRepository.searchPublicCatalogByDeliverySupportedPage(
                 ecosystemId,
                 activeOnly,
-                query,
+                toLikePattern(query),
                 deliverySupported,
-                sort
+                pageRequest
         );
+    }
+
+    private boolean usesRelevanceSort(String query, String sort) {
+        if (query == null || query.isBlank()) {
+            return false;
+        }
+        if (sort == null || sort.isBlank()) {
+            return true;
+        }
+        String normalizedSort = sort.trim();
+        return "default".equals(normalizedSort) || "relevance".equals(normalizedSort);
+    }
+
+    private String toNormalizedQuery(String query) {
+        if (query == null || query.isBlank()) {
+            return "";
+        }
+        return query.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String toPrefixPattern(String query) {
+        String normalizedQuery = toNormalizedQuery(query);
+        return normalizedQuery.isBlank() ? "" : normalizedQuery + "%";
+    }
+
+    private String toLikePattern(String query) {
+        String normalizedQuery = toNormalizedQuery(query);
+        return normalizedQuery.isBlank() ? "" : "%" + normalizedQuery + "%";
     }
 
     private Sort parsePublicProductSort(String sort) {
@@ -263,6 +345,7 @@ public class PublicEcosystemController {
             case "name,desc" -> Sort.by(Sort.Order.desc("name"), Sort.Order.desc("createdAt"));
             case "price,asc" -> Sort.by(Sort.Order.asc("priceAmount"), Sort.Order.desc("createdAt"));
             case "price,desc" -> Sort.by(Sort.Order.desc("priceAmount"), Sort.Order.desc("createdAt"));
+            case "createdAt,desc", "relevance" -> Sort.by(Sort.Order.desc("createdAt"));
             default -> Sort.by(Sort.Order.desc("createdAt"));
         };
     }

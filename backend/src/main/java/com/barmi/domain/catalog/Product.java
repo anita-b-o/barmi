@@ -1,7 +1,9 @@
 package com.barmi.domain.catalog;
 
 import jakarta.persistence.*;
+import java.text.Normalizer;
 import java.time.Instant;
+import java.util.Locale;
 import java.util.UUID;
 
 @Entity
@@ -21,6 +23,9 @@ public class Product {
 
     @Column(nullable = false)
     private String name;
+
+    @Column(name = "public_slug", nullable = false)
+    private String publicSlug;
 
     @Column(name = "price_cents", nullable = false)
     private long priceCents;
@@ -52,6 +57,7 @@ public class Product {
         this.storeId = storeId;
         this.sku = sku;
         this.name = name;
+        this.publicSlug = buildDefaultPublicSlug(name, id);
         this.priceCents = priceCents;
         this.stockQuantity = stockQuantity;
         this.categoryId = categoryId;
@@ -59,6 +65,7 @@ public class Product {
 
     public void updateSku(String sku) { this.sku = sku; }
     public void updateName(String name) { this.name = name; }
+    public void updatePublicSlug(String publicSlug) { this.publicSlug = normalizePublicSlug(publicSlug); }
     public void updatePriceCents(long priceCents) { this.priceCents = priceCents; }
     public void updateStockQuantity(long stockQuantity) { this.stockQuantity = stockQuantity; }
     public void updateCategoryId(UUID categoryId) { this.categoryId = categoryId; }
@@ -68,10 +75,40 @@ public class Product {
     public UUID getStoreId() { return storeId; }
     public String getSku() { return sku; }
     public String getName() { return name; }
+    public String getPublicSlug() { return publicSlug; }
     public long getPriceCents() { return priceCents; }
     public long getStockQuantity() { return stockQuantity; }
     public UUID getCategoryId() { return categoryId; }
     public boolean isActive() { return active; }
     public boolean isAvailable() { return active && stockQuantity > 0; }
     public Instant getCreatedAt() { return createdAt; }
+
+    public static String buildBasePublicSlug(String value) {
+        if (value == null) {
+            return "product";
+        }
+        String normalized = Normalizer.normalize(value.trim(), Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-+|-+$)", "");
+        return normalized.isBlank() ? "product" : normalized;
+    }
+
+    public static String buildDefaultPublicSlug(String name, UUID id) {
+        String baseSlug = buildBasePublicSlug(name);
+        if (id == null) {
+            return baseSlug;
+        }
+        String normalizedId = id.toString().replace("-", "");
+        return baseSlug + "-" + normalizedId.substring(normalizedId.length() - 12);
+    }
+
+    private String normalizePublicSlug(String publicSlug) {
+        String normalized = buildBasePublicSlug(publicSlug);
+        if (normalized.isBlank()) {
+            throw new IllegalArgumentException("publicSlug is required");
+        }
+        return normalized;
+    }
 }

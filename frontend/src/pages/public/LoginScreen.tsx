@@ -8,7 +8,7 @@ import FormField from '@/components/forms/Field'
 import TextInput from '@/components/primitives/Input'
 import Button from '@/components/primitives/Button'
 import ErrorAlert from '@/components/feedback/ErrorState'
-import { theme } from '@/app/theme'
+import { alpha, theme } from '@/app/theme'
 
 type LocationState = {
   from?: { pathname?: string; search?: string; hash?: string }
@@ -101,8 +101,8 @@ export default function LoginScreen() {
                   marginBottom: theme.spacing.lg,
                   padding: theme.spacing.md,
                   borderRadius: theme.radius.md,
-                  background: 'rgba(240, 173, 78, 0.12)',
-                  border: '1px solid rgba(240, 173, 78, 0.28)',
+                  background: theme.colors.statusWarningSoft,
+                  border: `1px solid ${alpha(theme.colors.warning, 0.28)}`,
                   color: 'var(--warning-500)'
                 }}
               >

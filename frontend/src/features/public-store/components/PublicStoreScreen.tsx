@@ -1,8 +1,9 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { publicAdapter } from '../../../api/adapters/publicAdapter'
-import type { PublicProduct, PublicStore, PublicStoreCatalogSort, PublicStorePromotion } from '../../../api/contracts/v1/public'
+import type { CSSProperties } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import type { PublicStoreCatalogSort, PublicStorePromotion } from '../../../api/contracts/v1/public'
 import { useCart } from '../../store/cart/cartContext'
+import { usePublicStoreCatalog } from '../hooks/usePublicStoreCatalog'
 import { routes } from '@/core/constants/routes'
 import { formatMoneyFromCents } from '@/core/utils/format'
 import { QuantitySelector } from '@/components/commerce'
@@ -20,6 +21,7 @@ import { theme } from '@/app/theme'
 import { useViewportMode } from '@/core/hooks/useViewportMode'
 import { EcosystemHeroBadge, EcosystemHeroSection, EcosystemSurfaceSection } from '@/features/ecosystem'
 import { trackBetaEvent } from '@/features/beta'
+import { buildCanonicalUrl, useJsonLd, useSeoMetadata } from '@/core/seo'
 
 const SORT_OPTIONS: Array<{ value: PublicStoreCatalogSort; label: string }> = [
   { value: 'default', label: 'Orden actual' },
@@ -29,75 +31,332 @@ const SORT_OPTIONS: Array<{ value: PublicStoreCatalogSort; label: string }> = [
   { value: 'price,desc', label: 'Precio mayor' }
 ]
 
+const SORT_VALUES = new Set<PublicStoreCatalogSort>(SORT_OPTIONS.map((option) => option.value))
+const PRODUCT_PAGE_SIZE = 20
+const FILTER_PARAM_KEYS = ['q', 'availableOnly', 'sort', 'categoryId', 'page'] as const
+
+type CatalogUrlFilters = {
+  query: string
+  availableOnly: boolean
+  sort: PublicStoreCatalogSort
+  categoryId: string
+  page: number
+}
+
+function readCatalogUrlFilters(params: URLSearchParams): CatalogUrlFilters {
+  const sortParam = params.get('sort')
+  const pageParam = Number(params.get('page') ?? '0')
+  return {
+    query: params.get('q')?.trim() ?? '',
+    availableOnly: params.get('availableOnly') === 'true',
+    sort: sortParam && SORT_VALUES.has(sortParam as PublicStoreCatalogSort) ? sortParam as PublicStoreCatalogSort : 'default',
+    categoryId: params.get('categoryId')?.trim() ?? '',
+    page: Number.isInteger(pageParam) && pageParam > 0 ? pageParam : 0
+  }
+}
+
+function writeCatalogUrlFilters(params: URLSearchParams, filters: CatalogUrlFilters) {
+  const next = new URLSearchParams(params)
+  FILTER_PARAM_KEYS.forEach((key) => next.delete(key))
+
+  const query = filters.query.trim()
+  const categoryId = filters.categoryId.trim()
+  if (query) next.set('q', query)
+  if (filters.availableOnly) next.set('availableOnly', 'true')
+  if (filters.sort !== 'default') next.set('sort', filters.sort)
+  if (categoryId) next.set('categoryId', categoryId)
+  if (filters.page > 0) next.set('page', String(filters.page))
+
+  return next
+}
+
+function catalogUrlFiltersEqual(a: CatalogUrlFilters, b: CatalogUrlFilters) {
+  return a.query === b.query &&
+    a.availableOnly === b.availableOnly &&
+    a.sort === b.sort &&
+    a.categoryId === b.categoryId &&
+    a.page === b.page
+}
+
+function isOnlyCatalogQueryChange(current: CatalogUrlFilters, next: CatalogUrlFilters) {
+  return current.query !== next.query &&
+    current.availableOnly === next.availableOnly &&
+    current.sort === next.sort &&
+    current.categoryId === next.categoryId
+}
+
 function formatPromotionExpiry(promotion: PublicStorePromotion) {
   if (!promotion.expirationDate) return null
   return new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium' }).format(new Date(promotion.expirationDate))
 }
 
+const publicStoreStyles = {
+  pageStack: { display: 'grid', gap: theme.spacing.xl, paddingBottom: theme.spacing.xxxl },
+  heroMobile: { padding: theme.spacing.lg },
+  heroDesktop: { padding: theme.spacing.xxl },
+  surfaceMobile: { padding: theme.spacing.lg },
+  surfaceDesktop: { padding: theme.spacing.xl },
+  asideStack: { display: 'grid', gap: 6 },
+  eyebrow: {
+    fontSize: theme.typography.small.size,
+    fontWeight: 700,
+    letterSpacing: 0,
+    color: theme.colors.textMuted,
+    textTransform: 'uppercase'
+  },
+  titleText: {
+    fontSize: theme.typography.title.size,
+    fontWeight: 700,
+    letterSpacing: 0,
+    color: theme.colors.textPrimary
+  },
+  mutedCopy: { color: theme.colors.textMuted, lineHeight: 1.6 },
+  compactMutedCopy: { color: theme.colors.textMuted, lineHeight: 1.5 },
+  badgeRow: { display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' },
+  introBadgeRow: { display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', marginBottom: theme.spacing.sm },
+  sectionStack: { display: 'grid', gap: theme.spacing.lg },
+  contentStack: { display: 'grid', gap: theme.spacing.xl },
+  compactStack: { display: 'grid', gap: 6 },
+  microStack: { display: 'grid', gap: 4 },
+  promoGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' },
+  promoCard: {
+    display: 'grid',
+    gap: theme.spacing.md,
+    padding: theme.spacing.lg,
+    borderRadius: theme.radius.lg,
+    background: theme.colors.bgSurfaceAlt,
+    border: `1px solid ${theme.colors.borderDefault}`
+  },
+  splitRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: theme.spacing.lg,
+    alignItems: 'flex-end',
+    flexWrap: 'wrap'
+  },
+  splitTopRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    gap: theme.spacing.xl,
+    alignItems: 'flex-start',
+    flexWrap: 'wrap'
+  },
+  wrapEndRow: { display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-end' },
+  filterPanel: {
+    display: 'grid',
+    gap: theme.spacing.lg,
+    padding: theme.spacing.lg,
+    borderRadius: theme.radius.lg,
+    background: theme.colors.bgSurfaceAlt,
+    border: `1px solid ${theme.colors.borderDefault}`
+  },
+  filterHeader: { display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'center', flexWrap: 'wrap' },
+  filterControls: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', alignItems: 'end' },
+  fieldLabel: { fontWeight: 600, marginBottom: theme.spacing.xs },
+  categoryStack: { display: 'grid', gap: theme.spacing.sm },
+  checkboxLabel: { display: 'flex', alignItems: 'center', gap: theme.spacing.sm, color: theme.colors.textMuted },
+  productGrid: { display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' },
+  productCard: { padding: 0, overflow: 'hidden' },
+  productCardActive: { padding: 0, overflow: 'hidden', borderColor: theme.colors.borderAccentSoft },
+  productMediaWrap: {
+    padding: theme.spacing.lg,
+    borderBottom: `1px solid ${theme.colors.borderDefault}`,
+    background: theme.colors.bgSurfaceAlt
+  },
+  productMedia: {
+    minHeight: 118,
+    borderRadius: theme.radius.md,
+    border: `1px solid ${theme.colors.borderAccentSoft}`,
+    background: theme.colors.bgSurfaceAlt,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: theme.colors.brand,
+    fontWeight: 700,
+    letterSpacing: 0,
+    textTransform: 'uppercase'
+  },
+  productBody: { display: 'grid', gap: theme.spacing.lg, padding: theme.spacing.xl },
+  productTitle: { fontWeight: 700, fontSize: 18, letterSpacing: 0, overflowWrap: 'anywhere' },
+  productTitleLink: { color: theme.colors.textPrimary, textDecoration: 'none' },
+  anywhereMuted: { color: theme.colors.textMuted, overflowWrap: 'anywhere' },
+  productBuyRow: { display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'flex-end', flexWrap: 'wrap' },
+  priceLabel: { fontSize: theme.typography.small.size, color: theme.colors.textMuted, fontWeight: 600 },
+  paginationRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: theme.spacing.md, flexWrap: 'wrap' },
+  warmSurface: { background: theme.colors.bgSurfaceAlt },
+  cartTitleWrap: { display: 'grid', gap: 6, maxWidth: 760 },
+  cartList: { display: 'grid', gap: theme.spacing.md },
+  cartItem: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: theme.spacing.lg,
+    flexWrap: 'wrap',
+    padding: theme.spacing.lg,
+    borderRadius: theme.radius.lg,
+    border: `1px solid ${theme.colors.borderDefault}`,
+    background: theme.colors.bgSurfaceAlt
+  },
+  cartItemContent: { minWidth: 0, flex: '1 1 220px' },
+  cartItemName: { fontWeight: 600, overflowWrap: 'anywhere' },
+  cartWarning: { color: theme.colors.error, marginTop: 4 },
+  cartMeta: { color: theme.colors.textMuted, marginTop: 4 },
+  quantityWrap: { marginLeft: 'auto' },
+  totalRow: { display: 'flex', justifyContent: 'space-between', gap: theme.spacing.lg, alignItems: 'center', flexWrap: 'wrap' }
+} satisfies Record<string, CSSProperties>
+
 export default function PublicStoreScreen() {
   const { slug } = useParams()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const cart = useCart()
   const viewportMode = useViewportMode()
   const isMobile = viewportMode === 'mobile'
-  const [store, setStore] = useState<PublicStore | null>(null)
-  const [products, setProducts] = useState<PublicProduct[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [reloadKey, setReloadKey] = useState(0)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [availableOnly, setAvailableOnly] = useState(false)
-  const [sort, setSort] = useState<PublicStoreCatalogSort>('default')
-  const [categoryId, setCategoryId] = useState('')
+  const initialUrlFilters = readCatalogUrlFilters(searchParams)
+  const [searchQuery, setSearchQuery] = useState(initialUrlFilters.query)
+  const [availableOnly, setAvailableOnly] = useState(initialUrlFilters.availableOnly)
+  const [sort, setSort] = useState<PublicStoreCatalogSort>(initialUrlFilters.sort)
+  const [categoryId, setCategoryId] = useState(initialUrlFilters.categoryId)
+  const [page, setPage] = useState(initialUrlFilters.page)
+  const skipNextUrlWriteRef = useRef(false)
   const trackedStoreViewRef = useRef<string | null>(null)
+  const trackedListViewRef = useRef('')
   const trackedSearchRef = useRef('')
   const trackedNoResultsRef = useRef('')
-  const deferredSearchQuery = useDeferredValue(searchQuery)
-  const isInitialLoading = loading && !store && products.length === 0
+  const normalizedSearchQuery = searchQuery.trim()
+  const deferredSearchQuery = useDeferredValue(normalizedSearchQuery)
+  const {
+    store,
+    products,
+    productsPage,
+    isInitialLoading,
+    isFetchingProducts,
+    isRetrying,
+    error,
+    refetch
+  } = usePublicStoreCatalog({
+    slug,
+    query: deferredSearchQuery,
+    availableOnly,
+    sort,
+    categoryId,
+    page,
+    size: PRODUCT_PAGE_SIZE
+  })
   const showCatalog = !error && store
-
-  const loadStore = useCallback(() => {
-    let active = true
-    const storeSlug = slug ?? ''
-    setLoading(true)
-    setError(null)
-    Promise.all([
-      publicAdapter.getStore(storeSlug),
-      publicAdapter.getProducts(storeSlug, {
-        q: deferredSearchQuery,
-        availableOnly,
-        sort,
-        categoryId: categoryId || undefined
-      })
-    ])
-      .then(([storeData, productsData]) => {
-        if (!active) return
-        setStore(storeData)
-        setProducts(productsData)
-      })
-      .catch((err: unknown) => {
-        if (!active) return
-        setError(err instanceof Error ? err.message : 'Error cargando store')
-      })
-      .finally(() => {
-        if (!active) return
-        setLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [slug, deferredSearchQuery, availableOnly, sort, categoryId])
-
-  useEffect(() => {
-    return loadStore()
-  }, [loadStore, reloadKey])
+  const totalPages = productsPage?.totalPages ?? 0
+  const displayPage = totalPages > 0 ? Math.min(page + 1, totalPages) : 1
+  const displayTotalPages = Math.max(totalPages, 1)
+  const canGoPrevious = page > 0
+  const canGoNext = totalPages > 0 && page < totalPages - 1
+  const isOutOfRangePage = page > 0 &&
+    products.length === 0 &&
+    (productsPage?.totalPages ?? 0) > 0 &&
+    (productsPage?.totalElements ?? 0) > 0
 
   const subtotalCents = useMemo(() => cart.items.reduce((sum, item) => sum + item.priceCents * item.qty, 0), [cart.items])
   const cartItemsCount = useMemo(() => cart.items.reduce((sum, item) => sum + item.qty, 0), [cart.items])
   const cartQtyByProductId = useMemo(() => Object.fromEntries(cart.items.map((item) => [item.productId, item.qty])), [cart.items])
   const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products])
   const isCurrentStoreCart = cart.storeSlug === slug || cart.storeSlug === null
+  const storeName = store?.name ?? 'Tienda Barmi'
+  const primaryCategory = store?.categories[0]?.name
+  useSeoMetadata({
+    title: `${storeName} | Barmi`,
+    description: primaryCategory
+      ? `Compra productos de ${storeName}, tienda de ${primaryCategory}, en Barmi.`
+      : `Compra productos de ${storeName} en Barmi.`,
+    path: slug ? routes.publicStore(slug) : '/public'
+  })
+  const jsonLd = useMemo(() => store && slug ? {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Store',
+        name: store.name,
+        url: buildCanonicalUrl(routes.publicStore(slug)),
+        ...(products.length > 0 ? {
+          mainEntity: {
+            '@type': 'ItemList',
+            itemListElement: products.map((product, index) => ({
+              '@type': 'ListItem',
+              position: index + 1,
+              item: {
+                '@type': 'Thing',
+                name: product.name
+              }
+            }))
+          }
+        } : {})
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Ecosystem',
+            item: buildCanonicalUrl(routes.ecosystemHome)
+          },
+          {
+            '@type': 'ListItem',
+            position: 2,
+            name: store.name,
+            item: buildCanonicalUrl(routes.publicStore(slug))
+          }
+        ]
+      }
+    ]
+  } : null, [primaryCategory, products, slug, store])
+  useJsonLd({
+    id: slug ? `public-store-${slug}` : 'public-store',
+    path: slug ? routes.publicStore(slug) : '/public',
+    data: jsonLd
+  })
+
+  useEffect(() => {
+    const nextFilters = readCatalogUrlFilters(searchParams)
+    const changed = !catalogUrlFiltersEqual({
+      query: searchQuery,
+      availableOnly,
+      sort,
+      categoryId,
+      page
+    }, nextFilters)
+
+    if (!changed) return
+    skipNextUrlWriteRef.current = true
+    setSearchQuery(nextFilters.query)
+    setAvailableOnly(nextFilters.availableOnly)
+    setSort(nextFilters.sort)
+    setCategoryId(nextFilters.categoryId)
+    setPage(nextFilters.page)
+  }, [searchParams])
+
+  useEffect(() => {
+    if (skipNextUrlWriteRef.current) {
+      skipNextUrlWriteRef.current = false
+      return
+    }
+
+    const currentFilters = readCatalogUrlFilters(searchParams)
+    const nextFilters = {
+      query: searchQuery,
+      availableOnly,
+      sort,
+      categoryId,
+      page
+    }
+    const nextParams = writeCatalogUrlFilters(searchParams, {
+      query: searchQuery,
+      availableOnly,
+      sort,
+      categoryId,
+      page
+    })
+    if (nextParams.toString() === searchParams.toString()) return
+    setSearchParams(nextParams, { replace: isOnlyCatalogQueryChange(currentFilters, nextFilters) })
+  }, [availableOnly, categoryId, page, searchParams, searchQuery, setSearchParams, sort])
 
   useEffect(() => {
     if (!store) return
@@ -110,6 +369,31 @@ export default function PublicStoreScreen() {
       storeName: store.name
     })
   }, [store])
+
+  useEffect(() => {
+    if (!store || !productsPage || isFetchingProducts) return
+    const signature = [
+      store.slug,
+      productsPage.page,
+      productsPage.totalElements,
+      deferredSearchQuery.trim().toLowerCase() ? 'query' : 'no-query',
+      categoryId ? 'category' : 'all'
+    ].join('|')
+    if (trackedListViewRef.current === signature) return
+    trackedListViewRef.current = signature
+
+    trackBetaEvent({
+      eventName: 'public_product_list_viewed',
+      storeSlug: store.slug,
+      metadata: {
+        resultCount: String(productsPage.totalElements),
+        hasQuery: deferredSearchQuery.trim() ? 'true' : 'false',
+        categorySelected: categoryId ? 'true' : 'false',
+        page: String(productsPage.page),
+        surface: 'public_store_catalog'
+      }
+    })
+  }, [categoryId, deferredSearchQuery, isFetchingProducts, productsPage, store])
 
   useEffect(() => {
     const normalized = deferredSearchQuery.trim().toLowerCase()
@@ -129,7 +413,7 @@ export default function PublicStoreScreen() {
 
   useEffect(() => {
     const normalized = deferredSearchQuery.trim().toLowerCase()
-    if (!normalized || !store || loading || products.length > 0) return
+    if (!normalized || !store || isFetchingProducts || products.length > 0) return
     if (trackedNoResultsRef.current === normalized) return
     trackedNoResultsRef.current = normalized
     trackBetaEvent({
@@ -142,7 +426,7 @@ export default function PublicStoreScreen() {
         surface: 'public_store_catalog'
       }
     })
-  }, [deferredSearchQuery, loading, products.length, store])
+  }, [deferredSearchQuery, isFetchingProducts, products.length, store])
 
   if (!slug) return <PublicStoreLayout><ErrorAlert message="Slug requerido." /></PublicStoreLayout>
 
@@ -150,7 +434,7 @@ export default function PublicStoreScreen() {
     <PublicStoreLayout>
       <Breadcrumbs items={[{ label: 'Store', href: routes.publicStore(slug) }, { label: 'Catálogo' }]} />
 
-      <div style={{ display: 'grid', gap: theme.spacing.xl, paddingBottom: theme.spacing.xxxl }}>
+      <div style={publicStoreStyles.pageStack}>
         <EcosystemHeroSection
           eyebrow="Store storefront"
           title="Catálogo de la tienda"
@@ -176,14 +460,14 @@ export default function PublicStoreScreen() {
           ) : undefined}
           aside={(
             <>
-              <div style={{ display: 'grid', gap: 6 }}>
-                <div style={{ fontSize: theme.typography.small.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.textMuted, textTransform: 'uppercase' }}>
+              <div style={publicStoreStyles.asideStack}>
+                <div style={publicStoreStyles.eyebrow}>
                   Flujo público Barmi
                 </div>
-                <div style={{ fontSize: theme.typography.title.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.textPrimary }}>
+                <div style={publicStoreStyles.titleText}>
                   Carrito de {store?.name ?? 'esta tienda'}
                 </div>
-                <div style={{ color: theme.colors.textMuted, lineHeight: 1.6 }}>
+                <div style={publicStoreStyles.mutedCopy}>
                   Catálogo rápido, contexto claro de tienda y compra dentro de su carrito propio. El ecosystem queda separado para discovery y productos externos.
                 </div>
               </div>
@@ -198,16 +482,16 @@ export default function PublicStoreScreen() {
               </Button>
             </>
           )}
-          style={{ padding: isMobile ? theme.spacing.lg : theme.spacing.xxl }}
+          style={isMobile ? publicStoreStyles.heroMobile : publicStoreStyles.heroDesktop}
         />
 
-        <EcosystemSurfaceSection tone="warm" style={{ padding: isMobile ? theme.spacing.lg : theme.spacing.xl }}>
-          <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', marginBottom: theme.spacing.sm }}>
+        <EcosystemSurfaceSection tone="warm" style={isMobile ? publicStoreStyles.surfaceMobile : publicStoreStyles.surfaceDesktop}>
+          <div style={publicStoreStyles.introBadgeRow}>
             <Badge variant="neutral">Storefront público</Badge>
             <Badge variant="neutral">Carrito separado del ecosystem</Badge>
             {cart.storeSlug && cart.storeSlug !== slug ? <Badge variant="warning">Tu carrito pertenece a otra tienda</Badge> : null}
           </div>
-          <div style={{ color: theme.colors.textMuted, lineHeight: 1.5 }}>
+          <div style={publicStoreStyles.compactMutedCopy}>
             Este flujo de compra pertenece a la tienda actual. Si venís desde Explore o desde el mapa del ecosystem, el discovery queda atrás y la compra continúa con el carrito independiente de esta store.
           </div>
         </EcosystemSurfaceSection>
@@ -223,43 +507,36 @@ export default function PublicStoreScreen() {
             <ErrorAlert
               message={error}
               actionLabel="Reintentar"
-              onAction={() => setReloadKey((current) => current + 1)}
-              actionDisabled={loading}
+              onAction={refetch}
+              actionDisabled={isRetrying}
             />
           </EcosystemSurfaceSection>
         ) : null}
 
         {showCatalog && store.promotions.length > 0 ? (
           <EcosystemSurfaceSection tone="warm">
-            <div style={{ display: 'grid', gap: theme.spacing.lg }}>
-              <div style={{ display: 'grid', gap: 6 }}>
-                <div style={{ fontSize: theme.typography.title.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.textPrimary }}>
+            <div style={publicStoreStyles.sectionStack}>
+              <div style={publicStoreStyles.compactStack}>
+                <div style={publicStoreStyles.titleText}>
                   Promociones activas para esta store
                 </div>
-                <div style={{ color: theme.colors.textMuted, lineHeight: 1.6 }}>
+                <div style={publicStoreStyles.mutedCopy}>
                   Ingresá el código manualmente en checkout para ver el descuento aplicado sobre tu total dentro de esta tienda.
                 </div>
               </div>
-              <div style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
+              <div style={publicStoreStyles.promoGrid}>
                 {store.promotions.map((promotion) => (
                   <div
                     key={promotion.code}
-                    style={{
-                      display: 'grid',
-                      gap: theme.spacing.md,
-                      padding: theme.spacing.lg,
-                      borderRadius: theme.radius.lg,
-                      background: theme.colors.bgSurfaceAlt,
-                      border: `1px solid ${theme.colors.borderDefault}`
-                    }}
+                    style={publicStoreStyles.promoCard}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.sm, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                    <div style={publicStoreStyles.splitTopRow}>
                       <Badge variant="info">Promo store</Badge>
                       {formatPromotionExpiry(promotion) ? <Badge variant="neutral">Vence {formatPromotionExpiry(promotion)}</Badge> : null}
                     </div>
-                    <div style={{ display: 'grid', gap: 4 }}>
-                      <div style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{promotion.shortLabel}</div>
-                      <div style={{ color: theme.colors.textMuted, overflowWrap: 'anywhere' }}>
+                    <div style={publicStoreStyles.microStack}>
+                      <div style={publicStoreStyles.cartItemName}>{promotion.shortLabel}</div>
+                      <div style={publicStoreStyles.anywhereMuted}>
                         Código: <strong>{promotion.code}</strong>
                       </div>
                     </div>
@@ -275,67 +552,60 @@ export default function PublicStoreScreen() {
 
         {showCatalog ? (
           <EcosystemSurfaceSection>
-            <div style={{ display: 'grid', gap: theme.spacing.xl }}>
+            <div style={publicStoreStyles.contentStack}>
               <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: theme.spacing.lg,
-                  alignItems: 'flex-end',
-                  flexWrap: 'wrap'
-                }}
+                style={publicStoreStyles.splitRow}
               >
-                <div style={{ display: 'grid', gap: 6 }}>
-                  <div style={{ fontSize: theme.typography.title.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.textPrimary }}>
+                <div style={publicStoreStyles.compactStack}>
+                  <div style={publicStoreStyles.titleText}>
                     Productos
                   </div>
-                  <div style={{ color: theme.colors.textMuted, lineHeight: 1.5 }}>
+                  <div style={publicStoreStyles.compactMutedCopy}>
                     Explorar catálogo con foco en productos propios de esta tienda y compra directa desde su carrito independiente.
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <span style={{ color: theme.colors.textMuted }}>
-                    Subtotal actual: <strong style={{ color: theme.colors.textPrimary }}>{formatMoneyFromCents(subtotalCents)}</strong>
+                <div style={publicStoreStyles.wrapEndRow}>
+                  <span style={publicStoreStyles.anywhereMuted}>
+                    Subtotal actual: <strong style={publicStoreStyles.titleText}>{formatMoneyFromCents(subtotalCents)}</strong>
                   </span>
-                  {loading ? <Badge variant="neutral">Actualizando catálogo</Badge> : null}
+                  {isFetchingProducts ? <Badge variant="neutral">Actualizando catálogo</Badge> : null}
                 </div>
               </div>
 
               <div
-                style={{
-                  display: 'grid',
-                  gap: theme.spacing.lg,
-                  padding: theme.spacing.lg,
-                  borderRadius: theme.radius.lg,
-                  background: theme.colors.bgSurfaceAlt,
-                  border: `1px solid ${theme.colors.borderDefault}`
-                }}
+                style={publicStoreStyles.filterPanel}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={publicStoreStyles.filterHeader}>
                   <div>
-                    <div style={{ fontWeight: 700, color: theme.colors.textPrimary }}>Explorar catálogo</div>
-                    <div style={{ color: theme.colors.textMuted, marginTop: 4 }}>
+                    <div style={publicStoreStyles.cartItemName}>Explorar catálogo</div>
+                    <div style={publicStoreStyles.cartMeta}>
                       {products.length} resultado{products.length === 1 ? '' : 's'} visibles con la configuración actual.
                     </div>
                   </div>
                   <Badge variant="neutral">{availableOnly ? 'Solo disponibles' : 'Todo el catálogo visible'}</Badge>
                 </div>
 
-                <div style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', alignItems: 'end' }}>
+                <div style={publicStoreStyles.filterControls}>
                   <div>
-                    <div style={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>Buscar</div>
+                    <div style={publicStoreStyles.fieldLabel}>Buscar</div>
                     <TextInput
                       value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
+                      onChange={(event) => {
+                        setSearchQuery(event.target.value)
+                        setPage(0)
+                      }}
                       placeholder="Ej. combo, café, SKU-123"
                       aria-label="Buscar productos"
                     />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>Ordenar</div>
+                    <div style={publicStoreStyles.fieldLabel}>Ordenar</div>
                     <SelectField
                       value={sort}
-                      onChange={(event) => setSort(event.target.value as PublicStoreCatalogSort)}
+                      onChange={(event) => {
+                        setSort(event.target.value as PublicStoreCatalogSort)
+                        setPage(0)
+                      }}
                       options={SORT_OPTIONS}
                       aria-label="Ordenar productos"
                     />
@@ -343,19 +613,25 @@ export default function PublicStoreScreen() {
                 </div>
 
                 {store && store.categories.length > 0 ? (
-                  <div style={{ display: 'grid', gap: theme.spacing.sm }}>
-                    <div style={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>Categoría</div>
+                  <div style={publicStoreStyles.categoryStack}>
+                    <div style={publicStoreStyles.fieldLabel}>Categoría</div>
                     <SelectField
                       value={categoryId}
-                      onChange={(event) => setCategoryId(event.target.value)}
+                      onChange={(event) => {
+                        setCategoryId(event.target.value)
+                        setPage(0)
+                      }}
                       options={[
                         { value: '', label: 'Todas las categorías' },
                         ...store.categories.map((category) => ({ value: category.id, label: category.name }))
                       ]}
                       aria-label="Filtrar por categoría"
                     />
-                    <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-                      <Button type="button" variant={categoryId === '' ? 'primary' : 'secondary'} onClick={() => setCategoryId('')}>
+                    <div style={publicStoreStyles.badgeRow}>
+                      <Button type="button" variant={categoryId === '' ? 'primary' : 'secondary'} onClick={() => {
+                        setCategoryId('')
+                        setPage(0)
+                      }}>
                         Todas
                       </Button>
                       {store.categories.slice(0, 4).map((category) => (
@@ -363,7 +639,10 @@ export default function PublicStoreScreen() {
                           key={category.id}
                           type="button"
                           variant={categoryId === category.id ? 'primary' : 'secondary'}
-                          onClick={() => setCategoryId(category.id)}
+                          onClick={() => {
+                            setCategoryId(category.id)
+                            setPage(0)
+                          }}
                         >
                           {category.name}
                         </Button>
@@ -372,22 +651,32 @@ export default function PublicStoreScreen() {
                   </div>
                 ) : null}
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, color: theme.colors.textMuted }}>
+                <label style={publicStoreStyles.checkboxLabel}>
                   <input
                     type="checkbox"
                     checked={availableOnly}
-                    onChange={(event) => setAvailableOnly(event.target.checked)}
+                    onChange={(event) => {
+                      setAvailableOnly(event.target.checked)
+                      setPage(0)
+                    }}
                     aria-label="Solo disponibles"
                   />
                   Solo disponibles
                 </label>
 
-                <div style={{ color: theme.colors.textMuted, lineHeight: 1.5 }}>
+                <div style={publicStoreStyles.compactMutedCopy}>
                   Si no encontrás algo, limpiá filtros o volvé al mapa para comparar otras tiendas del ecosystem.
                 </div>
               </div>
 
-              {products.length === 0 ? (
+              {isOutOfRangePage ? (
+                <EmptyState
+                  title="Esta página no tiene productos"
+                  description="Los filtros se mantienen. Podés volver al inicio de estos resultados para seguir explorando."
+                  actionLabel="Volver a la primera página"
+                  onAction={() => setPage(0)}
+                />
+              ) : products.length === 0 ? (
                 <EmptyState
                   title={searchQuery.trim() || availableOnly || sort !== 'default' || categoryId
                     ? 'No hay productos para esos filtros'
@@ -397,7 +686,7 @@ export default function PublicStoreScreen() {
                     : 'Esta tienda todavía no publicó productos para compra directa. Podés dejar feedback o volver al mapa para seguir explorando.'}
                 />
               ) : (
-                <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' }}>
+                <div style={publicStoreStyles.productGrid}>
                   {products.map((product) => {
                     const cartQty = cartQtyByProductId[product.id] ?? 0
 
@@ -405,41 +694,21 @@ export default function PublicStoreScreen() {
                     <Card
                       key={product.id}
                       variant={product.isAvailable ? 'surface' : 'soft'}
-                      style={{
-                        padding: 0,
-                        overflow: 'hidden',
-                        borderColor: cartQty > 0 ? theme.colors.borderAccentSoft : undefined
-                      }}
+                      style={cartQty > 0 ? publicStoreStyles.productCardActive : publicStoreStyles.productCard}
                     >
                       <div
-                        style={{
-                          padding: theme.spacing.lg,
-                          borderBottom: `1px solid ${theme.colors.borderDefault}`,
-                          background: theme.colors.bgSurfaceAlt
-                        }}
+                        style={publicStoreStyles.productMediaWrap}
                       >
                         <div
                           aria-hidden="true"
-                          style={{
-                            minHeight: 118,
-                            borderRadius: theme.radius.md,
-                            border: `1px solid ${theme.colors.borderAccentSoft}`,
-                            background: theme.colors.bgSurfaceAlt,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: theme.colors.brand,
-                            fontWeight: 700,
-                            letterSpacing: 0,
-                            textTransform: 'uppercase'
-                          }}
+                          style={publicStoreStyles.productMedia}
                         >
                           Producto store
                         </div>
                       </div>
 
-                      <div style={{ display: 'grid', gap: theme.spacing.lg, padding: theme.spacing.xl }}>
-                        <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                      <div style={publicStoreStyles.productBody}>
+                        <div style={publicStoreStyles.badgeRow}>
                           {product.categoryName ? <Badge variant="info">{product.categoryName}</Badge> : null}
                           <Badge variant={product.isAvailable ? 'success' : 'error'}>
                             {product.isAvailable ? `Disponible ahora · Stock disponible: ${product.stockQuantity}` : 'Sin stock disponible'}
@@ -447,22 +716,39 @@ export default function PublicStoreScreen() {
                           {cartQty > 0 ? <Badge variant="success">En carrito: {cartQty}</Badge> : null}
                         </div>
 
-                        <div style={{ display: 'grid', gap: 6 }}>
-                          <div style={{ fontWeight: 700, fontSize: 18, letterSpacing: 0, overflowWrap: 'anywhere' }}>{product.name}</div>
-                          <div style={{ color: theme.colors.textMuted, overflowWrap: 'anywhere' }}>SKU: {product.sku}</div>
-                          <div style={{ color: theme.colors.textMuted, lineHeight: 1.6 }}>
+                        <div style={publicStoreStyles.compactStack}>
+                          <div style={publicStoreStyles.productTitle}>
+                            <Link
+                              to={routes.publicStoreProduct(slug, product.slug)}
+                              style={publicStoreStyles.productTitleLink}
+                              onClick={() => {
+                                trackBetaEvent({
+                                  eventName: 'public_product_card_clicked',
+                                  storeSlug: store.slug,
+                                  productSlug: product.slug,
+                                  metadata: {
+                                    source: 'public_store_catalog'
+                                  }
+                                })
+                              }}
+                            >
+                              {product.name}
+                            </Link>
+                          </div>
+                          <div style={publicStoreStyles.anywhereMuted}>SKU: {product.sku}</div>
+                          <div style={publicStoreStyles.mutedCopy}>
                             {product.isAvailable
                               ? 'Este producto se compra directamente en esta tienda y se agrega a su carrito propio.'
                               : 'Se mantiene visible para referencia, pero no se puede agregar al carrito.'}
                           </div>
                         </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                          <div style={{ display: 'grid', gap: 4 }}>
-                            <div style={{ fontSize: theme.typography.small.size, color: theme.colors.textMuted, fontWeight: 600 }}>
+                        <div style={publicStoreStyles.productBuyRow}>
+                          <div style={publicStoreStyles.microStack}>
+                            <div style={publicStoreStyles.priceLabel}>
                               Precio
                             </div>
-                            <div style={{ fontSize: theme.typography.title.size, fontWeight: 700, color: theme.colors.textPrimary }}>
+                            <div style={publicStoreStyles.titleText}>
                               {formatMoneyFromCents(product.priceCents)}
                             </div>
                           </div>
@@ -475,7 +761,7 @@ export default function PublicStoreScreen() {
                                 storeId: store?.id,
                                 storeSlug: store?.slug,
                                 storeName: store?.name,
-                                productId: product.id,
+                                productSlug: product.slug,
                                 metadata: {
                                   surface: 'public_store_catalog'
                                 }
@@ -492,34 +778,48 @@ export default function PublicStoreScreen() {
                   })}
                 </div>
               )}
+
+              <div style={publicStoreStyles.paginationRow}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={!canGoPrevious}
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
+                >
+                  Anterior
+                </Button>
+                <span style={publicStoreStyles.anywhereMuted}>
+                  Página {displayPage} de {displayTotalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={!canGoNext}
+                  onClick={() => setPage((current) => current + 1)}
+                >
+                  Siguiente
+                </Button>
+              </div>
             </div>
           </EcosystemSurfaceSection>
         ) : null}
 
         <EcosystemSurfaceSection
           tone="warm"
-          style={{
-            background: theme.colors.bgSurfaceAlt
-          }}
+          style={publicStoreStyles.warmSurface}
         >
           <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: theme.spacing.xl,
-              alignItems: 'flex-start',
-              flexWrap: 'wrap'
-            }}
+            style={publicStoreStyles.splitTopRow}
           >
-            <div style={{ display: 'grid', gap: 6, maxWidth: 760 }}>
-              <div style={{ fontSize: theme.typography.title.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.textPrimary }}>
+            <div style={publicStoreStyles.cartTitleWrap}>
+              <div style={publicStoreStyles.titleText}>
                 Carrito de {store?.name ?? 'la tienda'}
               </div>
-              <div style={{ color: theme.colors.textMuted, lineHeight: 1.6 }}>
+              <div style={publicStoreStyles.mutedCopy}>
                 Este carrito es independiente del carrito de productos externos del ecosystem. Podés seguir comprando en la tienda o pasar al checkout de store cuando quieras.
               </div>
             </div>
-            <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+            <div style={publicStoreStyles.badgeRow}>
               <Badge variant="neutral">{isCurrentStoreCart ? 'Carrito alineado con esta tienda' : 'Cambiarías de carrito al agregar productos aquí'}</Badge>
             </div>
           </div>
@@ -533,60 +833,54 @@ export default function PublicStoreScreen() {
                 onAction={() => navigate(routes.publicStore(slug))}
               />
             ) : (
-              <div style={{ display: 'grid', gap: theme.spacing.md }}>
-                {cart.items.map((item) => (
-                  <div
-                    key={item.productId}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: theme.spacing.lg,
-                      flexWrap: 'wrap',
-                      padding: theme.spacing.lg,
-                      borderRadius: theme.radius.lg,
-                      border: `1px solid ${theme.colors.borderDefault}`,
-                      background: theme.colors.bgSurfaceAlt
-                    }}
-                  >
-                    <div style={{ minWidth: 0, flex: '1 1 220px' }}>
-                      <div style={{ fontWeight: 600, overflowWrap: 'anywhere' }}>{item.name}</div>
-                      <div style={{ color: theme.colors.textMuted, overflowWrap: 'anywhere' }}>
-                        {item.qty} x {formatMoneyFromCents(item.priceCents)}
+              <div style={publicStoreStyles.cartList}>
+                {cart.items.map((item) => {
+                  const product = productById.get(item.productId)
+                  const disableIncrease = product ? !product.isAvailable || item.qty >= product.stockQuantity : false
+
+                  return (
+                    <div
+                      key={item.productId}
+                      style={publicStoreStyles.cartItem}
+                    >
+                      <div style={publicStoreStyles.cartItemContent}>
+                        <div style={publicStoreStyles.cartItemName}>{item.name}</div>
+                        <div style={publicStoreStyles.anywhereMuted}>
+                          {item.qty} x {formatMoneyFromCents(item.priceCents)}
+                        </div>
+                        {(() => {
+                          if (!product) return null
+                          if (!product.isAvailable) {
+                            return <div style={publicStoreStyles.cartWarning}>Este producto quedó sin stock.</div>
+                          }
+                          if (item.qty >= product.stockQuantity) {
+                            return <div style={publicStoreStyles.cartMeta}>Máximo disponible en catálogo: {product.stockQuantity}</div>
+                          }
+                          return null
+                        })()}
                       </div>
-                      {(() => {
-                        const product = productById.get(item.productId)
-                        if (!product) return null
-                        if (!product.isAvailable) {
-                          return <div style={{ color: theme.colors.error, marginTop: 4 }}>Este producto quedó sin stock.</div>
-                        }
-                        if (item.qty >= product.stockQuantity) {
-                          return <div style={{ color: theme.colors.textMuted, marginTop: 4 }}>Máximo disponible en catálogo: {product.stockQuantity}</div>
-                        }
-                        return null
-                      })()}
+                      <div style={publicStoreStyles.quantityWrap}>
+                        <QuantitySelector
+                          value={item.qty}
+                          onDecrease={() => cart.removeItem(item.productId)}
+                          onIncrease={() => cart.addItem(slug, { productId: item.productId, name: item.name, priceCents: item.priceCents })}
+                          disableIncrease={disableIncrease}
+                        />
+                      </div>
                     </div>
-                    <div style={{ marginLeft: 'auto' }}>
-                      <QuantitySelector
-                        value={item.qty}
-                        onDecrease={() => cart.removeItem(item.productId)}
-                        onIncrease={() => cart.addItem(slug, { productId: item.productId, name: item.name, priceCents: item.priceCents })}
-                        disableIncrease={!productById.get(item.productId)?.isAvailable || item.qty >= (productById.get(item.productId)?.stockQuantity ?? 0)}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.lg, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ display: 'grid', gap: 4 }}>
-                <div style={{ color: theme.colors.textMuted }}>Subtotal</div>
-                <div style={{ fontSize: theme.typography.title.size, fontWeight: 700, color: theme.colors.textPrimary }}>
+            <div style={publicStoreStyles.totalRow}>
+              <div style={publicStoreStyles.microStack}>
+                <div style={publicStoreStyles.anywhereMuted}>Subtotal</div>
+                <div style={publicStoreStyles.titleText}>
                   {formatMoneyFromCents(subtotalCents)}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+              <div style={publicStoreStyles.badgeRow}>
                 <Button variant="secondary" onClick={() => navigate(routes.publicStore(slug))}>
                   Seguir comprando en tienda
                 </Button>

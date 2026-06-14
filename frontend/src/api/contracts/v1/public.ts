@@ -74,6 +74,14 @@ export type PublicEcosystemProduct = {
   deliverySupported: boolean
 }
 
+export type PublicEcosystemProductsPage = {
+  content: PublicEcosystemProduct[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
+
 export type PublicEcosystemHome = {
   ecosystem: PublicEcosystem
   newStores: PublicStoreSummary[]
@@ -91,17 +99,46 @@ export type PublicEcosystemStoresMap = {
 export type PublicEcosystemStoresMapLocationFilter = 'mapped' | 'all'
 export type PublicEcosystemStoresMapSort = 'name,asc' | 'name,desc' | 'recent'
 
-export type PublicEcosystemCatalogSort = 'default' | 'name,asc' | 'name,desc' | 'price,asc' | 'price,desc'
+export type PublicEcosystemCatalogSort = 'default' | 'relevance' | 'name,asc' | 'name,desc' | 'price,asc' | 'price,desc'
 
 export type PublicProduct = {
   priceCents: number
   id: string
+  slug: string
   name: string
   sku: string
   stockQuantity: number
   isAvailable: boolean
   categoryId: string | null
   categoryName: string | null
+}
+
+export type PublicStoreProductDetail = {
+  store: {
+    slug: string
+    name: string
+    categoryName: string | null
+  }
+  product: {
+    slug: string
+    name: string
+    priceCents: number
+    currency: string
+    isAvailable: boolean
+    stockQuantity: number
+    categoryName: string | null
+    description: string | null
+    imageUrl: string | null
+    sku: string | null
+  }
+}
+
+export type PublicProductsPage = {
+  content: PublicProduct[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
 }
 
 export type PublicStoreCatalogSort = 'default' | 'name,asc' | 'name,desc' | 'price,asc' | 'price,desc'

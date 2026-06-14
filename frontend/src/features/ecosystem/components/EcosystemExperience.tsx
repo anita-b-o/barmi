@@ -27,7 +27,7 @@ export function EcosystemSurfaceSection({
     <Card
       style={{
         padding: theme.spacing.xxl,
-        borderColor: alpha(theme.colors.secondary, 0.08),
+        borderColor: alpha(theme.colors.textPrimary, 0.08),
         boxShadow: 'none',
         background: theme.colors.bgSurfaceAlt,
         ...style
@@ -53,7 +53,7 @@ export function EcosystemHeroSection({
         position: 'relative',
         overflow: 'hidden',
         padding: theme.spacing.xxl,
-        borderColor: alpha(theme.colors.primary, 0.12),
+        borderColor: alpha(theme.colors.actionPrimary, 0.12),
         background: theme.colors.bgSurfaceAlt,
         boxShadow: 'none',
         ...style
@@ -78,13 +78,13 @@ export function EcosystemHeroSection({
                 fontWeight: 700,
                 letterSpacing: 0,
                 textTransform: 'uppercase',
-                color: theme.colors.primary
+                color: theme.colors.actionPrimary
               }}
             >
               {eyebrow}
             </div>
             <div style={{ display: 'grid', gap: theme.spacing.sm }}>
-              <h1 style={{ margin: 0, fontSize: 'clamp(30px, 5vw, 42px)', lineHeight: 1.02, letterSpacing: 0, color: theme.colors.secondary }}>
+              <h1 style={{ margin: 0, fontSize: 'clamp(30px, 5vw, 42px)', lineHeight: 1.02, letterSpacing: 0, color: theme.colors.textPrimary }}>
                 {title}
               </h1>
               <p style={{ margin: 0, color: theme.colors.textMuted, fontSize: 16, lineHeight: 1.6 }}>
@@ -106,8 +106,8 @@ export function EcosystemHeroSection({
               gap: theme.spacing.md,
               padding: theme.spacing.lg,
               borderRadius: theme.radius.lg,
-              border: `1px solid ${alpha(theme.colors.primary, 0.12)}`,
-              background: alpha(theme.colors.surface, 0.88),
+              border: `1px solid ${alpha(theme.colors.actionPrimary, 0.12)}`,
+              background: alpha(theme.colors.bgSurface, 0.88),
               boxShadow: 'none'
             }}
           >
@@ -125,12 +125,12 @@ export function EcosystemHeroBadge({ children, variant = 'neutral' }: { children
       variant={variant}
       style={{
         background: variant === 'info'
-          ? alpha(theme.colors.primary, 0.12)
+          ? alpha(theme.colors.actionPrimary, 0.12)
           : variant === 'success'
             ? alpha(theme.colors.accent, 0.14)
-            : alpha(theme.colors.surface, 0.8),
-        color: variant === 'success' ? theme.colors.accent : theme.colors.secondary,
-        border: `1px solid ${variant === 'success' ? alpha(theme.colors.accent, 0.16) : alpha(theme.colors.primary, 0.08)}`
+            : alpha(theme.colors.bgSurface, 0.8),
+        color: variant === 'success' ? theme.colors.accent : theme.colors.textPrimary,
+        border: `1px solid ${variant === 'success' ? alpha(theme.colors.accent, 0.16) : alpha(theme.colors.actionPrimary, 0.08)}`
       }}
     >
       {children}

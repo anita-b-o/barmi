@@ -86,7 +86,7 @@ export default function AdminEcosystemOrdersListScreen() {
         <div style={{ marginTop: theme.spacing.lg }}>
           <Card variant="soft">
             <div style={{ display: 'grid', gap: theme.spacing.sm }}>
-              <strong style={{ color: theme.colors.secondary }}>Drill-down operativo activo</strong>
+              <strong style={{ color: theme.colors.textPrimary }}>Drill-down operativo activo</strong>
               <div style={{ color: theme.colors.textMuted }}>
                 {drilldownLabel ?? 'Filtro temporal aplicado'}{rangeLabel ? ` · ${rangeLabel}` : ''}
               </div>

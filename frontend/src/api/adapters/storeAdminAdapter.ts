@@ -3,6 +3,12 @@ import type {
   StoreAdminProduct,
   StoreOperationalReport,
   StoreOperationalReportRange,
+  StoreProductAnalytics,
+  StoreProductAnalyticsRow,
+  StoreProductAnalyticsRange,
+  StoreCommerceAnalytics,
+  StoreCommerceAnalyticsTopProduct,
+  StoreFunnelAnalytics,
   StoreAnalyticsSummary,
   StoreAdminProductCreateReq,
   StoreAdminProductUpdateReq,
@@ -177,6 +183,11 @@ function parseStoreOperationalReportRange(value: unknown): StoreOperationalRepor
   throw new Error('Store operational report rangeKey is invalid')
 }
 
+function parseStoreProductAnalyticsRange(value: unknown): StoreProductAnalyticsRange {
+  if (value === '7d') return value
+  throw new Error('Store product analytics rangeKey is invalid')
+}
+
 export function parseStoreOperationalReport(data: unknown): StoreOperationalReport {
   assertRecord(data, 'Invalid store operational report payload')
   assertString(data.storeId, 'Store operational report storeId is required')
@@ -220,6 +231,119 @@ export function parseStoreOperationalReport(data: unknown): StoreOperationalRepo
     currentSnapshot: {
       fulfillmentsByStatus: parseCountsRecord(data.currentSnapshot.fulfillmentsByStatus, ['PENDING', 'DISPATCHED', 'DELIVERED', 'CANCELLED'], 'Store operational report currentSnapshot fulfillmentsByStatus')
     }
+  }
+}
+
+function parseStoreProductAnalyticsRow(data: unknown, index: number): StoreProductAnalyticsRow {
+  assertRecord(data, `Store product analytics product at ${index} is invalid`)
+  assertString(data.productSlug, `Store product analytics product at ${index} productSlug is required`)
+  assertNumber(data.detailViews, `Store product analytics product at ${index} detailViews is required`)
+  assertNumber(data.cardClicks, `Store product analytics product at ${index} cardClicks is required`)
+  assertNumber(data.addToCart, `Store product analytics product at ${index} addToCart is required`)
+  assertNumber(data.ctrPercent, `Store product analytics product at ${index} ctrPercent is required`)
+  assertNumber(data.addToCartRatePercent, `Store product analytics product at ${index} addToCartRatePercent is required`)
+
+  return {
+    productSlug: data.productSlug,
+    detailViews: data.detailViews,
+    cardClicks: data.cardClicks,
+    addToCart: data.addToCart,
+    ctrPercent: data.ctrPercent,
+    addToCartRatePercent: data.addToCartRatePercent
+  }
+}
+
+export function parseStoreProductAnalytics(data: unknown): StoreProductAnalytics {
+  assertRecord(data, 'Invalid store product analytics payload')
+  assertString(data.storeId, 'Store product analytics storeId is required')
+  assertString(data.storeSlug, 'Store product analytics storeSlug is required')
+  assertString(data.rangeLabel, 'Store product analytics rangeLabel is required')
+  assertString(data.from, 'Store product analytics from is required')
+  assertString(data.to, 'Store product analytics to is required')
+  assertString(data.timezone, 'Store product analytics timezone is required')
+  assertRecord(data.totals, 'Store product analytics totals is required')
+  assertNumber(data.totals.detailViews, 'Store product analytics totals detailViews is required')
+  assertNumber(data.totals.cardClicks, 'Store product analytics totals cardClicks is required')
+  assertNumber(data.totals.addToCart, 'Store product analytics totals addToCart is required')
+  assertNumber(data.totals.ctrPercent, 'Store product analytics totals ctrPercent is required')
+  assertNumber(data.totals.addToCartRatePercent, 'Store product analytics totals addToCartRatePercent is required')
+  assertArray(data.products, 'Store product analytics products is required')
+
+  return {
+    storeId: data.storeId,
+    storeSlug: data.storeSlug,
+    rangeKey: parseStoreProductAnalyticsRange(data.rangeKey),
+    rangeLabel: data.rangeLabel,
+    from: data.from,
+    to: data.to,
+    timezone: data.timezone,
+    totals: {
+      detailViews: data.totals.detailViews,
+      cardClicks: data.totals.cardClicks,
+      addToCart: data.totals.addToCart,
+      ctrPercent: data.totals.ctrPercent,
+      addToCartRatePercent: data.totals.addToCartRatePercent
+    },
+    products: data.products.map((item, index) => parseStoreProductAnalyticsRow(item, index))
+  }
+}
+
+function parseStoreCommerceAnalyticsTopProduct(data: unknown, index: number): StoreCommerceAnalyticsTopProduct {
+  assertRecord(data, `Store commerce analytics topProduct at ${index} is invalid`)
+  assertString(data.productSlug, `Store commerce analytics topProduct at ${index} productSlug is required`)
+  assertString(data.productName, `Store commerce analytics topProduct at ${index} productName is required`)
+  assertNumber(data.quantitySold, `Store commerce analytics topProduct at ${index} quantitySold is required`)
+  assertNumber(data.revenueCents, `Store commerce analytics topProduct at ${index} revenueCents is required`)
+
+  return {
+    productSlug: data.productSlug,
+    productName: data.productName,
+    quantitySold: data.quantitySold,
+    revenueCents: data.revenueCents
+  }
+}
+
+export function parseStoreCommerceAnalytics(data: unknown): StoreCommerceAnalytics {
+  assertRecord(data, 'Invalid store commerce analytics payload')
+  assertNumber(data.orders, 'Store commerce analytics orders is required')
+  assertNumber(data.revenueCents, 'Store commerce analytics revenueCents is required')
+  assertNumber(data.averageOrderValueCents, 'Store commerce analytics averageOrderValueCents is required')
+  assertNumber(data.productsSold, 'Store commerce analytics productsSold is required')
+  assertArray(data.topProducts, 'Store commerce analytics topProducts is required')
+
+  return {
+    orders: data.orders,
+    revenueCents: data.revenueCents,
+    averageOrderValueCents: data.averageOrderValueCents,
+    productsSold: data.productsSold,
+    topProducts: data.topProducts.map((item, index) => parseStoreCommerceAnalyticsTopProduct(item, index))
+  }
+}
+
+export function parseStoreFunnelAnalytics(data: unknown): StoreFunnelAnalytics {
+  assertRecord(data, 'Invalid store funnel analytics payload')
+  assertNumber(data.listViews, 'Store funnel analytics listViews is required')
+  assertNumber(data.cardClicks, 'Store funnel analytics cardClicks is required')
+  assertNumber(data.detailViews, 'Store funnel analytics detailViews is required')
+  assertNumber(data.addToCart, 'Store funnel analytics addToCart is required')
+  assertNumber(data.orders, 'Store funnel analytics orders is required')
+  assertNumber(data.revenueCents, 'Store funnel analytics revenueCents is required')
+  assertNumber(data.clickRate, 'Store funnel analytics clickRate is required')
+  assertNumber(data.detailRate, 'Store funnel analytics detailRate is required')
+  assertNumber(data.addToCartRate, 'Store funnel analytics addToCartRate is required')
+  assertNumber(data.purchaseRate, 'Store funnel analytics purchaseRate is required')
+
+  return {
+    listViews: data.listViews,
+    cardClicks: data.cardClicks,
+    detailViews: data.detailViews,
+    addToCart: data.addToCart,
+    orders: data.orders,
+    revenueCents: data.revenueCents,
+    clickRate: data.clickRate,
+    detailRate: data.detailRate,
+    addToCartRate: data.addToCartRate,
+    purchaseRate: data.purchaseRate
   }
 }
 
@@ -363,6 +487,18 @@ export const storeAdminAdapter = {
   async getOperationalReport(range: StoreOperationalReportRange, auth: AuthRequestContext) {
     const data = await requestJsonWithAuth<unknown>(`/api/store/analytics/report?range=${encodeURIComponent(range)}`, {}, {}, auth)
     return parseStoreOperationalReport(data)
+  },
+  async getProductAnalytics(range: StoreProductAnalyticsRange, auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>(`/api/store/analytics/products?range=${encodeURIComponent(range)}`, {}, {}, auth)
+    return parseStoreProductAnalytics(data)
+  },
+  async getCommerceAnalytics(auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>('/api/store/analytics/commerce?range=7d', {}, {}, auth)
+    return parseStoreCommerceAnalytics(data)
+  },
+  async getFunnelAnalytics(auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>('/api/store/analytics/funnel?range=7d', {}, {}, auth)
+    return parseStoreFunnelAnalytics(data)
   },
   async listProducts(auth: AuthRequestContext) {
     const data = await requestJsonWithAuth<unknown>('/api/store/products', {}, {}, auth)

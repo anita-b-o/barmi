@@ -70,6 +70,7 @@ public class StoreAdminProductService {
                 normalizedStockQuantity,
                 normalizedCategoryId
         );
+        product.updatePublicSlug(resolvePublicSlug(store.getId(), product.getName(), product.getId()));
         return productRepository.save(product);
     }
 
@@ -164,5 +165,13 @@ public class StoreAdminProductService {
         StoreCategory category = storeCategoryRepository.findByIdAndStoreId(categoryId, storeId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_category_id"));
         return category.getId();
+    }
+
+    private String resolvePublicSlug(UUID storeId, String name, UUID productId) {
+        String baseSlug = Product.buildBasePublicSlug(name);
+        if (!productRepository.existsByStoreIdAndPublicSlug(storeId, baseSlug)) {
+            return baseSlug;
+        }
+        return Product.buildDefaultPublicSlug(name, productId);
     }
 }

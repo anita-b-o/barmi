@@ -5,6 +5,9 @@ import categorySample from '../_samples/store.admin.category.json'
 import categoriesListSample from '../_samples/store.admin.categories.list.json'
 import analyticsSummarySample from '../_samples/store.analytics.summary.json'
 import analyticsReportSample from '../_samples/store.analytics.report.json'
+import productAnalyticsSample from '../_samples/store.analytics.products.json'
+import commerceAnalyticsSample from '../_samples/store.analytics.commerce.json'
+import funnelAnalyticsSample from '../_samples/store.analytics.funnel.json'
 import zonesListSample from '../_samples/store.admin.shipping.zones.list.json'
 import zoneSample from '../_samples/store.admin.shipping.zone.json'
 import promotionSample from '../_samples/store.admin.promotion.json'
@@ -17,6 +20,9 @@ import {
   parseStoreCategories,
   parseStorePromotion,
   parseStoreOperationalReport,
+  parseStoreProductAnalytics,
+  parseStoreCommerceAnalytics,
+  parseStoreFunnelAnalytics,
   parseStoreAnalyticsSummary,
   parseStoreShippingZone,
   parseStoreShippingZones
@@ -69,6 +75,39 @@ describe('store admin contracts parsing', () => {
     expect(res.periodMetrics.paymentsConfirmed).toBe(5)
     expect(res.periodMetrics.stockConflicts).toBe(2)
     expect(res.currentSnapshot.fulfillmentsByStatus.DISPATCHED).toBe(2)
+  })
+
+  it('parses product analytics sample', () => {
+    const res = parseStoreProductAnalytics(productAnalyticsSample)
+    expect(res.rangeKey).toBe('7d')
+    expect(res.totals.detailViews).toBe(3)
+    expect(res.totals.ctrPercent).toBe(60)
+    expect(res.products[0].productSlug).toBe('apple')
+    expect(res.products[0].addToCartRatePercent).toBe(50)
+  })
+
+  it('parses commerce analytics sample', () => {
+    const res = parseStoreCommerceAnalytics(commerceAnalyticsSample)
+    expect(res.orders).toBe(120)
+    expect(res.revenueCents).toBe(850000)
+    expect(res.averageOrderValueCents).toBe(7083)
+    expect(res.productsSold).toBe(340)
+    expect(res.topProducts[0].productSlug).toBe('pan-de-campo')
+    expect(res.topProducts[0].revenueCents).toBe(96000)
+  })
+
+  it('parses funnel analytics sample', () => {
+    const res = parseStoreFunnelAnalytics(funnelAnalyticsSample)
+    expect(res.listViews).toBe(1000)
+    expect(res.cardClicks).toBe(400)
+    expect(res.detailViews).toBe(320)
+    expect(res.addToCart).toBe(80)
+    expect(res.orders).toBe(25)
+    expect(res.revenueCents).toBe(150000)
+    expect(res.clickRate).toBe(0.4)
+    expect(res.detailRate).toBe(0.8)
+    expect(res.addToCartRate).toBe(0.25)
+    expect(res.purchaseRate).toBe(0.3125)
   })
 
   it('parses operational report legacy alias ordersPaid as paymentsConfirmed', () => {

@@ -197,6 +197,19 @@ Notas:
 - shipping zones admin alineado con backend real
 - fulfillments admin con listado, detalle, creación desde órdenes pagadas y update de estado
 
+### PLATFORM / SaaS admin
+
+- planes SaaS persistidos con límites declarativos (`maxProducts`, `analyticsEnabled`, `seoEnabled`)
+- suscripción única por store, con default `FREE` / `ACTIVE` para stores nuevas
+- administración autenticada en `/admin/saas`
+- endpoints backend:
+- `GET /api/admin/saas/plans`
+- `POST /api/admin/saas/plans`
+- `PUT /api/admin/saas/plans/{planId}`
+- `GET /api/admin/saas/subscriptions`
+- `PATCH /api/admin/saas/subscriptions/stores/{storeId}/plan`
+- no incluye cobros automáticos, subscriptions de Mercado Pago/Stripe, facturación fiscal, renovaciones automáticas, pricing público ni enforcement de límites
+
 ## Project Status -- Baseline v1
 
 El sistema alcanzó una baseline estable (v1) para el alcance hoy soportado por backend y frontend. No significa “producto completo”: significa que los flujos incluidos abajo existen de punta a punta y tienen soporte real en código, contratos y UI administrativa.
@@ -257,6 +270,9 @@ BASE_URL=https://${STORE_BASE_DOMAIN}:${STAGING_HTTPS_PORT:-8443} \
 STORE_HOST=${VITE_PUBLIC_STORE_HOST} \
 ./scripts/smoke-staging.sh
 ./scripts/smoke-https-staging.sh
+BASE_URL=https://${STORE_BASE_DOMAIN}:${STAGING_HTTPS_PORT:-8443} \
+ALLOWED_ORIGIN=https://${STORE_BASE_DOMAIN}:${STAGING_HTTPS_PORT:-8443} \
+./scripts/smoke-prod-hardening.sh
 
 EXPECT_FRONTEND_RELEASE_ID=${VITE_APP_RELEASE_ID} \
 EXPECT_FRONTEND_COMMIT_SHA=${VITE_APP_COMMIT_SHA} \
@@ -285,6 +301,8 @@ Notas de staging:
 - `STORE_PUBLIC_SCHEME=https` y `REFRESH_COOKIE_SECURE=true` son obligatorios para declarar validación de sesión prod-like. `scripts/generate-staging-cert.sh` genera un certificado self-signed local de 30 días para nginx.
 - el smoke test ataca el stack vía `nginx`, no directo a los contenedores internos.
 - `scripts/smoke-https-staging.sh` valida rutas HTTPS reales por subdominio, CORS con credenciales, cookie `Secure`/`HttpOnly`/`SameSite`, refresh y logout. Por defecto usa `curl --resolve` hacia `127.0.0.1` para no depender de DNS externo en staging local; seteá `LOCAL_RESOLVE=false` si querés usar DNS real.
+- `scripts/smoke-prod-hardening.sh` valida hardening desde el edge/proxy: actuator mínimo, admin sin auth, `413` para payload grande, CORS permitido/denegado y spoofing básico de `X-Forwarded-*`.
+- Emails transaccionales en staging: con `NOTIFICATION_EMAIL_MODE=logging` el flujo se valida sin SMTP real revisando logs del backend. Para prueba SMTP real, exportar `NOTIFICATION_EMAIL_MODE=smtp`, `NOTIFICATION_EMAIL_FROM`, `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME` y `SPRING_MAIL_PASSWORD`; `./scripts/validate-env.sh staging` falla si falta alguna.
 - `scripts/smoke-real-payment.sh` valida creación de orden, inicio real de Mercado Pago, contrato de preferencia, idempotencia del intent y, si `WAIT_FOR_WEBHOOK=true`, espera el webhook real hasta que la orden quede `PAID`. Para webhook real, el API debe arrancar con `MP_ACCESS_TOKEN` y `MP_PUBLIC_BASE_URL`; `MP_PUBLIC_BASE_URL` debe ser HTTPS público alcanzable por Mercado Pago, no localhost/self-signed.
 - si querés probar la ruta técnica de observability, habilitá explícitamente `APP_OBSERVABILITY_SMOKE_ENABLED=true` y `VITE_OBSERVABILITY_SMOKE_ENABLED=true`; no forman parte del smoke normal de post-deploy.
 
@@ -300,6 +318,7 @@ Backend:
 
 - `/actuator/health`, `/actuator/health/liveness`, `/actuator/health/readiness`
 - métricas expuestas por actuator
+- `/actuator/prometheus` habilitado para scrape interno en staging cuando `APP_OBSERVABILITY_PROMETHEUS_SCRAPE_ENABLED=true`; Nginx lo bloquea desde el edge
 - health indicator de backlog del outbox
 - correlación por `X-Request-Id` en request/response y logs
 - refresh tokens hasheados en DB y rotación con invalidación del token previo
@@ -321,20 +340,53 @@ Recomendación mínima para staging/prod:
 - setear `VITE_APP_VERSION` con SHA corto o tag de release
 - setear `VITE_APP_COMMIT_SHA`, `VITE_APP_BUILD_TIMESTAMP` y opcionalmente `VITE_APP_RELEASE_ID`
 - configurar `VITE_SENTRY_DSN` y, si se suben sourcemaps en build/deploy, también `SENTRY_ORG`, `SENTRY_PROJECT`, `SENTRY_AUTH_TOKEN`
+- `VITE_SENTRY_DSN` habilita Sentry; sin DSN no se inicializa.
+- Sentry usa `VITE_APP_RELEASE_ID` como release y `VITE_APP_ENV` como environment.
+- `VITE_SENTRY_SMOKE_ENABLED=false` por defecto evita enviar eventos reales desde `/__observability`; activarlo sólo para una prueba opt-in.
+- El frontend sanitiza tokens, cookies, Authorization headers y query strings antes de enviar eventos a Sentry.
 - dejar `VITE_OBSERVABILITY_SMOKE_ENABLED=false` y `APP_OBSERVABILITY_SMOKE_ENABLED=false` por defecto; activarlos sólo para smoke técnico controlado
 - apuntar `VITE_OBSERVABILITY_INGEST_URL` a un endpoint equivalente si además se quiere forward local
 - conservar `X-Request-Id` en reverse proxy / ingress para correlación punta a punta
 - definir `ALLOWED_ORIGINS` con dominios reales de frontend y evitar defaults `localhost`
+- usar Grafana en `http://localhost:${STAGING_GRAFANA_PORT:-3000}` con el dashboard provisionado `Barmi Operational MVP`
+- usar Prometheus en `http://localhost:${STAGING_PROMETHEUS_PORT:-9090}` para consultas operativas puntuales
 - revisar [docs/production/OBSERVABILITY_RUNBOOK.md](/home/anita/Desktop/barmi/docs/production/OBSERVABILITY_RUNBOOK.md:1)
 - no dejar la sesión frontend en `localStorage` para una exposición pública prolongada; hoy sigue siendo la principal deuda de auth del lado cliente
+
+Prometheus/Grafana staging:
+
+- `docker-compose.staging.yml` levanta `prometheus` y `grafana`.
+- Prometheus scrapea `api:8080/actuator/prometheus` dentro de la red de Compose.
+- El endpoint scrapeable no se publica por Nginx: `/actuator/prometheus` devuelve `404` desde el edge.
+- Grafana se provisiona con datasource Prometheus y el dashboard `Barmi Operational MVP`.
+- Prometheus carga alertas MVP desde `infra/prometheus/rules/barmi-alerts.yml`.
+- Alertas incluidas: API down, high 5xx rate, checkout failures spike, payment mismatch, webhook failures, outbox failed/stuck, DB pool pressure y rate limit abuse.
+- Grafana provisiona el contact point `Barmi Alerts Webhook`.
+- Para local, `GRAFANA_ALERT_WEBHOOK_URL` cae por defecto a `http://127.0.0.1:9/barmi-alerts-placeholder`.
+- Para beta real, setear `GRAFANA_ALERT_WEBHOOK_URL` y `OBSERVABILITY_REQUIRE_ALERTS=true`; `scripts/validate-env.sh staging` rechaza placeholders/loopback.
+- Opcionales: `GRAFANA_ALERT_WEBHOOK_USERNAME` y `GRAFANA_ALERT_WEBHOOK_TITLE`.
+- Prometheus y Grafana se publican sólo en loopback por defecto: `OBSERVABILITY_BIND_ADDRESS=127.0.0.1`.
+- Para beta real, mantener loopback y entrar por SSH/VPN, o definir un bind no público detrás de firewall/VPN.
+- Grafana no usa `admin/admin` por defecto. Para beta real, definir `GRAFANA_ADMIN_USER` y `GRAFANA_ADMIN_PASSWORD`, y setear `OBSERVABILITY_REQUIRE_STRONG_GRAFANA=true` para que `scripts/validate-env.sh staging` rechace defaults locales.
+- Queries útiles:
+  - API up: `up{job="barmi-api"}`
+  - 5xx: `sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))`
+  - p95 latency: `histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[5m])))`
+  - outbox viejo: `barmi_outbox_oldest_pending_age_seconds`
+  - DB pending: `hikaricp_connections_pending`
+  - firing alerts: `ALERTS{alertstate="firing"}`
 
 Smoke técnico controlado:
 
 - `APP_OBSERVABILITY_SMOKE_ENABLED=true` habilita el endpoint backend no productivo `/api/admin/dev/observability/error`.
 - `VITE_OBSERVABILITY_SMOKE_ENABLED=true` habilita la ruta frontend oculta `/__observability`.
+- `VITE_SENTRY_SMOKE_ENABLED=true` permite que la ruta oculta envie un evento Sentry controlado; mantenerlo `false` salvo prueba puntual.
 - sin ambos flags, el smoke no debe quedar accesible.
 - upload manual de sourcemaps: `cd frontend && VITE_APP_RELEASE_ID=<release> SENTRY_AUTH_TOKEN=... SENTRY_ORG=... SENTRY_PROJECT=... npm run sentry:sourcemaps:upload`
-- validación end-to-end local/staging: `APP_OBSERVABILITY_SMOKE_ENABLED=true VITE_OBSERVABILITY_SMOKE_ENABLED=true docker compose -f docker-compose.staging.yml up -d --build` y luego `BASE_URL=http://localhost:8088 ./scripts/smoke-observability.sh`
+- validación sin stack: `CHECK_MODE=static ./scripts/smoke-observability.sh`
+- validación end-to-end local/staging: `APP_OBSERVABILITY_SMOKE_ENABLED=true VITE_OBSERVABILITY_SMOKE_ENABLED=true docker compose -f docker-compose.staging.yml up -d --build` y luego `BASE_URL=http://localhost:8088 PROMETHEUS_URL=http://localhost:9090 GRAFANA_URL=http://localhost:3000 RELEASE_ID="$VITE_APP_RELEASE_ID" ./scripts/smoke-observability.sh`
+- opt-in Sentry real: construir con `VITE_SENTRY_SMOKE_ENABLED=true` y correr `EXPECT_SENTRY_EVENT=true SENTRY_EXPECT_DSN_HOST=<host-del-dsn> ./scripts/smoke-observability.sh`
+- opt-in alert webhook real: `EXPECT_ALERT_WEBHOOK=true ./scripts/smoke-observability.sh` exige que el contact point no sea placeholder/loopback, pero no envia notificaciones.
 
 ## CI / deploy checklist
 
@@ -350,7 +402,7 @@ Antes de deploy real conviene verificar además:
 
 - secrets reales para `JWT_SECRET` y `MP_WEBHOOK_SECRET`
 - `STORE_BASE_DOMAIN` real
-- `NOTIFICATION_EMAIL_MODE=smtp` si se requieren emails reales
+- emails reales: `NOTIFICATION_EMAIL_MODE=smtp`, `NOTIFICATION_EMAIL_FROM`, `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME` y `SPRING_MAIL_PASSWORD`
 - availability del datastore Redis si se usa profile `prod`
 - `./scripts/smoke-staging.sh` con demo data cargada y backend/frontend accesibles
 
@@ -381,6 +433,8 @@ No es una referencia exhaustiva. Para payloads más detallados, ver `backend/REA
 
 - `GET /api/store/analytics/summary`
 - `GET /api/store/analytics/report?range={today|7d|30d}`
+- `GET /api/store/analytics/products?range=7d`
+- `GET /api/store/analytics/commerce?range=7d`
 - `GET /api/store/members`
 - `POST /api/store/members`
 - `PATCH /api/store/members/{memberId}/role`
@@ -411,8 +465,8 @@ No es una referencia exhaustiva. Para payloads más detallados, ver `backend/REA
 STORE admin orders separa el estado real de la orden de indicadores operativos derivados como conflicto post-pago, pago confirmado, fulfillment creado y cancelación manual.
 
 Promociones STORE siguen un flujo MVP simple: el cupón se valida en checkout y el descuento queda persistido en la order, pero el `usageCount` sólo se consume cuando el pago queda efectivamente confirmado. Si la orden no se paga, el cupón no gasta uso.
-STORE también suma notificaciones MVP por email basadas en eventos reales del outbox para orden creada, pago confirmado, cancelación manual y cambios relevantes de fulfillment. El checkout STORE ahora persiste `buyerEmail` en la order para cubrir también guest checkout y usarlo como fuente confiable en notificaciones posteriores.
-El delivery real de email queda configurable por environment: `NOTIFICATION_EMAIL_MODE=logging|smtp`. El default sigue siendo `logging`. Para `smtp` también hace falta `NOTIFICATION_EMAIL_FROM` más la configuración estándar `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD` y propiedades SMTP equivalentes.
+STORE también suma notificaciones MVP por email basadas en eventos reales del outbox para orden creada, pago confirmado, cancelación manual y cambios relevantes de fulfillment. En Fase 1, el pago confirmado avisa al comprador y también envía "nueva orden pagada" a miembros activos `OWNER`/`ADMIN` de la tienda. El checkout STORE persiste `buyerEmail` en la order para cubrir guest checkout y usarlo como fuente confiable en notificaciones posteriores.
+El delivery real de email queda configurable por environment: `NOTIFICATION_EMAIL_MODE=logging|smtp`. El default sigue siendo `logging` y no falla si SMTP no está configurado. Para `smtp` también hace falta `NOTIFICATION_EMAIL_FROM` más la configuración estándar `SPRING_MAIL_HOST`, `SPRING_MAIL_PORT`, `SPRING_MAIL_USERNAME`, `SPRING_MAIL_PASSWORD` y propiedades SMTP equivalentes. La entrega es at-least-once: Barmi registra el delivery después de enviar para no marcar como enviado algo que falló antes de SMTP; si el proceso cae justo después del envío y antes del registro, un retry puede duplicar ese email.
 
 El módulo ahora expone:
 - listado admin con indicadores operativos derivados y filtros por `status`, conflicto operativo y fulfillment creado
@@ -423,7 +477,7 @@ El módulo ahora expone:
 
 No hay refunds automáticos. Si el reintento no puede resolver stock, la orden mantiene el conflicto operativo hasta nueva intervención manual.
 
-STORE analytics sigue teniendo un `summary` agregado y ahora suma un reporting operativo MVP con rango corto (`today`, `7d`, `30d`). El reporte mezcla dos bloques explícitos: métricas del período por fecha de creación/confirmación/evento, y snapshot actual de fulfillments por estado.
+STORE analytics sigue teniendo un `summary` agregado y ahora suma un reporting operativo MVP con rango corto (`today`, `7d`, `30d`). El reporte mezcla dos bloques explícitos: métricas del período por fecha de creación/confirmación/evento, y snapshot actual de fulfillments por estado. También expone un primer dashboard de producto público para los últimos 7 días, agregado desde telemetry beta por `productSlug` con views, clicks, add to cart, CTR y add-to-cart rate.
 
 Para alineación incremental con ADR-007, el naming recomendado para nuevas métricas es `paymentsConfirmed`. En STORE se mantiene también `ordersPaid` como alias compatible en el contrato actual.
 
@@ -433,6 +487,17 @@ Para alineación incremental con ADR-007, el naming recomendado para nuevas mét
 - `GET /api/public/ecosystems/{slug}/home`
 - `GET /api/public/ecosystems/{slug}/stores/map?q={optional}&category={optional}&location={optional}&sort={optional}`
 - `GET /api/public/ecosystems/{slug}/products?q={optional}&sort={optional}&deliverySupported={optional}&activeOnly={optional}`
+- `GET /robots.txt`
+- `GET /sitemap.xml`
+
+SEO público básico:
+
+- indexables: `/ecosystem`, `/ecosystem/catalog`, `/ecosystem/categories/{categorySlug}` para categorías públicas con stores activas, `/public/{storeSlug}` para stores activas del ecosystem público configurado
+- noindex: `/ecosystem/stores/map`, auth, admin, checkout y órdenes públicas
+- canonical: las páginas públicas limpian query params de filtros, búsqueda, sort y paginación
+- sitemap: incluye home ecosystem, catálogo ecosystem, categorías públicas con stores activas y stores activas asociadas; no incluye búsquedas arbitrarias con query params
+- JSON-LD básico en rutas públicas indexables: `WebSite` para `/ecosystem`, `CollectionPage` + `ItemList` para `/ecosystem/catalog`, `CollectionPage` + `ItemList` + `BreadcrumbList` para `/ecosystem/categories/{categorySlug}` y `Store` + `BreadcrumbList` + `ItemList` para `/public/{storeSlug}`; no se emite en páginas `noindex`, rutas con query params ni cuando faltan datos mínimos
+- limitación: al seguir siendo React SPA sin SSR, crawlers con poco soporte JavaScript pueden ver sólo metadata base de `index.html`; páginas de detalle de producto y schema `Product` detallado quedan para PRs posteriores
 
 Endpoints operativos internos de beta:
 

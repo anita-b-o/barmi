@@ -14,6 +14,7 @@ import com.barmi.infra.repo.EcosystemOrderRepository;
 import com.barmi.infra.repo.PaymentIntentRepository;
 import com.barmi.infra.repo.StoreOrderRepository;
 import com.barmi.infra.repo.StoreRepository;
+import com.barmi.infra.metrics.PaymentOperationalMetrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -40,6 +41,7 @@ public class PaymentInitiationService {
     private final EcosystemOrderRepository ecosystemOrderRepository;
     private final PaymentIntentRepository paymentIntentRepository;
     private final PaymentProviderRegistry paymentProviderRegistry;
+    private final PaymentOperationalMetrics paymentOperationalMetrics;
     private final String mercadoPagoPublicBaseUrl;
 
     public PaymentInitiationService(
@@ -48,6 +50,7 @@ public class PaymentInitiationService {
             EcosystemOrderRepository ecosystemOrderRepository,
             PaymentIntentRepository paymentIntentRepository,
             PaymentProviderRegistry paymentProviderRegistry,
+            PaymentOperationalMetrics paymentOperationalMetrics,
             @Value("${app.mercadoPago.publicBaseUrl:}") String mercadoPagoPublicBaseUrl
     ) {
         this.storeRepository = storeRepository;
@@ -55,10 +58,26 @@ public class PaymentInitiationService {
         this.ecosystemOrderRepository = ecosystemOrderRepository;
         this.paymentIntentRepository = paymentIntentRepository;
         this.paymentProviderRegistry = paymentProviderRegistry;
+        this.paymentOperationalMetrics = paymentOperationalMetrics;
         this.mercadoPagoPublicBaseUrl = mercadoPagoPublicBaseUrl == null ? "" : mercadoPagoPublicBaseUrl.trim();
     }
 
     public PaymentIntent initiateStorePayment(UUID orderId, String provider, String returnUrl) {
+        boolean success = false;
+        try {
+            PaymentIntent intent = doInitiateStorePayment(orderId, provider, returnUrl);
+            success = true;
+            return intent;
+        } finally {
+            paymentOperationalMetrics.recordPaymentInitiation(
+                    PaymentScope.STORE,
+                    provider,
+                    success ? "success" : "failure"
+            );
+        }
+    }
+
+    private PaymentIntent doInitiateStorePayment(UUID orderId, String provider, String returnUrl) {
         UUID storeId = resolveStoreId();
 
         if (orderId == null || provider == null || provider.isBlank() || returnUrl == null || returnUrl.isBlank()) {
@@ -137,6 +156,21 @@ public class PaymentInitiationService {
     }
 
     public PaymentIntent initiateEcosystemPayment(UUID ecosystemId, UUID orderId, String provider, String returnUrl) {
+        boolean success = false;
+        try {
+            PaymentIntent intent = doInitiateEcosystemPayment(ecosystemId, orderId, provider, returnUrl);
+            success = true;
+            return intent;
+        } finally {
+            paymentOperationalMetrics.recordPaymentInitiation(
+                    PaymentScope.ECOSYSTEM,
+                    provider,
+                    success ? "success" : "failure"
+            );
+        }
+    }
+
+    private PaymentIntent doInitiateEcosystemPayment(UUID ecosystemId, UUID orderId, String provider, String returnUrl) {
         if (ecosystemId == null) {
             throw new ResponseStatusException(BAD_REQUEST, "ecosystem_id_required");
         }

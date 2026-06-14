@@ -3,8 +3,8 @@ import { authAdapter } from '../../api/adapters/authAdapter'
 import type { AuthMe } from '../../api/contracts/v1/auth'
 import { isApiError } from '../api'
 import type { AuthRequestContext } from '../api'
+import { trackBetaEvent } from '@/core/beta/client'
 import { clearSession, loadSession, saveSession, type AuthSession } from './sessionStorage'
-import { trackBetaEvent } from '@/features/beta'
 import { isRetryableApiError } from '@/api/client/http'
 
 type AuthContextValue = {

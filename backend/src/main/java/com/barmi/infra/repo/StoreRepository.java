@@ -17,6 +17,7 @@ public interface StoreRepository extends JpaRepository<Store, UUID> {
 
     Optional<Store> findBySlug(String slug);
     List<Store> findTop6ByActiveTrueAndEcosystem_IdOrderByCreatedAtDesc(UUID ecosystemId);
+    List<Store> findByActiveTrueAndEcosystem_SlugOrderBySlugAsc(String ecosystemSlug);
 
     @Query("""
             select s

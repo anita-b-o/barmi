@@ -1,4 +1,4 @@
-import { FormEvent, memo, useEffect, useState } from 'react'
+import { FormEvent, memo, useEffect, useRef, useState } from 'react'
 import { MapIcon } from './MapIcons'
 
 type MapSearchInputProps = {
@@ -7,15 +7,31 @@ type MapSearchInputProps = {
   onSearch: (value: string) => void
 }
 
+const SEARCH_DEBOUNCE_MS = 250
+
 function MapSearchInputBase({ value, placeholder = 'buscá en el mapa', onSearch }: MapSearchInputProps) {
   const [draft, setDraft] = useState(value)
+  const debounceRef = useRef<number | null>(null)
+
+  const clearPendingSearch = () => {
+    if (debounceRef.current !== null) {
+      window.clearTimeout(debounceRef.current)
+      debounceRef.current = null
+    }
+  }
 
   useEffect(() => {
+    clearPendingSearch()
     setDraft(value)
+
+    return clearPendingSearch
   }, [value])
+
+  useEffect(() => clearPendingSearch, [])
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    clearPendingSearch()
     onSearch(draft.trim())
   }
 
@@ -26,7 +42,11 @@ function MapSearchInputBase({ value, placeholder = 'buscá en el mapa', onSearch
         onChange={(event) => {
           const nextValue = event.target.value
           setDraft(nextValue)
-          onSearch(nextValue)
+          clearPendingSearch()
+          debounceRef.current = window.setTimeout(() => {
+            debounceRef.current = null
+            onSearch(nextValue)
+          }, SEARCH_DEBOUNCE_MS)
         }}
         placeholder={placeholder}
         aria-label="Buscar tiendas en mapa"

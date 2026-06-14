@@ -6,14 +6,15 @@ import { StoreCard } from '../../components/StoreCard'
 type MapResultsListProps = {
   stores: PublicStoreMapStore[]
   selectedStoreId: string | null
-  isLoading: boolean
+  isInitialLoading: boolean
+  isUpdating: boolean
   error: string | null
   onSelectStore: (storeId: string) => void
   onResetSearch: () => void
 }
 
-function MapResultsListBase({ stores, selectedStoreId, isLoading, error, onSelectStore, onResetSearch }: MapResultsListProps) {
-  if (isLoading && stores.length === 0) {
+function MapResultsListBase({ stores, selectedStoreId, isInitialLoading, isUpdating, error, onSelectStore, onResetSearch }: MapResultsListProps) {
+  if ((isInitialLoading || isUpdating) && stores.length === 0) {
     return <div className="ecosystem-map-results__state">Cargando tiendas...</div>
   }
 
@@ -48,7 +49,7 @@ function MapResultsListBase({ stores, selectedStoreId, isLoading, error, onSelec
 
   return (
     <div className="ecosystem-map-results" aria-label="Tiendas filtradas">
-      {isLoading ? <div className="ecosystem-map-results__state">Actualizando tiendas...</div> : null}
+      {isUpdating ? <div className="ecosystem-map-results__state">Actualizando tiendas...</div> : null}
       {stores.map((store) => (
         <div key={store.id} id={`ecosystem-store-item-${store.id}`}>
           <StoreCard

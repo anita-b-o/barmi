@@ -37,19 +37,26 @@ public class SecurityConfig {
             RateLimitFilter rateLimitFilter,
             JwtAuthenticationFilter jwtAuthenticationFilter,
             ApiAuthenticationEntryPoint apiAuthenticationEntryPoint,
-            ApiAccessDeniedHandler apiAccessDeniedHandler
+            ApiAccessDeniedHandler apiAccessDeniedHandler,
+            @Value("${app.observability.prometheus.scrapeEnabled:false}") boolean prometheusScrapeEnabled
     ) throws Exception {
+        String[] publicActuatorEndpoints = prometheusScrapeEnabled
+                ? new String[]{"/actuator/health/**", "/actuator/prometheus"}
+                : new String[]{"/actuator/health/**"};
+
         http
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers(publicActuatorEndpoints).permitAll()
+                .requestMatchers("/actuator/**").authenticated()
                 .requestMatchers("/api/webhooks/**").permitAll()
                 .requestMatchers("/api/admin/dev/observability/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                 .requestMatchers("/api/auth/me").authenticated()
+                .requestMatchers("/api/store/admin/**").authenticated()
                 .requestMatchers("/api/store/members/**").authenticated()
                 .requestMatchers("/api/store/shipping/zones/**").authenticated()
                 .requestMatchers("/api/store/orders/*/fulfillment").authenticated()
@@ -105,7 +112,7 @@ public class SecurityConfig {
                 .map(String::trim)
                 .filter(value -> !value.isBlank())
                 .toList();
-        configuration.setAllowedOriginPatterns(origins);
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Request-Id", "X-Barmi-Webhook-Secret"));
         configuration.setExposedHeaders(List.of("X-Request-Id"));

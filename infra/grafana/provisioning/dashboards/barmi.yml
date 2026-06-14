@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Barmi
+    orgId: 1
+    folder: Barmi
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /var/lib/grafana/dashboards

@@ -1,0 +1,34 @@
+{
+  "storeId": "store-1",
+  "storeSlug": "demo-store",
+  "rangeKey": "7d",
+  "rangeLabel": "Ultimos 7 dias",
+  "from": "2026-06-04T12:00:00.000Z",
+  "to": "2026-06-11T12:00:00.000Z",
+  "timezone": "America/Argentina/Buenos_Aires",
+  "totals": {
+    "detailViews": 3,
+    "cardClicks": 5,
+    "addToCart": 1,
+    "ctrPercent": 60,
+    "addToCartRatePercent": 33.33
+  },
+  "products": [
+    {
+      "productSlug": "apple",
+      "detailViews": 2,
+      "cardClicks": 4,
+      "addToCart": 1,
+      "ctrPercent": 50,
+      "addToCartRatePercent": 50
+    },
+    {
+      "productSlug": "banana",
+      "detailViews": 1,
+      "cardClicks": 1,
+      "addToCart": 0,
+      "ctrPercent": 100,
+      "addToCartRatePercent": 0
+    }
+  ]
+}

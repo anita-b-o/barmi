@@ -21,24 +21,32 @@ describe('public store availability', () => {
         }
       },
       '/api/public/stores/demo-store/products': {
-        body: [
-          {
-            id: 'prod-1',
-            sku: 'SKU-1',
-            name: 'Cafe',
-            priceCents: 1500,
-            stockQuantity: 3,
-            isAvailable: true
-          },
-          {
-            id: 'prod-2',
-            sku: 'SKU-2',
-            name: 'Te',
-            priceCents: 1200,
-            stockQuantity: 0,
-            isAvailable: false
-          }
-        ]
+        body: {
+          content: [
+            {
+              id: 'prod-1',
+              slug: 'prod-1',
+              sku: 'SKU-1',
+              name: 'Cafe',
+              priceCents: 1500,
+              stockQuantity: 3,
+              isAvailable: true
+            },
+            {
+              id: 'prod-2',
+              slug: 'prod-2',
+              sku: 'SKU-2',
+              name: 'Te',
+              priceCents: 1200,
+              stockQuantity: 0,
+              isAvailable: false
+            }
+          ],
+          page: 0,
+          size: 20,
+          totalElements: 2,
+          totalPages: 1
+        }
       }
     })
 

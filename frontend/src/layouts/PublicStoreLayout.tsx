@@ -7,10 +7,20 @@ import { alpha, theme } from '@/app/theme'
 import Badge from '@/components/primitives/Badge'
 import Button from '@/components/primitives/Button'
 
+function publicStoreSlugFromPath(pathname: string) {
+  const match = pathname.match(/^\/public\/([^/]+)/)
+  if (!match?.[1]) return null
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return match[1]
+  }
+}
+
 export default function PublicStoreLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const cart = useCart()
-  const storeSlug = cart.storeSlug ?? 'demo-store'
+  const storeSlug = publicStoreSlugFromPath(location.pathname) ?? cart.storeSlug ?? 'demo-store'
   const cartItems = cart.items.reduce((sum, item) => sum + item.qty, 0)
   const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
     color: isActive ? theme.colors.actionPrimary : theme.colors.textPrimary,

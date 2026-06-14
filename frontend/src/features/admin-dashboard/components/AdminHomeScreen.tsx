@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { storeAdapter } from '../../../api/adapters/storeAdapter'
@@ -46,6 +47,28 @@ const failureEventLabel: Record<string, string> = {
   checkout_failure: 'Checkout',
   login_failure: 'Login'
 }
+
+const adminHomeStyles = {
+  domainGrid: { display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' },
+  cardTitle: { fontWeight: 700, marginBottom: 6, color: theme.colors.textPrimary },
+  mutedBlock: { color: theme.colors.textMuted, marginBottom: 12 },
+  link: { color: theme.colors.actionPrimary, textDecoration: 'none' },
+  betaIntro: { color: theme.colors.textMuted, marginBottom: theme.spacing.lg, lineHeight: 1.6 },
+  metricGrid: { display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' },
+  betaMetricGrid: { display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: theme.spacing.lg },
+  betaPanelGrid: { display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' },
+  sectionTitle: { fontWeight: 700, marginBottom: theme.spacing.sm },
+  stackSm: { display: 'grid', gap: theme.spacing.sm },
+  mutedText: { color: theme.colors.textMuted },
+  betweenRow: { display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md },
+  anywhereText: { overflowWrap: 'anywhere' },
+  recentItem: { display: 'grid', gap: 4, borderTop: `1px solid ${theme.colors.borderDefault}`, paddingTop: theme.spacing.sm },
+  recentHeader: { display: 'flex', justifyContent: 'space-between', gap: theme.spacing.sm, flexWrap: 'wrap' },
+  mutedMetaRow: { display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', color: theme.colors.textMuted, fontSize: theme.typography.small.size },
+  mutedSmallAnywhere: { color: theme.colors.textMuted, fontSize: theme.typography.small.size, overflowWrap: 'anywhere' },
+  scopedSummaryCopy: { color: theme.colors.textMuted, lineHeight: 1.6 },
+  summaryIntro: { color: theme.colors.textMuted, marginBottom: theme.spacing.lg }
+} satisfies Record<string, CSSProperties>
 
 function formatDateTime(value: string) {
   const date = new Date(value)
@@ -167,19 +190,24 @@ export default function AdminHomeScreen() {
       />
 
       <Section title="Accesos disponibles">
-        <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+        <div style={adminHomeStyles.domainGrid}>
           {hasStore && (
             <Card>
-              <div style={{ fontWeight: 700, marginBottom: 6, color: theme.colors.secondary }}>Admin de Store</div>
-              <div style={{ color: theme.colors.textMuted, marginBottom: 12 }}>Gestioná tiendas, pedidos y operación diaria.</div>
-              <Link to="/admin/store" style={{ color: theme.colors.primary, textDecoration: 'none' }}>Entrar al hub store</Link>
+              <div style={adminHomeStyles.cardTitle}>Admin de Store</div>
+              <div style={adminHomeStyles.mutedBlock}>Gestioná tiendas, pedidos y operación diaria.</div>
+              <Link to="/admin/store" style={adminHomeStyles.link}>Entrar al hub store</Link>
             </Card>
           )}
+          <Card>
+            <div style={adminHomeStyles.cardTitle}>Admin SaaS</div>
+            <div style={adminHomeStyles.mutedBlock}>Gestioná planes, límites declarativos y suscripciones por store.</div>
+            <Link to={routes.adminSaas} style={adminHomeStyles.link}>Entrar a planes SaaS</Link>
+          </Card>
           {hasEco && (
             <Card>
-              <div style={{ fontWeight: 700, marginBottom: 6, color: theme.colors.secondary }}>Admin de Ecosystem</div>
-              <div style={{ color: theme.colors.textMuted, marginBottom: 12 }}>Gestioná ecosystems, catálogo y órdenes.</div>
-              <Link to={routes.adminEcosystem} style={{ color: theme.colors.primary, textDecoration: 'none' }}>Entrar al hub ecosystem</Link>
+              <div style={adminHomeStyles.cardTitle}>Admin de Ecosystem</div>
+              <div style={adminHomeStyles.mutedBlock}>Gestioná ecosystems, catálogo y órdenes.</div>
+              <Link to={routes.adminEcosystem} style={adminHomeStyles.link}>Entrar al hub ecosystem</Link>
             </Card>
           )}
         </div>
@@ -202,10 +230,10 @@ export default function AdminHomeScreen() {
 
               return (
                 <>
-            <div style={{ color: theme.colors.textMuted, marginBottom: theme.spacing.lg, lineHeight: 1.6 }}>
+            <div style={adminHomeStyles.betaIntro}>
               Este bloque resume discovery, checkout, auth y feedback de la beta real sin dashboards enterprise ni tracking invasivo.
             </div>
-            <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', marginBottom: theme.spacing.lg }}>
+            <div style={adminHomeStyles.betaMetricGrid}>
               <MetricCard label="Home views" value={String(betaMetrics.summary.homeViews)} />
               <MetricCard label="Catalog views" value={String(betaMetrics.summary.catalogViews)} />
               <MetricCard label="Map views" value={String(betaMetrics.summary.mapViews)} />
@@ -220,14 +248,14 @@ export default function AdminHomeScreen() {
               <MetricCard label="Login failure %" value={`${betaMetrics.summary.loginFailureRate}%`} tone="danger" />
               <MetricCard label="Feedback enviados" value={String(betaMetrics.summary.feedbackSubmitted)} />
             </div>
-            <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))' }}>
+            <div style={adminHomeStyles.betaPanelGrid}>
               <Card variant="soft">
-                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Top stores vistas</div>
-                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+                <div style={adminHomeStyles.sectionTitle}>Top stores vistas</div>
+                <div style={adminHomeStyles.stackSm}>
                   {betaMetrics.summary.topStores.length === 0 ? (
-                    <div style={{ color: theme.colors.textMuted }}>Todavía no hay vistas suficientes para rankear stores.</div>
+                    <div style={adminHomeStyles.mutedText}>Todavía no hay vistas suficientes para rankear stores.</div>
                   ) : betaMetrics.summary.topStores.map((store) => (
-                    <div key={store.storeSlug} style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                    <div key={store.storeSlug} style={adminHomeStyles.betweenRow}>
                       <span>{store.storeName}</span>
                       <strong>{store.views}</strong>
                     </div>
@@ -235,12 +263,12 @@ export default function AdminHomeScreen() {
                 </div>
               </Card>
               <Card variant="soft">
-                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Top búsquedas</div>
-                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+                <div style={adminHomeStyles.sectionTitle}>Top búsquedas</div>
+                <div style={adminHomeStyles.stackSm}>
                   {betaMetrics.summary.topSearches.length === 0 ? (
-                    <div style={{ color: theme.colors.textMuted }}>Todavía no hay búsquedas útiles registradas.</div>
+                    <div style={adminHomeStyles.mutedText}>Todavía no hay búsquedas útiles registradas.</div>
                   ) : betaMetrics.summary.topSearches.map((search) => (
-                    <div key={search.query} style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                    <div key={search.query} style={adminHomeStyles.betweenRow}>
                       <span>{search.query}</span>
                       <strong>{search.uses}</strong>
                     </div>
@@ -248,52 +276,52 @@ export default function AdminHomeScreen() {
                 </div>
               </Card>
               <Card variant="soft">
-                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Feedback por tipo</div>
-                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                <div style={adminHomeStyles.sectionTitle}>Feedback por tipo</div>
+                <div style={adminHomeStyles.stackSm}>
+                  <div style={adminHomeStyles.betweenRow}>
                     <span>Bug</span>
                     <strong>{betaMetrics.summary.feedbackBug}</strong>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                  <div style={adminHomeStyles.betweenRow}>
                     <span>Confusión</span>
                     <strong>{betaMetrics.summary.feedbackConfusing}</strong>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                  <div style={adminHomeStyles.betweenRow}>
                     <span>Falta algo</span>
                     <strong>{betaMetrics.summary.feedbackMissing}</strong>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
+                  <div style={adminHomeStyles.betweenRow}>
                     <span>Funcionó bien</span>
                     <strong>{betaMetrics.summary.feedbackLoveIt}</strong>
                   </div>
                 </div>
               </Card>
               <Card variant="soft">
-                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Rutas con más feedback</div>
-                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+                <div style={adminHomeStyles.sectionTitle}>Rutas con más feedback</div>
+                <div style={adminHomeStyles.stackSm}>
                   {feedbackRoutes.length === 0 ? (
-                    <div style={{ color: theme.colors.textMuted }}>Todavía no hay rutas con feedback agrupado.</div>
+                    <div style={adminHomeStyles.mutedText}>Todavía no hay rutas con feedback agrupado.</div>
                   ) : feedbackRoutes.map((item) => (
-                    <div key={item.route} style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md }}>
-                      <span style={{ overflowWrap: 'anywhere' }}>{item.route}</span>
+                    <div key={item.route} style={adminHomeStyles.betweenRow}>
+                      <span style={adminHomeStyles.anywhereText}>{item.route}</span>
                       <strong>{item.total}</strong>
                     </div>
                   ))}
                 </div>
               </Card>
               <Card variant="soft">
-                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Fallos recientes</div>
-                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+                <div style={adminHomeStyles.sectionTitle}>Fallos recientes</div>
+                <div style={adminHomeStyles.stackSm}>
                   {recentFailures.length === 0 ? (
-                    <div style={{ color: theme.colors.textMuted }}>Sin fallos recientes de login o checkout.</div>
+                    <div style={adminHomeStyles.mutedText}>Sin fallos recientes de login o checkout.</div>
                   ) : recentFailures.map((item) => (
-                    <div key={`${item.eventName}-${item.occurredAt}-${item.requestId ?? item.route}`} style={{ display: 'grid', gap: 4, borderTop: `1px solid ${theme.colors.borderDefault}`, paddingTop: theme.spacing.sm }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                    <div key={`${item.eventName}-${item.occurredAt}-${item.requestId ?? item.route}`} style={adminHomeStyles.recentItem}>
+                      <div style={adminHomeStyles.recentHeader}>
                         <strong>{failureEventLabel[item.eventName] ?? item.eventName}</strong>
-                        <span style={{ color: theme.colors.textMuted }}>{formatDateTime(item.occurredAt)}</span>
+                        <span style={adminHomeStyles.mutedText}>{formatDateTime(item.occurredAt)}</span>
                       </div>
-                      <div style={{ color: theme.colors.textMuted, overflowWrap: 'anywhere' }}>{item.route}</div>
-                      <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', color: theme.colors.textMuted, fontSize: theme.typography.small.size }}>
+                      <div style={adminHomeStyles.mutedSmallAnywhere}>{item.route}</div>
+                      <div style={adminHomeStyles.mutedMetaRow}>
                         <span>requestId: {shortId(item.requestId)}</span>
                         {item.reason ? <span>reason: {item.reason}</span> : null}
                       </div>
@@ -302,18 +330,18 @@ export default function AdminHomeScreen() {
                 </div>
               </Card>
               <Card variant="soft">
-                <div style={{ fontWeight: 700, marginBottom: theme.spacing.sm }}>Feedback reciente</div>
-                <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+                <div style={adminHomeStyles.sectionTitle}>Feedback reciente</div>
+                <div style={adminHomeStyles.stackSm}>
                   {recentFeedback.length === 0 ? (
-                    <div style={{ color: theme.colors.textMuted }}>Todavía no hay feedback recibido.</div>
+                    <div style={adminHomeStyles.mutedText}>Todavía no hay feedback recibido.</div>
                   ) : recentFeedback.map((item) => (
-                    <div key={`${item.createdAt}-${item.requestId ?? item.message}`} style={{ display: 'grid', gap: 4, borderTop: `1px solid ${theme.colors.borderDefault}`, paddingTop: theme.spacing.sm }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                    <div key={`${item.createdAt}-${item.requestId ?? item.message}`} style={adminHomeStyles.recentItem}>
+                      <div style={adminHomeStyles.recentHeader}>
                         <strong>{feedbackCategoryLabel[item.category] ?? item.category}{item.score ? ` · ${item.score}/5` : ''}</strong>
-                        <span style={{ color: theme.colors.textMuted }}>{formatDateTime(item.createdAt)}</span>
+                        <span style={adminHomeStyles.mutedText}>{formatDateTime(item.createdAt)}</span>
                       </div>
-                      <div style={{ overflowWrap: 'anywhere' }}>{item.message}</div>
-                      <div style={{ color: theme.colors.textMuted, fontSize: theme.typography.small.size, overflowWrap: 'anywhere' }}>
+                      <div style={adminHomeStyles.anywhereText}>{item.message}</div>
+                      <div style={adminHomeStyles.mutedSmallAnywhere}>
                         {item.route} · requestId: {shortId(item.requestId)}
                       </div>
                     </div>
@@ -335,7 +363,7 @@ export default function AdminHomeScreen() {
         >
           {!canLoadStoreSummary ? (
             <Card variant="soft">
-              <div style={{ color: theme.colors.textMuted, lineHeight: 1.6 }}>
+              <div style={adminHomeStyles.scopedSummaryCopy}>
                 El resumen STORE sólo se carga dentro del host de una tienda. Desde este host general podés entrar al hub store, pero para métricas store-scoped necesitás abrir la app con el subdominio de la tienda.
               </div>
             </Card>
@@ -343,10 +371,10 @@ export default function AdminHomeScreen() {
             <>
               {storeLoading && <LoadingBlock label="Cargando resumen operativo de store..." />}
               {storeError && <ErrorAlert message={storeError} />}
-              <div style={{ color: theme.colors.textMuted, marginBottom: theme.spacing.lg }}>
+              <div style={adminHomeStyles.summaryIntro}>
                 Este resumen usa conteos por estado sobre el backend actual. Las ventas agregadas no se muestran aca porque hoy no existe un endpoint analitico dedicado.
               </div>
-              <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+              <div style={adminHomeStyles.metricGrid}>
                 <MetricCard label="Ordenes totales" value={String(storeCounts.total)} />
                 <MetricCard label="Pedidos pendientes" value={String(storeCounts.pending)} tone="warning" />
                 <MetricCard label="Pedidos pagados" value={String(storeCounts.paid)} tone="success" />
@@ -364,10 +392,10 @@ export default function AdminHomeScreen() {
         >
           {ecosystemLoading && <LoadingBlock label="Cargando resumen operativo de ecosystem..." />}
           {ecosystemError && <ErrorAlert message={ecosystemError} />}
-          <div style={{ color: theme.colors.textMuted, marginBottom: theme.spacing.lg }}>
+          <div style={adminHomeStyles.summaryIntro}>
             Este resumen usa conteos por estado sobre el backend actual. Las ventas agregadas no se muestran aca porque hoy no existe un endpoint analitico dedicado.
           </div>
-          <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+          <div style={adminHomeStyles.metricGrid}>
             <MetricCard label="Ordenes totales" value={String(ecosystemCounts.total)} />
             <MetricCard label="Pedidos pendientes" value={String(ecosystemCounts.pending)} tone="warning" />
             <MetricCard label="Pedidos pagados" value={String(ecosystemCounts.paid)} tone="success" />

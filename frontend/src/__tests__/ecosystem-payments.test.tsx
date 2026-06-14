@@ -16,7 +16,7 @@ describe('ecosystem payment handoff', () => {
     vi.stubGlobal('open', openSpy)
 
     mockFetch({
-      '/api/public/stores/demo-store': { body: { slug: 'demo-store', id: 's1', name: 'Demo Store' } },
+      '/api/public/stores/demo-store': { body: { id: 's1', slug: 'demo-store', name: 'Demo Store' } },
       '/api/public/stores/demo-store/products': { body: [] },
       '/api/public/ecosystems/demo-ecosystem': {
         body: { id: 'eco-1', slug: 'demo-ecosystem', name: 'Demo Ecosystem' }
@@ -79,7 +79,7 @@ describe('ecosystem payment handoff', () => {
 
   it('shows non-payable message for paid orders', async () => {
     mockFetch({
-      '/api/public/stores/demo-store': { body: { slug: 'demo-store', id: 's1', name: 'Demo Store' } },
+      '/api/public/stores/demo-store': { body: { id: 's1', slug: 'demo-store', name: 'Demo Store' } },
       '/api/public/stores/demo-store/products': { body: [] },
       '/api/public/ecosystems/demo-ecosystem': {
         body: { id: 'eco-1', slug: 'demo-ecosystem', name: 'Demo Ecosystem' }

@@ -80,8 +80,9 @@ Fuentes de apoyo:
 3. mirar si hubo restart o deploy desde la revisión anterior
 4. correr `scripts/smoke-post-deploy.sh` si hubo deploy o restart; el script ahora espera readiness con polling claro hasta 45s
 5. correr `scripts/smoke-https-staging.sh` después de cambios de dominio, CORS, auth o cookies
-6. correr `scripts/smoke-real-payment.sh` después de cambios de checkout, pagos, webhook o reverse proxy público
-7. elegir hasta 3 acciones concretas para el día
+6. correr `scripts/smoke-prod-hardening.sh` después de cambios de seguridad, límites HTTP, actuator o reverse proxy
+7. correr `scripts/smoke-real-payment.sh` después de cambios de checkout, pagos, webhook o reverse proxy público
+8. elegir hasta 3 acciones concretas para el día
 
 ## Checklist Diario De Beta Interna
 

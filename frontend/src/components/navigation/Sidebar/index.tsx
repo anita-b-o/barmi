@@ -8,7 +8,7 @@ export default function Sidebar({ children, style }: { children: React.ReactNode
         padding: `${theme.spacing.xl}px ${theme.spacing.lg}px`,
         borderRight: `1px solid ${theme.colors.borderDefault}`,
         background: theme.colors.bgSurfaceAlt,
-        color: theme.colors.bgSurfaceAlt,
+        color: theme.colors.textPrimary,
         boxShadow: 'none',
         ...style
       }}

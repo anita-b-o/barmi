@@ -9,6 +9,7 @@ const rawAppCommitSha = import.meta.env.VITE_APP_COMMIT_SHA
 const rawAppBuildTimestamp = import.meta.env.VITE_APP_BUILD_TIMESTAMP
 const rawAppReleaseId = import.meta.env.VITE_APP_RELEASE_ID
 const rawObservabilitySmokeEnabled = import.meta.env.VITE_OBSERVABILITY_SMOKE_ENABLED
+const rawSentrySmokeEnabled = import.meta.env.VITE_SENTRY_SMOKE_ENABLED
 const rawMode = import.meta.env.MODE
 
 export const appConfig = {
@@ -33,6 +34,7 @@ export const appConfig = {
     ? rawAppReleaseId.trim()
     : `${typeof rawAppVersion === 'string' && rawAppVersion.trim().length > 0 ? rawAppVersion.trim() : 'dev'}+${typeof rawAppCommitSha === 'string' && rawAppCommitSha.trim().length > 0 ? rawAppCommitSha.trim() : 'unknown'}`,
   observabilitySmokeEnabled: rawObservabilitySmokeEnabled === 'true',
+  sentrySmokeEnabled: rawSentrySmokeEnabled === 'true',
   appName: 'Barmi'
 } as const
 

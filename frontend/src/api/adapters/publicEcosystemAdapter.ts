@@ -4,6 +4,7 @@ import type {
   PublicEcosystemCatalogSort,
   PublicEcosystemHome,
   PublicEcosystemProduct,
+  PublicEcosystemProductsPage,
   PublicEcosystemPromotion,
   PublicEcosystemStoresMapLocationFilter,
   PublicEcosystemStoresMapSort,
@@ -48,23 +49,52 @@ export function parsePublicEcosystem(data: unknown): PublicEcosystem {
   }
 }
 
+function parsePublicEcosystemProduct(data: unknown, index: number): PublicEcosystemProduct {
+  assertRecord(data, `Public ecosystem product at ${index} is invalid`)
+  assertString(data.id, `Public ecosystem product id at ${index} is required`)
+  assertString(data.name, `Public ecosystem product name at ${index} is required`)
+  assertNumber(data.priceAmount, `Public ecosystem product priceAmount at ${index} is required`)
+  assertString(data.currency, `Public ecosystem product currency at ${index} is required`)
+  assertBoolean(data.deliverySupported, `Public ecosystem product deliverySupported at ${index} is required`)
+  return {
+    id: data.id,
+    name: data.name,
+    priceAmount: data.priceAmount,
+    currency: data.currency,
+    deliverySupported: data.deliverySupported
+  }
+}
+
 export function parsePublicEcosystemProducts(data: unknown): PublicEcosystemProduct[] {
   assertArray(data, 'Invalid public ecosystem products payload')
-  return data.map((item, index) => {
-    assertRecord(item, `Public ecosystem product at ${index} is invalid`)
-    assertString(item.id, `Public ecosystem product id at ${index} is required`)
-    assertString(item.name, `Public ecosystem product name at ${index} is required`)
-    assertNumber(item.priceAmount, `Public ecosystem product priceAmount at ${index} is required`)
-    assertString(item.currency, `Public ecosystem product currency at ${index} is required`)
-    assertBoolean(item.deliverySupported, `Public ecosystem product deliverySupported at ${index} is required`)
+  return data.map((item, index) => parsePublicEcosystemProduct(item, index))
+}
+
+export function parsePublicEcosystemProductsPage(data: unknown): PublicEcosystemProductsPage {
+  if (Array.isArray(data)) {
+    const content = parsePublicEcosystemProducts(data)
     return {
-      id: item.id,
-      name: item.name,
-      priceAmount: item.priceAmount,
-      currency: item.currency,
-      deliverySupported: item.deliverySupported
+      content,
+      page: 0,
+      size: content.length,
+      totalElements: content.length,
+      totalPages: content.length > 0 ? 1 : 0
     }
-  })
+  }
+
+  assertRecord(data, 'Invalid public ecosystem products page payload')
+  assertArray(data.content, 'Public ecosystem products page content is required')
+  assertNumber(data.page, 'Public ecosystem products page page is required')
+  assertNumber(data.size, 'Public ecosystem products page size is required')
+  assertNumber(data.totalElements, 'Public ecosystem products page totalElements is required')
+  assertNumber(data.totalPages, 'Public ecosystem products page totalPages is required')
+  return {
+    content: data.content.map((item, index) => parsePublicEcosystemProduct(item, index)),
+    page: data.page,
+    size: data.size,
+    totalElements: data.totalElements,
+    totalPages: data.totalPages
+  }
 }
 
 function parsePublicStoreSummary(data: unknown, index: number): PublicStoreSummary {
@@ -204,11 +234,15 @@ export const publicEcosystemAdapter = {
       activeOnly?: boolean
       sort?: PublicEcosystemCatalogSort
       deliverySupported?: boolean
+      page?: number
+      size?: number
     } = {}
   ) {
     const params = new URLSearchParams()
     if (options.query?.trim()) params.set('q', options.query.trim())
     params.set('activeOnly', String(options.activeOnly ?? true))
+    params.set('page', String(options.page ?? 0))
+    params.set('size', String(options.size ?? 24))
     if (options.sort && options.sort !== 'default') params.set('sort', options.sort)
     if (options.deliverySupported !== undefined) params.set('deliverySupported', String(options.deliverySupported))
     const queryString = params.toString()
@@ -216,6 +250,6 @@ export const publicEcosystemAdapter = {
       ? `/api/public/ecosystems/${slug}/products?${queryString}`
       : `/api/public/ecosystems/${slug}/products`
     const data = await requestJson<unknown>(path)
-    return parsePublicEcosystemProducts(data)
+    return parsePublicEcosystemProductsPage(data)
   }
 }

@@ -28,6 +28,20 @@ const initialState: EcosystemCartState = {
   items: []
 }
 
+function isValidQuantity(qty: number) {
+  return Number.isInteger(qty) && Number.isFinite(qty)
+}
+
+function isValidCartItemInput(item: Omit<EcosystemCartItem, 'qty'>) {
+  return (
+    item.externalProductId.trim().length > 0 &&
+    item.name.trim().length > 0 &&
+    Number.isFinite(item.unitPriceAmount) &&
+    item.unitPriceAmount >= 0 &&
+    item.currency.trim().length > 0
+  )
+}
+
 type Action =
   | { type: 'ADD_ITEM'; item: Omit<EcosystemCartItem, 'qty'> }
   | { type: 'REMOVE_ITEM'; externalProductId: string }
@@ -44,10 +58,16 @@ function isValidState(state: unknown): state is EcosystemCartState {
     const v = item as Record<string, unknown>
     return (
       typeof v.externalProductId === 'string' &&
+      v.externalProductId.trim().length > 0 &&
       typeof v.name === 'string' &&
       typeof v.unitPriceAmount === 'number' &&
+      Number.isFinite(v.unitPriceAmount) &&
+      v.unitPriceAmount >= 0 &&
       typeof v.qty === 'number' &&
+      Number.isInteger(v.qty) &&
+      v.qty > 0 &&
       typeof v.currency === 'string' &&
+      v.currency.trim().length > 0 &&
       (typeof v.deliverySupported === 'boolean' || typeof v.deliverySupported === 'undefined')
     )
   })
@@ -73,6 +93,7 @@ function reducer(state: EcosystemCartState, action: Action): EcosystemCartState 
     case 'CLEAR':
       return initialState
     case 'ADD_ITEM': {
+      if (!isValidCartItemInput(action.item)) return state
       const existing = state.items.find((item) => item.externalProductId === action.item.externalProductId)
       if (existing) {
         return {
@@ -96,6 +117,7 @@ function reducer(state: EcosystemCartState, action: Action): EcosystemCartState 
       return { items: nextItems }
     }
     case 'SET_QUANTITY': {
+      if (!isValidQuantity(action.qty)) return state
       if (action.qty <= 0) {
         return { items: state.items.filter((item) => item.externalProductId !== action.externalProductId) }
       }

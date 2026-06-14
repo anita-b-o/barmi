@@ -17,6 +17,8 @@ import com.barmi.domain.store.Store;
 import com.barmi.domain.store.StoreMember;
 import com.barmi.domain.store.StoreMemberRole;
 import com.barmi.domain.store.StoreMemberStatus;
+import com.barmi.domain.users.User;
+import com.barmi.domain.users.UserStatus;
 import com.barmi.infra.repo.OutboxEventRepository;
 import com.barmi.infra.repo.PaymentIntentRepository;
 import com.barmi.infra.repo.PaymentRepository;
@@ -25,6 +27,7 @@ import com.barmi.infra.repo.StoreFulfillmentRepository;
 import com.barmi.infra.repo.StoreMemberRepository;
 import com.barmi.infra.repo.StoreOrderRepository;
 import com.barmi.infra.repo.StoreRepository;
+import com.barmi.infra.repo.UserRepository;
 import com.barmi.testsupport.ApiTestClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +35,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -91,8 +95,10 @@ class StoreOrderAdminIT {
     private final PaymentIntentRepository paymentIntentRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final StoreFulfillmentRepository storeFulfillmentRepository;
+    private final UserRepository userRepository;
     private final CheckoutStoreOrderService checkoutStoreOrderService;
     private final StorePaymentConfirmationService storePaymentConfirmationService;
+    private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
     private final ApiTestClient api;
 
@@ -106,8 +112,10 @@ class StoreOrderAdminIT {
             PaymentIntentRepository paymentIntentRepository,
             OutboxEventRepository outboxEventRepository,
             StoreFulfillmentRepository storeFulfillmentRepository,
+            UserRepository userRepository,
             CheckoutStoreOrderService checkoutStoreOrderService,
             StorePaymentConfirmationService storePaymentConfirmationService,
+            PasswordEncoder passwordEncoder,
             JdbcTemplate jdbcTemplate,
             MockMvc mockMvc
     ) {
@@ -119,8 +127,10 @@ class StoreOrderAdminIT {
         this.paymentIntentRepository = paymentIntentRepository;
         this.outboxEventRepository = outboxEventRepository;
         this.storeFulfillmentRepository = storeFulfillmentRepository;
+        this.userRepository = userRepository;
         this.checkoutStoreOrderService = checkoutStoreOrderService;
         this.storePaymentConfirmationService = storePaymentConfirmationService;
+        this.passwordEncoder = passwordEncoder;
         this.jdbcTemplate = jdbcTemplate;
         this.api = new ApiTestClient(mockMvc);
     }
@@ -129,7 +139,7 @@ class StoreOrderAdminIT {
     void manualCancellationCancelsOrderAndDoesNotDuplicateEvent() throws Exception {
         Store store = storeRepository.save(new Store(UUID.randomUUID(), "admin-cancel", "Admin Cancel"));
         String adminEmail = "admin-cancel@" + UUID.randomUUID() + ".test";
-        storeMemberRepository.save(new StoreMember(UUID.randomUUID(), store.getId(), adminEmail, StoreMemberRole.ADMIN, StoreMemberStatus.ACTIVE));
+        createStoreUser(store, adminEmail, StoreMemberRole.ADMIN);
         Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-CANCEL", "Cancelable", 700, 2));
 
         StoreOrder order;
@@ -184,7 +194,7 @@ class StoreOrderAdminIT {
     void retryProcessingResolvesStockConflictIdempotentlyAndExposesTimeline() throws Exception {
         Store store = storeRepository.save(new Store(UUID.randomUUID(), "admin-retry", "Admin Retry"));
         String adminEmail = "admin-retry@" + UUID.randomUUID() + ".test";
-        storeMemberRepository.save(new StoreMember(UUID.randomUUID(), store.getId(), adminEmail, StoreMemberRole.ADMIN, StoreMemberStatus.ACTIVE));
+        createStoreUser(store, adminEmail, StoreMemberRole.ADMIN);
         Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-RETRY", "Retry Product", 500, 1));
 
         StoreOrder paidOrder;
@@ -298,7 +308,7 @@ class StoreOrderAdminIT {
     void retryProcessingRejectsPaidOrdersWithoutStockConflict() throws Exception {
         Store store = storeRepository.save(new Store(UUID.randomUUID(), "admin-retry-guard", "Admin Retry Guard"));
         String adminEmail = "admin-retry-guard@" + UUID.randomUUID() + ".test";
-        storeMemberRepository.save(new StoreMember(UUID.randomUUID(), store.getId(), adminEmail, StoreMemberRole.ADMIN, StoreMemberStatus.ACTIVE));
+        createStoreUser(store, adminEmail, StoreMemberRole.ADMIN);
         Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-RETRY-GUARD", "Retry Guard Product", 500, 5));
 
         StoreOrder order;
@@ -335,7 +345,7 @@ class StoreOrderAdminIT {
     void adminListExposesDerivedIndicatorsAndSupportsOperationalFilters() throws Exception {
         Store store = storeRepository.save(new Store(UUID.randomUUID(), "admin-list", "Admin List"));
         String adminEmail = "admin-list@" + UUID.randomUUID() + ".test";
-        storeMemberRepository.save(new StoreMember(UUID.randomUUID(), store.getId(), adminEmail, StoreMemberRole.ADMIN, StoreMemberStatus.ACTIVE));
+        createStoreUser(store, adminEmail, StoreMemberRole.ADMIN);
         Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-LIST", "List Product", 900, 10));
 
         StoreOrder pendingOrder;
@@ -480,7 +490,7 @@ class StoreOrderAdminIT {
     void adminListSupportsOperationalDrillDownFilters() throws Exception {
         Store store = storeRepository.save(new Store(UUID.randomUUID(), "admin-drilldown", "Admin Drilldown"));
         String adminEmail = "admin-drilldown@" + UUID.randomUUID() + ".test";
-        storeMemberRepository.save(new StoreMember(UUID.randomUUID(), store.getId(), adminEmail, StoreMemberRole.ADMIN, StoreMemberStatus.ACTIVE));
+        createStoreUser(store, adminEmail, StoreMemberRole.ADMIN);
         Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-DRILL", "Drill Product", 900, 10));
 
         StoreOrder createdOnly;
@@ -602,10 +612,81 @@ class StoreOrderAdminIT {
                 .containsExactly(conflictOrder.getId().toString());
     }
 
-    private HttpHeaders adminHeaders(String storeSlug, String adminEmail) {
+    @Test
+    void adminOrderReadsRequireAuthenticationAndAdminRole() throws Exception {
+        Store store = storeRepository.save(new Store(UUID.randomUUID(), "admin-read-authz", "Admin Read Authz"));
+        String adminEmail = "admin-read-authz@" + UUID.randomUUID() + ".test";
+        String staffEmail = "staff-read-authz@" + UUID.randomUUID() + ".test";
+        createStoreUser(store, adminEmail, StoreMemberRole.ADMIN);
+        createStoreUser(store, staffEmail, StoreMemberRole.STAFF);
+        Product product = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-READ", "Read Product", 700, 2));
+
+        StoreOrder order;
+        try {
+            TenantContext.setStoreSlug(store.getSlug());
+            order = checkoutStoreOrderService.checkout(List.of(new CheckoutItem(product.getId(), 1)), null, null, "read@example.com");
+        } finally {
+            TenantContext.clear();
+        }
+
+        HttpHeaders unauthenticatedHeaders = api.storeHostHeaders(store.getSlug());
+
+        ApiTestClient.ApiTestResponse unauthenticatedList = api.get(
+                "/api/store/admin/orders",
+                unauthenticatedHeaders
+        );
+        assertThat(unauthenticatedList.status()).isEqualTo(401);
+
+        ApiTestClient.ApiTestResponse unauthenticatedDetail = api.get(
+                "/api/store/admin/orders/" + order.getId(),
+                unauthenticatedHeaders
+        );
+        assertThat(unauthenticatedDetail.status()).isEqualTo(401);
+
+        ApiTestClient.ApiTestResponse staffList = api.get(
+                "/api/store/admin/orders",
+                authHeaders(store.getSlug(), staffEmail)
+        );
+        assertThat(staffList.status()).isEqualTo(403);
+        assertThat(castMap(staffList.body().get("error")).get("code")).isEqualTo("forbidden");
+
+        ApiTestClient.ApiTestResponse adminList = api.get(
+                "/api/store/admin/orders",
+                adminHeaders(store.getSlug(), adminEmail)
+        );
+        assertThat(adminList.status()).isEqualTo(200);
+        assertThat(castList(adminList.body().get("content"))).hasSize(1);
+    }
+
+    private void createStoreUser(Store store, String email, StoreMemberRole role) {
+        userRepository.save(new User(
+                UUID.randomUUID(),
+                email,
+                passwordEncoder.encode("secret"),
+                UserStatus.ACTIVE
+        ));
+        storeMemberRepository.save(new StoreMember(UUID.randomUUID(), store.getId(), email, role, StoreMemberStatus.ACTIVE));
+    }
+
+    private HttpHeaders adminHeaders(String storeSlug, String adminEmail) throws Exception {
+        return authHeaders(storeSlug, adminEmail);
+    }
+
+    private HttpHeaders authHeaders(String storeSlug, String email) throws Exception {
         HttpHeaders headers = api.storeHostHeaders(storeSlug);
-        headers.set("X-User-Email", adminEmail);
+        headers.set("X-User-Email", email);
+        headers.setBearerAuth(loginAndGetAccessToken(email));
         return headers;
+    }
+
+    private String loginAndGetAccessToken(String email) throws Exception {
+        ApiTestClient.ApiTestResponse login = api.postJson(
+                "/api/auth/login",
+                Map.of("email", email, "password", "secret"),
+                null
+        );
+        assertThat(login.status()).isEqualTo(200);
+        return login.body().get("accessToken").toString();
     }
 
     @SuppressWarnings("unchecked")

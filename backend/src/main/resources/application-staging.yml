@@ -10,6 +10,9 @@ app:
   security:
     refreshCookie:
       secure: ${REFRESH_COOKIE_SECURE:false}
+  observability:
+    prometheus:
+      scrapeEnabled: ${APP_OBSERVABILITY_PROMETHEUS_SCRAPE_ENABLED:true}
 
 spring:
   data:
@@ -36,4 +39,4 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus

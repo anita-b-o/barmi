@@ -2,6 +2,7 @@ package com.barmi.api.webhooks;
 
 import com.barmi.app.config.ObservabilitySupport;
 import com.barmi.app.ratelimit.RedisReplayGuard;
+import com.barmi.infra.metrics.PaymentOperationalMetrics;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,17 +32,20 @@ public class MercadoPagoWebhookSecurityService {
     private final long timestampToleranceSeconds;
     private final Duration replayTtl;
     private final RedisReplayGuard replayGuard;
+    private final PaymentOperationalMetrics paymentOperationalMetrics;
 
     public MercadoPagoWebhookSecurityService(
             @Value("${app.mercadoPago.webhookSecret}") String secret,
             @Value("${app.mercadoPago.timestampToleranceSeconds:300}") long timestampToleranceSeconds,
             @Value("${app.mercadoPago.replayGuardTtlMinutes:1440}") long replayGuardTtlMinutes,
-            RedisReplayGuard replayGuard
+            RedisReplayGuard replayGuard,
+            PaymentOperationalMetrics paymentOperationalMetrics
     ) {
         this.secret = secret;
         this.timestampToleranceSeconds = timestampToleranceSeconds;
         this.replayTtl = Duration.ofMinutes(replayGuardTtlMinutes);
         this.replayGuard = replayGuard;
+        this.paymentOperationalMetrics = paymentOperationalMetrics;
     }
 
     public void validate(
@@ -54,6 +58,7 @@ public class MercadoPagoWebhookSecurityService {
         String requestId = ObservabilitySupport.requestId(request);
         int retryCount = ObservabilitySupport.retryCount(request);
         if (headerSecret == null || !headerSecret.equals(secret)) {
+            recordRejected(provider, "signature_invalid");
             log.warn("webhook_rejected category=api_error_webhook_failure provider={} request_id={} reason=invalid_signature event_id={} retry_count={}",
                     provider, requestId, eventId, retryCount);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid_secret");
@@ -73,6 +78,7 @@ public class MercadoPagoWebhookSecurityService {
     ) {
         String requestId = ObservabilitySupport.requestId(request);
         if (signatureHeader == null || signatureHeader.isBlank() || requestIdHeader == null || requestIdHeader.isBlank()) {
+            recordRejected(provider, "signature_invalid");
             log.warn("webhook_rejected category=api_error_webhook_failure provider={} request_id={} reason=invalid_signature event_id={} retry_count={}",
                     provider, requestId, eventId, ObservabilitySupport.retryCount(request));
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid_signature");
@@ -82,6 +88,7 @@ public class MercadoPagoWebhookSecurityService {
         String ts = parts.get("ts");
         String receivedHash = parts.get("v1");
         if (ts == null || ts.isBlank() || receivedHash == null || receivedHash.isBlank()) {
+            recordRejected(provider, "signature_invalid");
             log.warn("webhook_rejected category=api_error_webhook_failure provider={} request_id={} reason=invalid_signature event_id={} retry_count={}",
                     provider, requestId, eventId, ObservabilitySupport.retryCount(request));
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid_signature");
@@ -90,6 +97,7 @@ public class MercadoPagoWebhookSecurityService {
         String manifest = "id:" + normalizeDataId(dataId) + ";request-id:" + requestIdHeader + ";ts:" + ts + ";";
         String expectedHash = hmacSha256Hex(secret, manifest);
         if (!Objects.equals(expectedHash, receivedHash)) {
+            recordRejected(provider, "signature_invalid");
             log.warn("webhook_rejected category=api_error_webhook_failure provider={} request_id={} reason=invalid_signature event_id={} retry_count={}",
                     provider, requestId, eventId, ObservabilitySupport.retryCount(request));
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid_signature");
@@ -100,6 +108,7 @@ public class MercadoPagoWebhookSecurityService {
     }
 
     public void logPayloadError(String provider, String eventId, HttpServletRequest request, String reason) {
+        recordRejected(provider, "payload_invalid");
         log.warn(
                 "webhook_rejected category=api_error_webhook_failure provider={} request_id={} reason={} event_id={} retry_count={}",
                 provider,
@@ -117,6 +126,7 @@ public class MercadoPagoWebhookSecurityService {
         Instant timestamp = parseTimestamp(timestampHeader);
         long deltaSeconds = Math.abs(Duration.between(timestamp, Instant.now()).getSeconds());
         if (deltaSeconds > timestampToleranceSeconds) {
+            recordRejected(provider, "timeout");
             log.warn("webhook_rejected category=api_error_webhook_failure provider={} request_id={} reason=timeout event_id={}",
                     provider, requestId, eventId);
             throw new ResponseStatusException(HttpStatus.CONFLICT, "webhook_timestamp_outside_window");
@@ -135,10 +145,28 @@ public class MercadoPagoWebhookSecurityService {
             return;
         }
         if (decision.duplicate()) {
+            recordRejected(provider, "replay");
             log.warn("webhook_rejected category=api_error_webhook_failure provider={} request_id={} reason=replay event_id={}",
                     provider, requestId, eventId);
             throw new ResponseStatusException(HttpStatus.CONFLICT, "duplicate_webhook_event");
         }
+    }
+
+    private void recordRejected(String provider, String reason) {
+        paymentOperationalMetrics.recordWebhook(provider, scopeForProvider(provider), "rejected", reason);
+    }
+
+    private String scopeForProvider(String provider) {
+        if (provider == null) {
+            return "unknown";
+        }
+        if (provider.toLowerCase().contains("ecosystem")) {
+            return "ecosystem";
+        }
+        if (provider.toLowerCase().contains("store")) {
+            return "store";
+        }
+        return "unknown";
     }
 
     private Instant parseTimestamp(String value) {

@@ -1,6 +1,7 @@
 import { appConfig } from '@/app/config/env'
 import { releaseMetadata } from './release'
 import { Sentry, sentryEnabled } from './sentry'
+import { deriveSentryContextFromLocation, sanitizeUrlForTelemetry, shouldDropSentryEvent } from './sentryPolicy'
 
 type ObservabilityLevel = 'info' | 'warn' | 'error'
 type ObservabilityEventType =
@@ -62,7 +63,12 @@ function createIdentifier() {
 
 function currentRoute() {
   if (typeof window === 'undefined') return ''
-  return `${window.location.pathname}${window.location.search}${window.location.hash}`
+  return window.location.pathname
+}
+
+function currentUrl() {
+  if (typeof window === 'undefined') return ''
+  return sanitizeUrlForTelemetry(window.location.href)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -105,7 +111,7 @@ function buildEnvelope(payload: ObservabilityEvent): ObservabilityEnvelope {
     buildTimestamp: releaseMetadata.buildTimestamp,
     sessionId: SESSION_ID,
     occurredAt: new Date().toISOString(),
-    url: typeof window === 'undefined' ? '' : window.location.href,
+    url: currentUrl(),
     userAgent: typeof navigator === 'undefined' ? '' : navigator.userAgent,
     online: typeof navigator === 'undefined' ? true : navigator.onLine,
     payload: {
@@ -159,13 +165,20 @@ function isRelevantSentryEvent(envelope: ObservabilityEnvelope) {
 
 function sendToSentry(envelope: ObservabilityEnvelope) {
   if (!sentryEnabled() || !isRelevantSentryEvent(envelope)) return
+  if (shouldDropSentryEvent(envelope.payload.route)) return
 
   Sentry.withScope((scope) => {
+    const locationContext = typeof window === 'undefined'
+      ? { route: envelope.payload.route ?? '', tags: {} }
+      : deriveSentryContextFromLocation(window.location)
+
     scope.setLevel(sentryLevel(envelope.payload.level))
     scope.setTag('observability_type', envelope.payload.type)
     scope.setTag('environment', envelope.env)
-    scope.setTag('route', envelope.payload.route ?? '')
+    scope.setTag('app_env', envelope.env)
+    scope.setTag('route', envelope.payload.route ?? locationContext.route)
     scope.setTag('release_id', envelope.releaseId)
+    Object.entries(locationContext.tags).forEach(([key, value]) => scope.setTag(key, value))
     if (envelope.payload.requestId) {
       scope.setTag('request_id', envelope.payload.requestId)
     }

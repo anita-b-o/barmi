@@ -19,7 +19,7 @@ describe('store checkout flow', () => {
     mockFetch({
       '/api/public/stores/demo-store/products': {
         body: [
-          { id: 'p1', name: 'Producto 1', sku: 'SKU1', priceCents: 1000, stockQuantity: 4, isAvailable: true }
+          { id: 'p1', slug: 'p1', name: 'Producto 1', sku: 'SKU1', priceCents: 1000, stockQuantity: 4, isAvailable: true }
         ]
       },
       '/api/public/stores/demo-store': {
@@ -137,7 +137,7 @@ describe('store checkout flow', () => {
     mockFetch({
       '/api/public/stores/demo-store/products': {
         body: [
-          { id: 'p1', name: 'Producto 1', sku: 'SKU1', priceCents: 1000, stockQuantity: 4, isAvailable: true }
+          { id: 'p1', slug: 'p1', name: 'Producto 1', sku: 'SKU1', priceCents: 1000, stockQuantity: 4, isAvailable: true }
         ]
       },
       '/api/public/stores/demo-store': {
@@ -251,7 +251,7 @@ describe('store checkout flow', () => {
     mockFetch({
       '/api/public/stores/demo-store/products': {
         body: [
-          { id: 'p1', name: 'Producto 1', sku: 'SKU1', priceCents: 1000, stockQuantity: 4, isAvailable: true }
+          { id: 'p1', slug: 'p1', name: 'Producto 1', sku: 'SKU1', priceCents: 1000, stockQuantity: 4, isAvailable: true }
         ]
       },
       '/api/public/stores/demo-store': {
@@ -319,7 +319,7 @@ describe('store checkout flow', () => {
     mockFetch({
       '/api/public/stores/demo-store/products': {
         body: [
-          { id: 'p1', name: 'Producto 1', sku: 'SKU1', priceCents: 1000, stockQuantity: 4, isAvailable: true }
+          { id: 'p1', slug: 'p1', name: 'Producto 1', sku: 'SKU1', priceCents: 1000, stockQuantity: 4, isAvailable: true }
         ]
       },
       '/api/public/stores/demo-store': {
@@ -378,7 +378,7 @@ describe('store checkout flow', () => {
     mockFetch({
       '/api/public/stores/demo-store/products': {
         body: [
-          { id: 'p1', name: 'Producto 1', sku: 'SKU1', priceCents: 1000, stockQuantity: 4, isAvailable: true }
+          { id: 'p1', slug: 'p1', name: 'Producto 1', sku: 'SKU1', priceCents: 1000, stockQuantity: 4, isAvailable: true }
         ]
       }
       ,

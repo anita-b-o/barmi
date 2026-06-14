@@ -225,7 +225,7 @@ export default function AdminStorePromotionsScreen() {
                 <select
                   value={form.type}
                   onChange={(event) => setForm((prev) => ({ ...prev, type: event.target.value as StorePromotionType }))}
-                  style={{ padding: '10px 12px', borderRadius: theme.radius.md, border: `1px solid ${theme.colors.border}` }}
+                  style={{ padding: '10px 12px', borderRadius: theme.radius.md, border: `1px solid ${theme.colors.borderDefault}` }}
                 >
                   <option value="FIXED">Monto fijo</option>
                   <option value="PERCENTAGE">Porcentaje</option>

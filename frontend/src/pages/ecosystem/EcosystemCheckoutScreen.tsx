@@ -149,7 +149,7 @@ export default function EcosystemCheckoutScreen() {
 
               <SurfaceCard variant="panel" style={{ padding: isMobile ? theme.spacing.lg : theme.spacing.xl }}>
                 <div style={{ display: 'grid', gap: 6 }}>
-                  <div style={{ fontSize: theme.typography.title.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.secondary }}>
+                  <div style={{ fontSize: theme.typography.title.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.textPrimary }}>
                     3. Datos
                   </div>
                   <div style={{ color: theme.colors.textMuted, lineHeight: 1.5 }}>
@@ -160,7 +160,7 @@ export default function EcosystemCheckoutScreen() {
 
               <SurfaceCard variant="panel" style={{ padding: isMobile ? theme.spacing.lg : theme.spacing.xl }}>
                 <div style={{ display: 'grid', gap: 6 }}>
-                  <div style={{ fontSize: theme.typography.title.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.secondary }}>
+                  <div style={{ fontSize: theme.typography.title.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.textPrimary }}>
                     4. Pago
                   </div>
                   <div style={{ color: theme.colors.textMuted, lineHeight: 1.5 }}>
@@ -204,15 +204,15 @@ export default function EcosystemCheckoutScreen() {
               bottom: 0,
               zIndex: 30,
               padding: theme.spacing.md,
-              background: 'rgba(255,255,255,0.96)',
+              background: alpha(theme.colors.bgSurfaceAlt, 0.96),
               backdropFilter: 'none',
-              borderTop: `1px solid ${alpha(theme.colors.secondary, 0.08)}`
+              borderTop: `1px solid ${alpha(theme.colors.textPrimary, 0.08)}`
             }}
           >
             <Card
               style={{
                 padding: theme.spacing.md,
-                borderColor: alpha(theme.colors.secondary, 0.08),
+                borderColor: alpha(theme.colors.textPrimary, 0.08),
                 boxShadow: 'none',
                 display: 'grid',
                 gap: theme.spacing.md

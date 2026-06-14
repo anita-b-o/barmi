@@ -53,7 +53,7 @@ function CheckoutOrderSummaryContent({
             justifyContent: 'space-between',
             gap: theme.spacing.lg,
             paddingTop: index === rows.length - 1 ? theme.spacing.sm : 0,
-            borderTop: index === rows.length - 1 ? `1px solid ${theme.colors.border}` : undefined
+            borderTop: index === rows.length - 1 ? `1px solid ${theme.colors.borderDefault}` : undefined
           }}
         >
           <span style={{ color: theme.colors.textMuted }}>{row.label}</span>
@@ -80,7 +80,7 @@ function CheckoutOrderSummaryContent({
       {successState ? (
         <div
           style={{
-            borderTop: `1px solid ${theme.colors.border}`,
+            borderTop: `1px solid ${theme.colors.borderDefault}`,
             paddingTop: theme.spacing.lg,
             display: 'grid',
             gap: theme.spacing.sm

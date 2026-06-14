@@ -32,7 +32,7 @@ export function StoreCheckoutShippingForm({
   onQuote
 }: StoreCheckoutShippingFormProps) {
   return (
-    <Card variant="soft" style={{ borderColor: theme.colors.border }}>
+    <Card variant="soft" style={{ borderColor: theme.colors.borderDefault }}>
       <div style={{ display: 'grid', gap: theme.spacing.lg }}>
         <div
         style={{

@@ -1,6 +1,10 @@
 spring:
   application:
     name: barmi-backend
+  servlet:
+    multipart:
+      max-file-size: ${HTTP_MULTIPART_MAX_FILE_SIZE:256KB}
+      max-request-size: ${HTTP_MULTIPART_MAX_REQUEST_SIZE:256KB}
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:barmi}
     username: ${DB_USER:barmi}
@@ -21,7 +25,11 @@ spring:
 
 server:
   port: 8080
-  forward-headers-strategy: framework
+  forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:none}
+  max-http-request-header-size: ${HTTP_MAX_REQUEST_HEADER_SIZE:16KB}
+  tomcat:
+    max-http-form-post-size: ${HTTP_MAX_FORM_POST_SIZE:256KB}
+    max-swallow-size: ${HTTP_MAX_SWALLOW_SIZE:256KB}
 
 logging:
   pattern:
@@ -51,6 +59,7 @@ app:
     defaultCurrency: ${DEFAULT_CURRENCY:UNSET}
   tenant:
     baseDomain: ${STORE_BASE_DOMAIN:example.com}
+    trustProxyHeaders: ${TRUST_PROXY_HEADERS:false}
   notifications:
     storePublicScheme: ${STORE_PUBLIC_SCHEME:https}
     email:
@@ -68,14 +77,34 @@ app:
     replayGuardTtlMinutes: ${MP_WEBHOOK_REPLAY_GUARD_TTL_MINUTES:1440}
   rateLimit:
     enabled: ${RATE_LIMIT_ENABLED:true}
+    maxCachedBodyBytes: ${RATE_LIMIT_MAX_CACHED_BODY_BYTES:262144}
   observability:
     smoke:
       enabled: ${APP_OBSERVABILITY_SMOKE_ENABLED:false}
+  seo:
+    publicEcosystemSlug: ${PUBLIC_ECOSYSTEM_SLUG:demo-ecosystem}
+    publicBaseUrl: ${PUBLIC_BASE_URL:}
+  outbox:
+    dispatcher:
+      enabled: ${OUTBOX_DISPATCHER_ENABLED:true}
+      batch-size: ${OUTBOX_DISPATCHER_BATCH_SIZE:50}
+      max-attempts: ${OUTBOX_DISPATCHER_MAX_ATTEMPTS:10}
+      lock-timeout: ${OUTBOX_DISPATCHER_LOCK_TIMEOUT:PT2M}
+    retention:
+      published-days: ${OUTBOX_RETENTION_PUBLISHED_DAYS:90}
+      failed-days: ${OUTBOX_RETENTION_FAILED_DAYS:180}
+
+observability:
+  outbox:
+    backlog-threshold: ${OUTBOX_BACKLOG_THRESHOLD:1000}
+    oldest-pending-threshold: ${OUTBOX_OLDEST_PENDING_THRESHOLD:PT10M}
+    failed-threshold: ${OUTBOX_FAILED_READINESS_THRESHOLD:0}
 
 management:
   endpoint:
     health:
-      show-details: always
+      show-details: never
+      show-components: never
       probes:
         enabled: true
       group:
@@ -86,7 +115,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health
   health:
     livenessstate:
       enabled: true

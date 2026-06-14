@@ -8,6 +8,7 @@ app:
     allowDevIdentityHeader: true
   tenant:
     baseDomain: example.com
+    trustProxyHeaders: true
   notifications:
     email:
       mode: logging

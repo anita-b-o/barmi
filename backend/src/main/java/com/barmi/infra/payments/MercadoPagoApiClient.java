@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.barmi.infra.metrics.PaymentOperationalMetrics;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -29,13 +30,16 @@ public class MercadoPagoApiClient {
     private final HttpClient httpClient;
     private final String accessToken;
     private final String apiBaseUrl;
+    private final PaymentOperationalMetrics paymentOperationalMetrics;
 
     public MercadoPagoApiClient(
             ObjectMapper objectMapper,
+            PaymentOperationalMetrics paymentOperationalMetrics,
             @Value("${app.mercadoPago.accessToken:}") String accessToken,
             @Value("${app.mercadoPago.apiBaseUrl:https://api.mercadopago.com}") String apiBaseUrl
     ) {
         this.objectMapper = objectMapper;
+        this.paymentOperationalMetrics = paymentOperationalMetrics;
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(DEFAULT_TIMEOUT)
                 .build();
@@ -48,8 +52,10 @@ public class MercadoPagoApiClient {
     }
 
     public PreferenceResponse createPreference(PreferenceRequest request) {
-        requireConfigured();
+        long startedAt = System.nanoTime();
+        boolean success = false;
         try {
+            requireConfigured();
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(apiBaseUrl + "/checkout/preferences"))
                     .timeout(DEFAULT_TIMEOUT)
@@ -63,21 +69,27 @@ public class MercadoPagoApiClient {
                 throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "payment_provider_unavailable");
             }
 
-            return objectMapper.readValue(response.body(), PreferenceResponse.class);
+            PreferenceResponse preferenceResponse = objectMapper.readValue(response.body(), PreferenceResponse.class);
+            success = true;
+            return preferenceResponse;
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "payment_provider_unavailable");
         } catch (IOException ex) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "payment_provider_unavailable");
+        } finally {
+            recordProviderMetrics("create_preference", success, startedAt);
         }
     }
 
     public PaymentDetails getPayment(String paymentId) {
-        requireConfigured();
-        if (paymentId == null || paymentId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_provider_payment_id");
-        }
+        long startedAt = System.nanoTime();
+        boolean success = false;
         try {
+            requireConfigured();
+            if (paymentId == null || paymentId.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "missing_provider_payment_id");
+            }
             String encodedPaymentId = URLEncoder.encode(paymentId.trim(), StandardCharsets.UTF_8);
             HttpRequest httpRequest = HttpRequest.newBuilder()
                     .uri(URI.create(apiBaseUrl + "/v1/payments/" + encodedPaymentId))
@@ -92,13 +104,22 @@ public class MercadoPagoApiClient {
                 throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "payment_provider_unavailable");
             }
 
-            return objectMapper.readValue(response.body(), PaymentDetails.class);
+            PaymentDetails paymentDetails = objectMapper.readValue(response.body(), PaymentDetails.class);
+            success = true;
+            return paymentDetails;
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "payment_provider_unavailable");
         } catch (IOException ex) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "payment_provider_unavailable");
+        } finally {
+            recordProviderMetrics("get_payment", success, startedAt);
         }
+    }
+
+    private void recordProviderMetrics(String operation, boolean success, long startedAt) {
+        paymentOperationalMetrics.recordPaymentProviderRequest(operation, success ? "success" : "failure");
+        paymentOperationalMetrics.recordPaymentProviderLatency(operation, System.nanoTime() - startedAt);
     }
 
     private void requireConfigured() {

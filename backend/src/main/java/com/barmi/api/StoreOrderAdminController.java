@@ -2,6 +2,7 @@ package com.barmi.api;
 
 import com.barmi.app.orders.StoreOrderAdminService;
 import com.barmi.app.orders.StoreOrderQueryService;
+import com.barmi.app.security.StoreAuthorizationService;
 import com.barmi.domain.orders.StoreOrderStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,17 +21,21 @@ public class StoreOrderAdminController {
 
     private final StoreOrderAdminService storeOrderAdminService;
     private final StoreOrderQueryService storeOrderQueryService;
+    private final StoreAuthorizationService storeAuthorizationService;
 
     public StoreOrderAdminController(
             StoreOrderAdminService storeOrderAdminService,
-            StoreOrderQueryService storeOrderQueryService
+            StoreOrderQueryService storeOrderQueryService,
+            StoreAuthorizationService storeAuthorizationService
     ) {
         this.storeOrderAdminService = storeOrderAdminService;
         this.storeOrderQueryService = storeOrderQueryService;
+        this.storeAuthorizationService = storeAuthorizationService;
     }
 
     @GetMapping("/{orderId}")
     public ResponseEntity<StoreOrderQueryService.AdminOrderView> detail(@PathVariable UUID orderId) {
+        storeAuthorizationService.requireAdmin();
         return ResponseEntity.ok(storeOrderQueryService.getAdminOrder(orderId));
     }
 
@@ -53,6 +58,7 @@ public class StoreOrderAdminController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String sort
     ) {
+        storeAuthorizationService.requireAdmin();
         return ResponseEntity.ok(storeOrderQueryService.listAdminOrders(
                 status,
                 createdFrom,

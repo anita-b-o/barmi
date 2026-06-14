@@ -35,6 +35,12 @@ public interface BetaProductEventRepository extends JpaRepository<BetaProductEve
         String getMetadataJson();
     }
 
+    interface StoreProductTelemetryCountView {
+        String getProductSlug();
+        String getEventName();
+        long getTotal();
+    }
+
     @Query("""
             select e.eventName as eventName, count(e) as total
             from BetaProductEvent e
@@ -74,4 +80,46 @@ public interface BetaProductEventRepository extends JpaRepository<BetaProductEve
             order by e.occurredAt desc
             """)
     List<RecentFailureView> findRecentFailures(org.springframework.data.domain.Pageable pageable);
+
+    @Query("""
+            select e.productId as productSlug,
+                   e.eventName as eventName,
+                   count(e) as total
+            from BetaProductEvent e
+            where e.storeSlug = :storeSlug
+              and e.productId is not null
+              and e.occurredAt >= :fromInclusive
+              and e.occurredAt < :toExclusive
+              and e.eventName in (
+                'public_product_card_clicked',
+                'public_product_detail_viewed',
+                'public_product_detail_add_to_cart'
+              )
+            group by e.productId, e.eventName
+            """)
+    List<StoreProductTelemetryCountView> countStorePublicProductEventsBySlugInRange(
+            @org.springframework.data.repository.query.Param("storeSlug") String storeSlug,
+            @org.springframework.data.repository.query.Param("fromInclusive") Instant fromInclusive,
+            @org.springframework.data.repository.query.Param("toExclusive") Instant toExclusive
+    );
+
+    @Query("""
+            select e.eventName as eventName, count(e) as total
+            from BetaProductEvent e
+            where e.storeSlug = :storeSlug
+              and e.occurredAt >= :fromInclusive
+              and e.occurredAt < :toExclusive
+              and e.eventName in (
+                'public_product_list_viewed',
+                'public_product_card_clicked',
+                'public_product_detail_viewed',
+                'public_product_detail_add_to_cart'
+              )
+            group by e.eventName
+            """)
+    List<EventCountView> countStorePublicFunnelEventsByNameInRange(
+            @org.springframework.data.repository.query.Param("storeSlug") String storeSlug,
+            @org.springframework.data.repository.query.Param("fromInclusive") Instant fromInclusive,
+            @org.springframework.data.repository.query.Param("toExclusive") Instant toExclusive
+    );
 }

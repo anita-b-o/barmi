@@ -1,0 +1,14 @@
+{
+  "orders": 120,
+  "revenueCents": 850000,
+  "averageOrderValueCents": 7083,
+  "productsSold": 340,
+  "topProducts": [
+    {
+      "productSlug": "pan-de-campo",
+      "productName": "Pan de campo",
+      "quantitySold": 80,
+      "revenueCents": 96000
+    }
+  ]
+}

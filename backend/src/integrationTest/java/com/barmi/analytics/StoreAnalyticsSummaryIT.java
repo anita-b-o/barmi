@@ -8,6 +8,7 @@ import com.barmi.domain.fulfillment.FulfillmentStatus;
 import com.barmi.domain.fulfillment.StoreFulfillment;
 import com.barmi.domain.orders.StoreOrder;
 import com.barmi.domain.orders.StoreOrderItem;
+import com.barmi.domain.orders.StoreOrderStatus;
 import com.barmi.domain.payments.Payment;
 import com.barmi.domain.payments.PaymentStatus;
 import com.barmi.domain.store.Store;
@@ -16,13 +17,16 @@ import com.barmi.domain.store.StoreMemberRole;
 import com.barmi.domain.store.StoreMemberStatus;
 import com.barmi.domain.users.User;
 import com.barmi.domain.users.UserStatus;
+import com.barmi.domain.beta.BetaProductEvent;
 import com.barmi.infra.repo.ProductRepository;
+import com.barmi.infra.repo.BetaProductEventRepository;
 import com.barmi.infra.repo.EcosystemMemberRepository;
 import com.barmi.infra.repo.OutboxEventRepository;
 import com.barmi.infra.repo.PaymentRepository;
 import com.barmi.infra.repo.RefreshTokenRepository;
 import com.barmi.infra.repo.StoreFulfillmentRepository;
 import com.barmi.infra.repo.StoreMemberRepository;
+import com.barmi.infra.repo.StoreOrderItemRepository;
 import com.barmi.infra.repo.StoreOrderRepository;
 import com.barmi.infra.repo.StoreRepository;
 import com.barmi.infra.repo.UserRepository;
@@ -52,10 +56,12 @@ class StoreAnalyticsSummaryIT extends PostgresIntegrationTestBase {
     private final ApiTestClient api;
     private final StoreRepository storeRepository;
     private final StoreOrderRepository storeOrderRepository;
+    private final StoreOrderItemRepository storeOrderItemRepository;
     private final StoreFulfillmentRepository storeFulfillmentRepository;
     private final ProductRepository productRepository;
     private final PaymentRepository paymentRepository;
     private final OutboxEventRepository outboxEventRepository;
+    private final BetaProductEventRepository betaProductEventRepository;
     private final EcosystemMemberRepository ecosystemMemberRepository;
     private final StoreMemberRepository storeMemberRepository;
     private final UserRepository userRepository;
@@ -73,10 +79,12 @@ class StoreAnalyticsSummaryIT extends PostgresIntegrationTestBase {
             org.springframework.test.web.servlet.MockMvc mockMvc,
             StoreRepository storeRepository,
             StoreOrderRepository storeOrderRepository,
+            StoreOrderItemRepository storeOrderItemRepository,
             StoreFulfillmentRepository storeFulfillmentRepository,
             ProductRepository productRepository,
             PaymentRepository paymentRepository,
             OutboxEventRepository outboxEventRepository,
+            BetaProductEventRepository betaProductEventRepository,
             EcosystemMemberRepository ecosystemMemberRepository,
             StoreMemberRepository storeMemberRepository,
             UserRepository userRepository,
@@ -87,10 +95,12 @@ class StoreAnalyticsSummaryIT extends PostgresIntegrationTestBase {
         this.api = new ApiTestClient(mockMvc);
         this.storeRepository = storeRepository;
         this.storeOrderRepository = storeOrderRepository;
+        this.storeOrderItemRepository = storeOrderItemRepository;
         this.storeFulfillmentRepository = storeFulfillmentRepository;
         this.productRepository = productRepository;
         this.paymentRepository = paymentRepository;
         this.outboxEventRepository = outboxEventRepository;
+        this.betaProductEventRepository = betaProductEventRepository;
         this.ecosystemMemberRepository = ecosystemMemberRepository;
         this.storeMemberRepository = storeMemberRepository;
         this.userRepository = userRepository;
@@ -105,7 +115,9 @@ class StoreAnalyticsSummaryIT extends PostgresIntegrationTestBase {
         ecosystemMemberRepository.deleteAll();
         storeMemberRepository.deleteAll();
         storeFulfillmentRepository.deleteAll();
+        storeOrderItemRepository.deleteAll();
         storeOrderRepository.deleteAll();
+        betaProductEventRepository.deleteAll();
         productRepository.deleteAll();
         userRepository.deleteAll();
         storeRepository.deleteAll();
@@ -301,6 +313,195 @@ class StoreAnalyticsSummaryIT extends PostgresIntegrationTestBase {
         assertThat(errorCode(forbidden)).isEqualTo("forbidden");
     }
 
+    @Test
+    void returnsStoreProductAnalyticsForLastSevenDaysWithScopedAggregationAndZeroRows() throws Exception {
+        Product apple = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-APPLE-ANALYTICS", "Apple Analytics", 1500, 8));
+        Product banana = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-BANANA-ANALYTICS", "Banana Analytics", 900, 6));
+        Product noEvents = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-NO-EVENTS", "No Events", 700, 4));
+        Product foreign = productRepository.save(new Product(UUID.randomUUID(), otherStore.getId(), "SKU-FOREIGN-ANALYTICS", "Foreign Analytics", 1200, 5));
+        Instant now = Instant.now();
+
+        saveProductTelemetry(store.getSlug(), apple.getPublicSlug(), "public_product_card_clicked", now.minusSeconds(2 * 24L * 60L * 60L), 4);
+        saveProductTelemetry(store.getSlug(), apple.getPublicSlug(), "public_product_detail_viewed", now.minusSeconds(2 * 24L * 60L * 60L), 2);
+        saveProductTelemetry(store.getSlug(), apple.getPublicSlug(), "public_product_detail_add_to_cart", now.minusSeconds(60L * 60L), 1);
+        saveProductTelemetry(store.getSlug(), banana.getPublicSlug(), "public_product_card_clicked", now.minusSeconds(3 * 24L * 60L * 60L), 1);
+        saveProductTelemetry(store.getSlug(), banana.getPublicSlug(), "public_product_detail_viewed", now.minusSeconds(3 * 24L * 60L * 60L), 1);
+        saveProductTelemetry(store.getSlug(), banana.getPublicSlug(), "public_product_detail_add_to_cart", now.minusSeconds(10 * 24L * 60L * 60L), 1);
+        saveProductTelemetry(otherStore.getSlug(), foreign.getPublicSlug(), "public_product_detail_add_to_cart", now.minusSeconds(60L), 9);
+
+        ApiTestClient.ApiTestResponse response = api.get("/api/store/analytics/products?range=7d", adminHeaders());
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body().get("storeId")).isEqualTo(store.getId().toString());
+        assertThat(response.body().get("storeSlug")).isEqualTo(store.getSlug());
+        assertThat(response.body().get("rangeKey")).isEqualTo("7d");
+
+        Map<String, Object> totals = castMap(response.body().get("totals"));
+        assertThat(totals.get("detailViews")).isEqualTo(3);
+        assertThat(totals.get("cardClicks")).isEqualTo(5);
+        assertThat(totals.get("addToCart")).isEqualTo(1);
+        assertThat(totals.get("ctrPercent")).isEqualTo(60.0);
+        assertThat(totals.get("addToCartRatePercent")).isEqualTo(33.33);
+
+        List<Map<String, Object>> products = castList(response.body().get("products"));
+        assertThat(products).extracting(row -> row.get("productSlug")).contains(
+                apple.getPublicSlug(),
+                banana.getPublicSlug(),
+                noEvents.getPublicSlug()
+        ).doesNotContain(foreign.getPublicSlug());
+        assertThat(products.get(0).get("productSlug")).isEqualTo(apple.getPublicSlug());
+
+        Map<String, Object> appleRow = findProductRow(products, apple.getPublicSlug());
+        assertThat(appleRow).containsEntry("detailViews", 2)
+                .containsEntry("cardClicks", 4)
+                .containsEntry("addToCart", 1)
+                .containsEntry("ctrPercent", 50.0)
+                .containsEntry("addToCartRatePercent", 50.0);
+
+        Map<String, Object> bananaRow = findProductRow(products, banana.getPublicSlug());
+        assertThat(bananaRow).containsEntry("detailViews", 1)
+                .containsEntry("cardClicks", 1)
+                .containsEntry("addToCart", 0)
+                .containsEntry("ctrPercent", 100.0)
+                .containsEntry("addToCartRatePercent", 0.0);
+
+        Map<String, Object> zeroRow = findProductRow(products, noEvents.getPublicSlug());
+        assertThat(zeroRow).containsEntry("detailViews", 0)
+                .containsEntry("cardClicks", 0)
+                .containsEntry("addToCart", 0)
+                .containsEntry("ctrPercent", 0.0)
+                .containsEntry("addToCartRatePercent", 0.0);
+    }
+
+    @Test
+    void returnsCommerceAnalyticsForPaidOrdersInCurrentStore() throws Exception {
+        storeFulfillmentRepository.deleteAll();
+        storeOrderItemRepository.deleteAll();
+        storeOrderRepository.deleteAll();
+
+        Product bread = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-BREAD-COMMERCE", "Pan de campo", 1200, 20));
+        Product coffee = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-COFFEE-COMMERCE", "Cafe molido", 2500, 12));
+        Product foreign = productRepository.save(new Product(UUID.randomUUID(), otherStore.getId(), "SKU-FOREIGN-COMMERCE", "Ajeno", 9999, 4));
+        Instant now = Instant.now();
+
+        StoreOrder firstPaid = savePaidOrderWithItems(store.getId(), List.of(
+                new CommerceItemFixture(bread, 2, new BigDecimal("12.00"), new BigDecimal("24.00")),
+                new CommerceItemFixture(coffee, 1, new BigDecimal("30.00"), new BigDecimal("30.00"))
+        ), new BigDecimal("54.00"));
+        StoreOrder secondPaid = savePaidOrderWithItems(store.getId(), List.of(
+                new CommerceItemFixture(bread, 1, new BigDecimal("12.00"), new BigDecimal("12.00"))
+        ), new BigDecimal("31.00"));
+        StoreOrder pending = saveOrderWithItems(store.getId(), StoreOrderStatus.PENDING_PAYMENT, List.of(
+                new CommerceItemFixture(bread, 9, new BigDecimal("12.00"), new BigDecimal("108.00"))
+        ), new BigDecimal("108.00"));
+        StoreOrder oldPaid = savePaidOrderWithItems(store.getId(), List.of(
+                new CommerceItemFixture(coffee, 5, new BigDecimal("30.00"), new BigDecimal("150.00"))
+        ), new BigDecimal("150.00"));
+        StoreOrder foreignPaid = savePaidOrderWithItems(otherStore.getId(), List.of(
+                new CommerceItemFixture(foreign, 7, new BigDecimal("99.99"), new BigDecimal("699.93"))
+        ), new BigDecimal("699.93"));
+
+        setOrderCreatedAt(firstPaid.getId(), now.minusSeconds(24L * 60L * 60L));
+        setOrderCreatedAt(secondPaid.getId(), now.minusSeconds(2 * 24L * 60L * 60L));
+        setOrderCreatedAt(pending.getId(), now.minusSeconds(60L));
+        setOrderCreatedAt(oldPaid.getId(), now.minusSeconds(10 * 24L * 60L * 60L));
+        setOrderCreatedAt(foreignPaid.getId(), now.minusSeconds(60L));
+
+        ApiTestClient.ApiTestResponse response = api.get("/api/store/analytics/commerce?range=7d", adminHeaders());
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body()).containsEntry("orders", 2)
+                .containsEntry("revenueCents", 8500)
+                .containsEntry("averageOrderValueCents", 4250)
+                .containsEntry("productsSold", 4);
+
+        List<Map<String, Object>> topProducts = castList(response.body().get("topProducts"));
+        assertThat(topProducts).hasSize(2);
+        assertThat(topProducts.get(0)).containsEntry("productSlug", bread.getPublicSlug())
+                .containsEntry("productName", "Pan de campo")
+                .containsEntry("quantitySold", 3)
+                .containsEntry("revenueCents", 3600);
+        assertThat(topProducts.get(1)).containsEntry("productSlug", coffee.getPublicSlug())
+                .containsEntry("productName", "Cafe molido")
+                .containsEntry("quantitySold", 1)
+                .containsEntry("revenueCents", 3000);
+        assertThat(topProducts).extracting(row -> row.get("productSlug")).doesNotContain(foreign.getPublicSlug());
+    }
+
+    @Test
+    void returnsFunnelAnalyticsForCurrentStoreUsingExistingDiscoveryAndCommerceData() throws Exception {
+        storeFulfillmentRepository.deleteAll();
+        storeOrderItemRepository.deleteAll();
+        storeOrderRepository.deleteAll();
+        betaProductEventRepository.deleteAll();
+
+        Product bread = productRepository.save(new Product(UUID.randomUUID(), store.getId(), "SKU-BREAD-FUNNEL", "Pan funnel", 1200, 20));
+        Product foreign = productRepository.save(new Product(UUID.randomUUID(), otherStore.getId(), "SKU-FOREIGN-FUNNEL", "Ajeno funnel", 9999, 4));
+        Instant now = Instant.now();
+
+        saveStoreTelemetry(store.getSlug(), "public_product_list_viewed", now.minusSeconds(2 * 24L * 60L * 60L), 10);
+        saveProductTelemetry(store.getSlug(), bread.getPublicSlug(), "public_product_card_clicked", now.minusSeconds(2 * 24L * 60L * 60L), 4);
+        saveProductTelemetry(store.getSlug(), bread.getPublicSlug(), "public_product_detail_viewed", now.minusSeconds(24L * 60L * 60L), 3);
+        saveProductTelemetry(store.getSlug(), bread.getPublicSlug(), "public_product_detail_add_to_cart", now.minusSeconds(60L * 60L), 2);
+        saveStoreTelemetry(store.getSlug(), "public_product_list_viewed", now.minusSeconds(10 * 24L * 60L * 60L), 99);
+        saveStoreTelemetry(otherStore.getSlug(), "public_product_list_viewed", now.minusSeconds(60L), 8);
+        saveProductTelemetry(otherStore.getSlug(), foreign.getPublicSlug(), "public_product_card_clicked", now.minusSeconds(60L), 8);
+
+        StoreOrder paid = savePaidOrderWithItems(store.getId(), List.of(
+                new CommerceItemFixture(bread, 1, new BigDecimal("50.00"), new BigDecimal("50.00"))
+        ), new BigDecimal("50.00"));
+        StoreOrder pending = saveOrderWithItems(store.getId(), StoreOrderStatus.PENDING_PAYMENT, List.of(
+                new CommerceItemFixture(bread, 1, new BigDecimal("90.00"), new BigDecimal("90.00"))
+        ), new BigDecimal("90.00"));
+        StoreOrder oldPaid = savePaidOrderWithItems(store.getId(), List.of(
+                new CommerceItemFixture(bread, 1, new BigDecimal("200.00"), new BigDecimal("200.00"))
+        ), new BigDecimal("200.00"));
+        StoreOrder foreignPaid = savePaidOrderWithItems(otherStore.getId(), List.of(
+                new CommerceItemFixture(foreign, 1, new BigDecimal("999.00"), new BigDecimal("999.00"))
+        ), new BigDecimal("999.00"));
+
+        setOrderCreatedAt(paid.getId(), now.minusSeconds(24L * 60L * 60L));
+        setOrderCreatedAt(pending.getId(), now.minusSeconds(60L));
+        setOrderCreatedAt(oldPaid.getId(), now.minusSeconds(10 * 24L * 60L * 60L));
+        setOrderCreatedAt(foreignPaid.getId(), now.minusSeconds(60L));
+
+        ApiTestClient.ApiTestResponse response = api.get("/api/store/analytics/funnel?range=7d", adminHeaders());
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body()).containsEntry("listViews", 10)
+                .containsEntry("cardClicks", 4)
+                .containsEntry("detailViews", 3)
+                .containsEntry("addToCart", 2)
+                .containsEntry("orders", 1)
+                .containsEntry("revenueCents", 5000)
+                .containsEntry("clickRate", 0.4)
+                .containsEntry("detailRate", 0.75)
+                .containsEntry("addToCartRate", 0.6667)
+                .containsEntry("purchaseRate", 0.5);
+    }
+
+    @Test
+    void returnsZeroFunnelAnalyticsWithoutDivisionErrors() throws Exception {
+        storeFulfillmentRepository.deleteAll();
+        storeOrderItemRepository.deleteAll();
+        storeOrderRepository.deleteAll();
+        betaProductEventRepository.deleteAll();
+
+        ApiTestClient.ApiTestResponse response = api.get("/api/store/analytics/funnel?range=7d", adminHeaders());
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body()).containsEntry("listViews", 0)
+                .containsEntry("cardClicks", 0)
+                .containsEntry("detailViews", 0)
+                .containsEntry("addToCart", 0)
+                .containsEntry("orders", 0)
+                .containsEntry("revenueCents", 0)
+                .containsEntry("clickRate", 0.0)
+                .containsEntry("detailRate", 0.0)
+                .containsEntry("addToCartRate", 0.0)
+                .containsEntry("purchaseRate", 0.0);
+    }
+
     private StoreOrder createOrder(UUID storeId, BigDecimal totalAmount) {
         return StoreOrder.create(
                 UUID.randomUUID(),
@@ -315,6 +516,59 @@ class StoreAnalyticsSummaryIT extends PostgresIntegrationTestBase {
                 List.of(new StoreOrderItem(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), 1, totalAmount, totalAmount, "ARS", "{\"name\":\"Producto\"}"))
         );
     }
+
+    private StoreOrder savePaidOrderWithItems(UUID storeId, List<CommerceItemFixture> items, BigDecimal totalAmount) {
+        StoreOrder order = saveOrderWithItems(storeId, StoreOrderStatus.PAID, items, totalAmount);
+        return order;
+    }
+
+    private StoreOrder saveOrderWithItems(UUID storeId, StoreOrderStatus status, List<CommerceItemFixture> items, BigDecimal totalAmount) {
+        UUID orderId = UUID.randomUUID();
+        StoreOrder order = StoreOrder.create(
+                orderId,
+                storeId,
+                "ARS",
+                totalAmount,
+                totalAmount,
+                BigDecimal.ZERO,
+                "",
+                null,
+                null,
+                items.stream()
+                        .map(item -> new StoreOrderItem(
+                                UUID.randomUUID(),
+                                orderId,
+                                item.product().getId(),
+                                item.qty(),
+                                item.unitPriceAmount(),
+                                item.lineTotalAmount(),
+                                "ARS",
+                                "{\"name\":\"%s\"}".formatted(item.product().getName())
+                        ))
+                        .toList()
+        );
+        if (status == StoreOrderStatus.PAID) {
+            order.markPaid();
+        } else if (status == StoreOrderStatus.CANCELLED) {
+            order.cancel();
+        }
+        StoreOrder saved = storeOrderRepository.save(order);
+        storeOrderItemRepository.saveAll(items.stream()
+                .map(item -> new StoreOrderItem(
+                        UUID.randomUUID(),
+                        orderId,
+                        item.product().getId(),
+                        item.qty(),
+                        item.unitPriceAmount(),
+                        item.lineTotalAmount(),
+                        "ARS",
+                        "{\"name\":\"%s\"}".formatted(item.product().getName())
+                ))
+                .toList());
+        return saved;
+    }
+
+    private record CommerceItemFixture(Product product, int qty, BigDecimal unitPriceAmount, BigDecimal lineTotalAmount) {}
 
     private Payment confirmedPayment(UUID orderId, BigDecimal amount) {
         Payment payment = new Payment(
@@ -347,6 +601,52 @@ class StoreAnalyticsSummaryIT extends PostgresIntegrationTestBase {
         jdbcTemplate.update("update outbox_events set occurred_at = ? where event_id = ?", Timestamp.from(timestamp), eventId);
     }
 
+    private void saveProductTelemetry(String storeSlug, String productSlug, String eventName, Instant occurredAt, int times) {
+        for (int index = 0; index < times; index++) {
+            betaProductEventRepository.save(new BetaProductEvent(
+                    UUID.randomUUID(),
+                    eventName,
+                    "ENGAGEMENT",
+                    null,
+                    storeSlug,
+                    null,
+                    null,
+                    productSlug,
+                    null,
+                    null,
+                    "session-" + UUID.randomUUID(),
+                    "/public/%s/products/%s".formatted(storeSlug, productSlug),
+                    "test",
+                    "test",
+                    "{}",
+                    occurredAt.plusMillis(index)
+            ));
+        }
+    }
+
+    private void saveStoreTelemetry(String storeSlug, String eventName, Instant occurredAt, int times) {
+        for (int index = 0; index < times; index++) {
+            betaProductEventRepository.save(new BetaProductEvent(
+                    UUID.randomUUID(),
+                    eventName,
+                    "DISCOVERY",
+                    null,
+                    storeSlug,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    "session-" + UUID.randomUUID(),
+                    "/public/%s".formatted(storeSlug),
+                    "test",
+                    "test",
+                    "{}",
+                    occurredAt.plusMillis(index)
+            ));
+        }
+    }
+
     private HttpHeaders adminHeaders() throws Exception {
         HttpHeaders headers = api.storeHostHeaders(store.getSlug());
         headers.setBearerAuth(login(adminEmail));
@@ -368,6 +668,18 @@ class StoreAnalyticsSummaryIT extends PostgresIntegrationTestBase {
     @SuppressWarnings("unchecked")
     private Map<String, Object> castMap(Object value) {
         return (Map<String, Object>) value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> castList(Object value) {
+        return (List<Map<String, Object>>) value;
+    }
+
+    private Map<String, Object> findProductRow(List<Map<String, Object>> products, String productSlug) {
+        return products.stream()
+                .filter(row -> productSlug.equals(row.get("productSlug")))
+                .findFirst()
+                .orElseThrow();
     }
 
     private String errorCode(ApiTestClient.ApiTestResponse response) {

@@ -4,6 +4,7 @@ import com.barmi.api.webhooks.MercadoPagoEcosystemWebhookRequest;
 import com.barmi.api.webhooks.MercadoPagoWebhookSecurityService;
 import com.barmi.app.config.ObservabilitySupport;
 import com.barmi.app.payments.EcosystemPaymentConfirmationService;
+import com.barmi.infra.metrics.PaymentOperationalMetrics;
 import com.barmi.infra.payments.MercadoPagoApiClient;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
@@ -23,19 +24,23 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 @RequestMapping("/api/payments/mercadopago/ecosystem")
 public class MercadoPagoEcosystemWebhookController {
     private static final String PROVIDER = "mercadopago_ecosystem";
+    private static final String SCOPE = "ecosystem";
 
     private final EcosystemPaymentConfirmationService ecosystemPaymentConfirmationService;
     private final MercadoPagoWebhookSecurityService webhookSecurityService;
     private final MercadoPagoApiClient mercadoPagoApiClient;
+    private final PaymentOperationalMetrics paymentOperationalMetrics;
 
     public MercadoPagoEcosystemWebhookController(
             EcosystemPaymentConfirmationService ecosystemPaymentConfirmationService,
             MercadoPagoWebhookSecurityService webhookSecurityService,
-            MercadoPagoApiClient mercadoPagoApiClient
+            MercadoPagoApiClient mercadoPagoApiClient,
+            PaymentOperationalMetrics paymentOperationalMetrics
     ) {
         this.ecosystemPaymentConfirmationService = ecosystemPaymentConfirmationService;
         this.webhookSecurityService = webhookSecurityService;
         this.mercadoPagoApiClient = mercadoPagoApiClient;
+        this.paymentOperationalMetrics = paymentOperationalMetrics;
     }
 
     @PostMapping("/webhook")
@@ -60,6 +65,7 @@ public class MercadoPagoEcosystemWebhookController {
 
         String status = stringOrNull(payload.status());
         if (status != null && !status.isBlank() && !"approved".equalsIgnoreCase(status)) {
+            paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "ignored", "unsupported");
             return ResponseEntity.ok(Map.of("status", "ignored"));
         }
 
@@ -70,14 +76,20 @@ public class MercadoPagoEcosystemWebhookController {
         BigDecimal amount = resolveAmount(payload);
         String currency = resolveCurrency(payload);
 
-        ecosystemPaymentConfirmationService.confirmEcosystemPayment(
-                webhookEventId,
-                ecosystemOrderId,
-                providerPaymentId,
-                amount,
-                currency
-        );
+        try {
+            ecosystemPaymentConfirmationService.confirmEcosystemPayment(
+                    webhookEventId,
+                    ecosystemOrderId,
+                    providerPaymentId,
+                    amount,
+                    currency
+            );
+        } catch (RuntimeException ex) {
+            paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "failure", reasonForFailure(ex));
+            throw ex;
+        }
 
+        paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "accepted", "processed");
         org.slf4j.LoggerFactory.getLogger(MercadoPagoEcosystemWebhookController.class)
                 .info("webhook_accepted provider={} event_id={} operation_id={} request_id={} retry_count={} event_type={} provider_payment_id={}",
                         PROVIDER,
@@ -104,30 +116,37 @@ public class MercadoPagoEcosystemWebhookController {
         }
         webhookSecurityService.validateMercadoPagoSignature(PROVIDER, signatureHeader, requestIdHeader, paymentId, payload.eventId(), request);
 
-        MercadoPagoApiClient.PaymentDetails payment = mercadoPagoApiClient.getPayment(paymentId);
-        if (!"approved".equalsIgnoreCase(payment.status())) {
-            return ResponseEntity.ok(Map.of("status", "ignored"));
+        try {
+            MercadoPagoApiClient.PaymentDetails payment = mercadoPagoApiClient.getPayment(paymentId);
+            if (!"approved".equalsIgnoreCase(payment.status())) {
+                paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "ignored", "unsupported");
+                return ResponseEntity.ok(Map.of("status", "ignored"));
+            }
+
+            UUID ecosystemOrderId = parseExternalReference(payment.externalReference(), "ECOSYSTEM");
+            ecosystemPaymentConfirmationService.confirmEcosystemPayment(
+                    UUID.nameUUIDFromBytes(("MERCADOPAGO:" + paymentId).getBytes(StandardCharsets.UTF_8)),
+                    ecosystemOrderId,
+                    payment.id(),
+                    requireAmount(payment.transactionAmount()),
+                    requireCurrency(payment.currencyId())
+            );
+
+            paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "accepted", "processed");
+            org.slf4j.LoggerFactory.getLogger(MercadoPagoEcosystemWebhookController.class)
+                    .info("webhook_accepted provider={} event_id={} operation_id={} request_id={} retry_count={} event_type={} provider_payment_id={}",
+                            PROVIDER,
+                            payload.eventId(),
+                            ecosystemOrderId,
+                            ObservabilitySupport.requestId(request),
+                            ObservabilitySupport.retryCount(request),
+                            firstNonBlank(payload.action(), payload.type(), payment.status()),
+                            payment.id());
+            return ResponseEntity.ok(Map.of("ok", true));
+        } catch (RuntimeException ex) {
+            paymentOperationalMetrics.recordWebhook(PROVIDER, SCOPE, "failure", reasonForFailure(ex));
+            throw ex;
         }
-
-        UUID ecosystemOrderId = parseExternalReference(payment.externalReference(), "ECOSYSTEM");
-        ecosystemPaymentConfirmationService.confirmEcosystemPayment(
-                UUID.nameUUIDFromBytes(("MERCADOPAGO:" + paymentId).getBytes(StandardCharsets.UTF_8)),
-                ecosystemOrderId,
-                payment.id(),
-                requireAmount(payment.transactionAmount()),
-                requireCurrency(payment.currencyId())
-        );
-
-        org.slf4j.LoggerFactory.getLogger(MercadoPagoEcosystemWebhookController.class)
-                .info("webhook_accepted provider={} event_id={} operation_id={} request_id={} retry_count={} event_type={} provider_payment_id={}",
-                        PROVIDER,
-                        payload.eventId(),
-                        ecosystemOrderId,
-                        ObservabilitySupport.requestId(request),
-                        ObservabilitySupport.retryCount(request),
-                        firstNonBlank(payload.action(), payload.type(), payment.status()),
-                        payment.id());
-        return ResponseEntity.ok(Map.of("ok", true));
     }
 
     private UUID resolveWebhookEventId(MercadoPagoEcosystemWebhookRequest payload) {
@@ -239,5 +258,24 @@ public class MercadoPagoEcosystemWebhookController {
         } catch (IllegalArgumentException ex) {
             throw new ResponseStatusException(BAD_REQUEST, "invalid_ecosystem_order_id");
         }
+    }
+
+    private String reasonForFailure(RuntimeException ex) {
+        if (ex instanceof ResponseStatusException responseStatusException) {
+            String reason = responseStatusException.getReason();
+            if (reason == null) {
+                return "unknown";
+            }
+            if (reason.contains("provider")) {
+                return "provider_unavailable";
+            }
+            if (reason.contains("mismatch")) {
+                return "mismatch";
+            }
+            if (reason.contains("not_found")) {
+                return "order_not_found";
+            }
+        }
+        return "unknown";
     }
 }

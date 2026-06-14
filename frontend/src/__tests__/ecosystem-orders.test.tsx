@@ -13,7 +13,7 @@ afterEach(() => {
 describe('ecosystem orders flow', () => {
   it('renders public ecosystem orders list and detail', async () => {
     mockFetch({
-      '/api/public/stores/demo-store': { body: { slug: 'demo-store', id: 's1', name: 'Demo Store' } },
+      '/api/public/stores/demo-store': { body: { id: 's1', slug: 'demo-store', name: 'Demo Store' } },
       '/api/public/stores/demo-store/products': { body: [] },
       '/api/ecosystem/orders?page=0&size=20': {
         body: {
