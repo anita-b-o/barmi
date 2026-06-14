@@ -1,6 +1,10 @@
 import { requestJsonWithAuth, type AuthRequestContext } from '../client/http'
 import type {
   StoreAdminProduct,
+  StoreCapabilities,
+  StoreCapability,
+  StoreCapabilityMetadata,
+  StoreCapabilitiesUpdateReq,
   StoreOperationalReport,
   StoreOperationalReportRange,
   StoreProductAnalytics,
@@ -70,6 +74,23 @@ function parseType(value: unknown, message: string): StoreShippingZoneType {
 
 function parsePromotionType(value: unknown, message: string): StorePromotionType {
   if (value === 'FIXED' || value === 'PERCENTAGE') return value
+  throw new Error(message)
+}
+
+function parseStoreCapability(value: unknown, message: string): StoreCapability {
+  if (
+    value === 'ABOUT' ||
+    value === 'GALLERY' ||
+    value === 'BLOG' ||
+    value === 'PRODUCTS' ||
+    value === 'RESERVATIONS' ||
+    value === 'PROMOTIONS' ||
+    value === 'SHIPPING' ||
+    value === 'CHECKOUT' ||
+    value === 'CONTACT'
+  ) {
+    return value
+  }
   throw new Error(message)
 }
 
@@ -153,6 +174,27 @@ export function parseStoreAdminProducts(data: unknown): StoreAdminProduct[] {
       throw new Error(`Store admin product at ${index} is invalid: ${message}`)
     }
   })
+}
+
+function parseStoreCapabilityMetadata(data: unknown, index: number): StoreCapabilityMetadata {
+  assertRecord(data, `Store capability metadata at ${index} is invalid`)
+  assertString(data.label, `Store capability metadata at ${index} label is required`)
+  assertString(data.description, `Store capability metadata at ${index} description is required`)
+  return {
+    key: parseStoreCapability(data.key, `Store capability metadata at ${index} key is invalid`),
+    label: data.label,
+    description: data.description
+  }
+}
+
+export function parseStoreCapabilities(data: unknown): StoreCapabilities {
+  assertRecord(data, 'Invalid store capabilities payload')
+  assertArray(data.enabled, 'Store capabilities enabled is required')
+  assertArray(data.available, 'Store capabilities available is required')
+  return {
+    enabled: data.enabled.map((item, index) => parseStoreCapability(item, `Store capability enabled at ${index} is invalid`)),
+    available: data.available.map((item, index) => parseStoreCapabilityMetadata(item, index))
+  }
 }
 
 export function parseStoreAnalyticsSummary(data: unknown): StoreAnalyticsSummary {
@@ -464,6 +506,22 @@ function parseStoreShippingZoneWithIndex(data: unknown, index: number): StoreShi
 }
 
 export const storeAdminAdapter = {
+  async getStoreCapabilities(auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>('/api/store/capabilities', {}, {}, auth)
+    return parseStoreCapabilities(data)
+  },
+  async updateStoreCapabilities(payload: StoreCapabilitiesUpdateReq, auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>(
+      '/api/store/capabilities',
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      },
+      {},
+      auth
+    )
+    return parseStoreCapabilities(data)
+  },
   async getDiscoverySettings(auth: AuthRequestContext) {
     const data = await requestJsonWithAuth<unknown>('/api/store/admin/discovery', {}, {}, auth)
     return parseStoreAdminDiscoverySettings(data)

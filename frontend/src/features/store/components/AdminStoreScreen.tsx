@@ -46,6 +46,12 @@ const operationalAreas = [
     cta: 'Gestionar productos'
   },
   {
+    title: 'Módulos de tienda',
+    description: 'Elegí qué módulos preparar para la presencia pública de esta store.',
+    href: routes.adminStoreModules,
+    cta: 'Configurar módulos'
+  },
+  {
     title: 'Analytics',
     description: 'Entrá al módulo de analytics con tabs de producto y ventas.',
     href: routes.adminStoreAnalytics,

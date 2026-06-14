@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { storeAdminAdapter } from '../../../../api/adapters/storeAdminAdapter'
 import type {
@@ -69,6 +70,29 @@ const initialCategoryForm: CategoryFormState = {
   sortOrder: '0'
 }
 
+const actionGroupLayout: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap'
+}
+
+const stackLayout: CSSProperties = {
+  display: 'grid',
+  gap: 12
+}
+
+const formLayout: CSSProperties = {
+  display: 'grid',
+  gap: 16
+}
+
+const categoryFormLayout: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  alignItems: 'end'
+}
+
 export default function AdminStoreProductsScreen() {
   const { me, memberships, logout, authRequest } = useAuth()
   const activeStores = memberships.stores.filter((membership) => membership.status === 'ACTIVE')
@@ -83,6 +107,48 @@ export default function AdminStoreProductsScreen() {
   const [editMode, setEditMode] = useState<EditMode>('full')
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const [toasts, setToasts] = useState<ToastItem[]>([])
+  const styles = useMemo(() => {
+    const metaText: CSSProperties = {
+      color: theme.colors.textMuted,
+      fontSize: theme.typography.small.size,
+      lineHeight: 1.45
+    }
+    const strongText: CSSProperties = {
+      color: theme.colors.textPrimary,
+      fontWeight: 700,
+      lineHeight: 1.35
+    }
+    const secondaryText: CSSProperties = {
+      color: theme.colors.textSecondary,
+      lineHeight: 1.5
+    }
+
+    return {
+      metaText,
+      strongText,
+      secondaryText,
+      mutedCell: {
+        ...metaText,
+        overflowWrap: 'anywhere'
+      } satisfies CSSProperties,
+      membershipRow: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: theme.spacing.lg,
+        flexWrap: 'wrap',
+        padding: theme.spacing.md,
+        border: `1px solid ${theme.colors.borderDefault}`,
+        borderRadius: theme.radius.md,
+        background: theme.colors.bgSurfaceAlt
+      } satisfies CSSProperties,
+      stockSummary: {
+        display: 'grid',
+        gap: theme.spacing.xs,
+        borderColor: theme.colors.borderStrong,
+        background: theme.colors.bgHover
+      } satisfies CSSProperties
+    }
+  }, [theme.mode])
 
   const addToast = (message: string, variant: ToastItem['variant'] = 'info') => {
     const id = `${Date.now()}-${Math.random()}`
@@ -287,21 +353,23 @@ export default function AdminStoreProductsScreen() {
 
   const rows = sortedProducts.map((product) => ([
     <div key={`${product.id}-sku`}>
-      <div style={{ fontWeight: 600 }}>{product.sku}</div>
-      <div style={{ color: theme.colors.textMuted, fontSize: theme.typography.small.size }}>{product.id}</div>
+      <div style={styles.strongText}>{product.sku}</div>
+      <div style={styles.mutedCell}>{product.id}</div>
     </div>,
-    <span key={`${product.id}-name`}>{product.name}</span>,
-    <span key={`${product.id}-category`}>{product.categoryName ?? 'Sin categoría'}</span>,
-    <span key={`${product.id}-price`}>{formatMoneyFromCents(product.priceCents)}</span>,
+    <span key={`${product.id}-name`} style={styles.secondaryText}>{product.name}</span>,
+    <span key={`${product.id}-category`} style={product.categoryName ? styles.secondaryText : styles.metaText}>
+      {product.categoryName ?? 'Sin categoría'}
+    </span>,
+    <span key={`${product.id}-price`} style={styles.secondaryText}>{formatMoneyFromCents(product.priceCents)}</span>,
     <div key={`${product.id}-stock`}>
-      <div style={{ fontWeight: 600 }}>{product.stockQuantity}</div>
-      <div style={{ color: theme.colors.textMuted, fontSize: theme.typography.small.size }}>
+      <div style={styles.strongText}>{product.stockQuantity}</div>
+      <div style={styles.metaText}>
         {!product.isActive ? 'Inactivo' : product.isAvailable ? 'Disponible' : 'Sin stock'}
       </div>
     </div>,
     <StatusBadge key={`${product.id}-active`} status={product.isActive ? 'ACTIVE' : 'INACTIVE'} />,
-    <span key={`${product.id}-created`}>{formatDate(product.createdAt)}</span>,
-    <div key={`${product.id}-actions`} style={{ display: 'flex', gap: 8 }}>
+    <span key={`${product.id}-created`} style={styles.secondaryText}>{formatDate(product.createdAt)}</span>,
+    <div key={`${product.id}-actions`} style={actionGroupLayout}>
       <Button variant="ghost" onClick={() => void onEdit(product.id)} disabled={saving}>Editar</Button>
       <Button variant="ghost" onClick={() => void onEdit(product.id, 'stock')} disabled={saving}>Ajustar stock</Button>
       <Button variant="ghost" onClick={() => setPendingDeleteId(product.id)} disabled={saving || !product.isActive}>Desactivar</Button>
@@ -329,7 +397,7 @@ export default function AdminStoreProductsScreen() {
       />
 
       {error && (
-        <div style={{ marginTop: theme.spacing.lg }}>
+        <div role="alert" aria-live="assertive" style={{ marginTop: theme.spacing.lg }}>
           <ErrorAlert message={error} actionLabel="Reintentar" onAction={() => void loadCatalogData()} actionDisabled={loading} />
         </div>
       )}
@@ -339,14 +407,14 @@ export default function AdminStoreProductsScreen() {
           {activeStores.length === 0 ? (
             <EmptyState title="No hay stores activas" description="Necesitas una membership activa para operar productos." />
           ) : (
-            <div style={{ display: 'grid', gap: theme.spacing.md }}>
+            <div style={stackLayout}>
               {activeStores.map((membership) => (
-                <div key={membership.storeId} style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.lg, flexWrap: 'wrap' }}>
+                <div key={membership.storeId} style={styles.membershipRow}>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{membership.storeSlug}</div>
-                    <div style={{ color: theme.colors.textMuted, marginTop: 4 }}>{membership.role}</div>
+                    <div style={styles.strongText}>{membership.storeSlug}</div>
+                    <div style={styles.metaText}>{membership.role}</div>
                   </div>
-                  <div style={{ color: theme.colors.textMuted }}>{membership.storeId}</div>
+                  <div style={styles.mutedCell}>{membership.storeId}</div>
                 </div>
               ))}
             </div>
@@ -356,25 +424,42 @@ export default function AdminStoreProductsScreen() {
 
       <Section title={editingId ? (editMode === 'stock' ? 'Ajustar stock' : 'Editar producto') : 'Crear producto'}>
         <Card>
-          <form onSubmit={(event) => void onSubmit(event)} style={{ display: 'grid', gap: theme.spacing.lg }}>
+          <form onSubmit={(event) => void onSubmit(event)} style={formLayout}>
             {editingId && editMode === 'stock' ? (
-              <Card variant="soft">
-                <div style={{ display: 'grid', gap: theme.spacing.xs }}>
-                  <div style={{ fontWeight: 700 }}>{form.name || 'Producto STORE'}</div>
-                  <div style={{ color: theme.colors.textMuted }}>SKU: {form.sku || '-'}</div>
-                  <div style={{ color: theme.colors.textMuted }}>Precio actual: {form.priceCents ? formatMoneyFromCents(Number(form.priceCents)) : '-'}</div>
+              <Card variant="soft" style={styles.stockSummary}>
+                <div style={stackLayout}>
+                  <div style={styles.strongText}>{form.name || 'Producto STORE'}</div>
+                  <div style={styles.metaText}>SKU: {form.sku || '-'}</div>
+                  <div style={styles.metaText}>Precio actual: {form.priceCents ? formatMoneyFromCents(Number(form.priceCents)) : '-'}</div>
                 </div>
               </Card>
             ) : (
               <>
                 <FormField label="SKU" hint="Identificador interno único por store">
-                  <TextInput value={form.sku} onChange={(event) => setForm((prev) => ({ ...prev, sku: event.target.value }))} placeholder="SKU-CAFE" />
+                  <TextInput
+                    value={form.sku}
+                    onChange={(event) => setForm((prev) => ({ ...prev, sku: event.target.value }))}
+                    placeholder="SKU-CAFE"
+                    aria-label="SKU"
+                    autoComplete="off"
+                  />
                 </FormField>
                 <FormField label="Nombre">
-                  <TextInput value={form.name} onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))} placeholder="Cafe tostado" />
+                  <TextInput
+                    value={form.name}
+                    onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                    placeholder="Cafe tostado"
+                    aria-label="Nombre"
+                  />
                 </FormField>
                 <FormField label="Precio en centavos" hint="Se mantiene el contrato actual de priceCents">
-                  <TextInput value={form.priceCents} onChange={(event) => setForm((prev) => ({ ...prev, priceCents: event.target.value }))} placeholder="1500" />
+                  <TextInput
+                    value={form.priceCents}
+                    onChange={(event) => setForm((prev) => ({ ...prev, priceCents: event.target.value }))}
+                    placeholder="1500"
+                    aria-label="Precio en centavos"
+                    inputMode="numeric"
+                  />
                 </FormField>
                 <FormField label="Categoría">
                   <SelectField
@@ -387,10 +472,16 @@ export default function AdminStoreProductsScreen() {
               </>
             )}
             <FormField label="Stock disponible" hint="Cantidad simple disponible para checkout STORE">
-              <TextInput value={form.stockQuantity} onChange={(event) => setForm((prev) => ({ ...prev, stockQuantity: event.target.value }))} placeholder="25" />
+              <TextInput
+                value={form.stockQuantity}
+                onChange={(event) => setForm((prev) => ({ ...prev, stockQuantity: event.target.value }))}
+                placeholder="25"
+                aria-label="Stock disponible"
+                inputMode="numeric"
+              />
             </FormField>
-            <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-              <Button type="submit" disabled={saving}>
+            <div style={actionGroupLayout}>
+              <Button type="submit" disabled={saving} aria-busy={saving}>
                 {editingId ? (editMode === 'stock' ? 'Guardar stock' : 'Guardar cambios') : 'Crear producto'}
               </Button>
               {editingId ? <Button variant="ghost" type="button" onClick={resetForm} disabled={saving}>Cancelar</Button> : null}
@@ -401,13 +492,14 @@ export default function AdminStoreProductsScreen() {
 
       <Section title="Categorías STORE">
         <Card>
-          <div style={{ display: 'grid', gap: theme.spacing.lg }}>
-            <form onSubmit={(event) => void onCreateCategory(event)} style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'minmax(0, 1.5fr) minmax(140px, 180px) auto', alignItems: 'end' }}>
+          <div style={formLayout}>
+            <form onSubmit={(event) => void onCreateCategory(event)} style={categoryFormLayout}>
               <FormField label="Nombre de categoría">
                 <TextInput
                   value={categoryForm.name}
                   onChange={(event) => setCategoryForm((prev) => ({ ...prev, name: event.target.value }))}
                   placeholder="Bebidas"
+                  aria-label="Nombre de categoría"
                 />
               </FormField>
               <FormField label="Orden">
@@ -415,22 +507,26 @@ export default function AdminStoreProductsScreen() {
                   value={categoryForm.sortOrder}
                   onChange={(event) => setCategoryForm((prev) => ({ ...prev, sortOrder: event.target.value }))}
                   placeholder="0"
+                  aria-label="Orden"
+                  inputMode="numeric"
                 />
               </FormField>
-              <Button type="submit" disabled={saving}>Crear categoría</Button>
+              <Button type="submit" disabled={saving} aria-busy={saving}>Crear categoría</Button>
             </form>
 
             {sortedCategories.length === 0 ? (
-              <EmptyState title="Todavía no hay categorías" description="Podés crear categorías simples y luego asignarlas a productos." />
+              <div role="status" aria-live="polite">
+                <EmptyState title="Todavía no hay categorías" description="Podés crear categorías simples y luego asignarlas a productos." />
+              </div>
             ) : (
               <DataTable
                 headers={['Nombre', 'Orden', 'Estado', 'Creada', 'Acciones']}
                 rows={sortedCategories.map((category) => ([
-                  <span key={`${category.id}-name`}>{category.name}</span>,
-                  <span key={`${category.id}-sort`}>{category.sortOrder}</span>,
+                  <span key={`${category.id}-name`} style={styles.secondaryText}>{category.name}</span>,
+                  <span key={`${category.id}-sort`} style={styles.secondaryText}>{category.sortOrder}</span>,
                   <StatusBadge key={`${category.id}-status`} status={category.active ? 'ACTIVE' : 'INACTIVE'} />,
-                  <span key={`${category.id}-created`}>{formatDate(category.createdAt)}</span>,
-                  <div key={`${category.id}-actions`} style={{ display: 'flex', gap: 8 }}>
+                  <span key={`${category.id}-created`} style={styles.secondaryText}>{formatDate(category.createdAt)}</span>,
+                  <div key={`${category.id}-actions`} style={actionGroupLayout}>
                     <Button variant="ghost" onClick={() => void onToggleCategory(category)} disabled={saving}>
                       {category.active ? 'Desactivar' : 'Activar'}
                     </Button>
@@ -445,9 +541,13 @@ export default function AdminStoreProductsScreen() {
       <Section title="Productos de la store">
         <Card>
           {loading ? (
-            <LoadingBlock label="Cargando productos..." />
+            <div role="status" aria-live="polite">
+              <LoadingBlock label="Cargando productos..." />
+            </div>
           ) : sortedProducts.length === 0 ? (
-            <EmptyState title="Todavía no hay productos" description="Creá el primer producto para habilitar la gestión del catálogo store." />
+            <div role="status" aria-live="polite">
+              <EmptyState title="Todavía no hay productos" description="Creá el primer producto para habilitar la gestión del catálogo store." />
+            </div>
           ) : (
             <DataTable
               headers={['SKU', 'Nombre', 'Categoría', 'Precio', 'Stock', 'Estado', 'Creado', 'Acciones']}

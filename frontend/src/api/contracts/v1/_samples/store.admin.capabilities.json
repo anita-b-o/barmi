@@ -1,0 +1,50 @@
+{
+  "enabled": ["ABOUT", "PRODUCTS", "PROMOTIONS", "SHIPPING", "CHECKOUT", "CONTACT"],
+  "available": [
+    {
+      "key": "ABOUT",
+      "label": "Sobre mí",
+      "description": "Presentá tu negocio o actividad."
+    },
+    {
+      "key": "GALLERY",
+      "label": "Galería",
+      "description": "Mostrá fotos, trabajos o ambientes."
+    },
+    {
+      "key": "BLOG",
+      "label": "Blog",
+      "description": "Publicá novedades o artículos."
+    },
+    {
+      "key": "PRODUCTS",
+      "label": "Productos",
+      "description": "Mostrá productos o menú."
+    },
+    {
+      "key": "RESERVATIONS",
+      "label": "Reservas",
+      "description": "Permití agenda o turnos."
+    },
+    {
+      "key": "PROMOTIONS",
+      "label": "Promociones",
+      "description": "Mostrá descuentos o beneficios."
+    },
+    {
+      "key": "SHIPPING",
+      "label": "Envíos",
+      "description": "Configurá cobertura y costos de envío."
+    },
+    {
+      "key": "CHECKOUT",
+      "label": "Checkout",
+      "description": "Permití compras online."
+    },
+    {
+      "key": "CONTACT",
+      "label": "Contacto",
+      "description": "Mostrá vías de contacto."
+    }
+  ]
+}

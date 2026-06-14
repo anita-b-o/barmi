@@ -44,10 +44,32 @@ Admin chrome is the first production surface migrated to Design System v1. The m
 - primary admin navigation links
 - active, hover, and focus states for admin navigation
 - admin hub entry cards in the home/store/ecosystem admin hubs
+- `AdminStoreProductsScreen`, the first complete feature admin screen migrated end-to-end
+- `AdminStorePromotionsScreen`, the second complete feature admin screen migrated end-to-end
+- `AdminStoreShippingZonesScreen`, the third complete STORE feature admin screen migrated end-to-end
 
-This migration deliberately excludes checkout, public storefront, backend behavior, route changes, deep admin tables, and feature-specific screens outside hub/card entry points.
+The `AdminStoreProductsScreen` migration covers its screen header, context header, active-store panel, product create/edit/stock form, category management panel, product/category tables, loading/empty/error states, stock/active badges through shared primitives, and direct accessibility affordances such as labelled controls, visible focus inherited from primitives, disabled/busy states, and live regions for loading/empty/error feedback.
+
+The `AdminStorePromotionsScreen` migration follows the same complete-screen pattern: screen header, context header, active-store panel, promotion form, promotions table, loading/empty/error states, active/inactive badges through shared primitives, semantic-token text/surface treatment, labelled inputs/selects, disabled/busy states, and live regions for feedback.
+
+The `AdminStoreShippingZonesScreen` migration completes the initial STORE admin trio. It covers the screen header, context header, active-store panel, filters, shipping-zone form, zones table, loading/empty/error states, exact/range badges through shared primitives, semantic-token text/surface treatment, labelled inputs/selects, numeric input modes for postal/range/cost fields, disabled/busy states, and live regions for feedback.
+
+These migrations deliberately exclude checkout, public storefront, backend behavior, route changes, and feature-specific screens not named in the PR scope.
 
 Future migrations should move one coherent surface at a time. A surface is ready when its page shell, navigation, core cards/panels, interactive states, and light/dark rendering can all use semantic tokens without changing business logic or user flows. Prefer finishing a narrow surface completely over partially tokenizing unrelated screens.
+
+After the three STORE admin screens above, pause broad admin migration work. Migrate additional admin screens only when a PR explicitly scopes that screen or when feature work already touches the surface and can complete the same full-screen checklist.
+
+Before marking the next admin screen complete, verify:
+
+- page header, context header, forms, tables/cards, and feedback states use `theme.colors.*` semantic tokens or shared primitives
+- replace local styled native controls with DS primitives before adding screen-specific visual rules
+- light and dark themes render without hardcoded theme-specific colors
+- inputs/selects have accessible names and keep visible focus
+- disabled and saving states remain clear
+- empty, loading, and error states are announced where the pattern is simple
+- existing business logic, routes, API contracts, and copy remain stable unless explicitly scoped
+- focused frontend tests cover render, primary form flow, data rendering, empty state, error state, and basic labels/focus behavior
 
 Preferred semantic tokens:
 

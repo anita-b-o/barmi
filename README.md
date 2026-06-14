@@ -176,6 +176,25 @@ Notas:
 - promotions admin
 - stock / disponibilidad MVP en productos STORE con descuento al confirmar pago
 - shipping zones admin
+- módulos/capabilities admin en `/admin/store/modules`
+
+### Store Capabilities / módulos
+
+Barmi modela capabilities por store para preparar tiendas modulares que no necesariamente venden productos. Las capabilities iniciales son `ABOUT`, `GALLERY`, `BLOG`, `PRODUCTS`, `RESERVATIONS`, `PROMOTIONS`, `SHIPPING`, `CHECKOUT` y `CONTACT`.
+
+Stores ecommerce existentes y nuevas reciben por default `ABOUT`, `PRODUCTS`, `PROMOTIONS`, `SHIPPING`, `CHECKOUT` y `CONTACT`. La administración mínima está disponible en:
+
+- `GET /api/store/capabilities`
+- `PUT /api/store/capabilities`
+
+Este alcance sólo persiste y administra visibilidad/intención de experiencia. No aplica enforcement todavía: no bloquea creación de productos, checkout, shipping, promociones ni oculta secciones públicas del storefront.
+
+Roadmap recomendado:
+
+1. capabilities admin
+2. storefront visibility por módulo
+3. onboarding dinámico
+4. blog/reservas/galería como módulos reales
 
 ### ECOSYSTEM público
 

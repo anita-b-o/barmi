@@ -14,6 +14,7 @@ export { default as AdminStoreCommerceAnalyticsScreen } from './AdminStoreCommer
 export { default as AdminStoreFunnelAnalyticsScreen } from './AdminStoreFunnelAnalyticsScreen'
 export { default as AdminStoreProductAnalyticsScreen } from './AdminStoreProductAnalyticsScreen'
 export { default as AdminStoreProductsScreen } from './AdminStoreProductsScreen'
+export { default as AdminStoreModulesScreen } from './AdminStoreModulesScreen'
 export { default as AdminStorePromotionsScreen } from './AdminStorePromotionsScreen'
 export { default as AdminStoreScreen } from './AdminStoreScreen'
 export { default as AdminStoreShippingZonesScreen } from './AdminStoreShippingZonesScreen'

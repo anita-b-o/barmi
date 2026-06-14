@@ -162,6 +162,26 @@ CREATE TABLE saas_subscriptions (
 
 CREATE INDEX idx_saas_subscriptions_plan_id ON saas_subscriptions(plan_id);
 
+CREATE TABLE store_capabilities (
+  id          UUID PRIMARY KEY,
+  store_id    UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  capability  TEXT NOT NULL CHECK (capability IN (
+    'ABOUT',
+    'GALLERY',
+    'BLOG',
+    'PRODUCTS',
+    'RESERVATIONS',
+    'PROMOTIONS',
+    'SHIPPING',
+    'CHECKOUT',
+    'CONTACT'
+  )),
+  enabled     BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (store_id, capability)
+);
+
 INSERT INTO saas_plans (
   id,
   code,

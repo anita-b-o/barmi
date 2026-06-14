@@ -16,6 +16,7 @@ import {
   AdminStoreOrdersListScreen,
   AdminStoreCommerceAnalyticsScreen,
   AdminStoreFunnelAnalyticsScreen,
+  AdminStoreModulesScreen,
   AdminStoreProductAnalyticsScreen,
   AdminStoreProductsScreen,
   AdminStorePromotionsScreen,
@@ -175,6 +176,16 @@ export default function TestApp() {
             <RequireAuth>
               <RequireStoreMembership>
                 <AdminStoreProductsScreen />
+              </RequireStoreMembership>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={routes.adminStoreModules}
+          element={
+            <RequireAuth>
+              <RequireStoreMembership>
+                <AdminStoreModulesScreen />
               </RequireStoreMembership>
             </RequireAuth>
           }

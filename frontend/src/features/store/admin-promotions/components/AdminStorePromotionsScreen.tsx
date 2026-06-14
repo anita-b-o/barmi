@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { storeAdminAdapter } from '../../../../api/adapters/storeAdminAdapter'
 import type { StorePromotion, StorePromotionCreateReq, StorePromotionType } from '../../../../api/contracts/v1/storeAdmin'
@@ -17,6 +18,7 @@ import PageHeader from '@/components/navigation/SectionHeader'
 import Button from '@/components/primitives/Button'
 import Card from '@/components/primitives/Card'
 import Input from '@/components/primitives/Input'
+import Select from '@/components/primitives/Select'
 import Table from '@/components/primitives/Table'
 import Section from '@/components/ui/Section'
 import StatusBadge from '@/components/commerce/StatusBadge'
@@ -44,6 +46,33 @@ const initialForm: PromotionFormState = {
   usageLimit: ''
 }
 
+const actionGroupLayout: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap'
+}
+
+const stackLayout: CSSProperties = {
+  display: 'grid',
+  gap: 12
+}
+
+const formLayout: CSSProperties = {
+  display: 'grid',
+  gap: 16
+}
+
+const formGridLayout: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))'
+}
+
+const promotionTypeOptions = [
+  { value: 'FIXED', label: 'Monto fijo' },
+  { value: 'PERCENTAGE', label: 'Porcentaje' }
+]
+
 function toErrorMessage(error: unknown): string {
   if (isApiError(error)) return error.message
   if (error instanceof Error) return error.message
@@ -59,6 +88,42 @@ export default function AdminStorePromotionsScreen() {
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<PromotionFormState>(initialForm)
   const [toasts, setToasts] = useState<ToastItem[]>([])
+  const styles = useMemo(() => {
+    const metaText: CSSProperties = {
+      color: theme.colors.textMuted,
+      fontSize: theme.typography.small.size,
+      lineHeight: 1.45
+    }
+    const strongText: CSSProperties = {
+      color: theme.colors.textPrimary,
+      fontWeight: 700,
+      lineHeight: 1.35
+    }
+    const secondaryText: CSSProperties = {
+      color: theme.colors.textSecondary,
+      lineHeight: 1.5
+    }
+
+    return {
+      metaText,
+      strongText,
+      secondaryText,
+      mutedCell: {
+        ...metaText,
+        overflowWrap: 'anywhere'
+      } satisfies CSSProperties,
+      membershipRow: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: theme.spacing.lg,
+        flexWrap: 'wrap',
+        padding: theme.spacing.md,
+        border: `1px solid ${theme.colors.borderDefault}`,
+        borderRadius: theme.radius.md,
+        background: theme.colors.bgSurfaceAlt
+      } satisfies CSSProperties
+    }
+  }, [theme.mode])
 
   const addToast = (message: string, variant: ToastItem['variant'] = 'info') => {
     const id = `${Date.now()}-${Math.random()}`
@@ -149,24 +214,26 @@ export default function AdminStorePromotionsScreen() {
 
   const rows = useMemo(() => promotions.map((promotion) => ([
     <div key={`${promotion.id}-code`}>
-      <div style={{ fontWeight: 600 }}>{promotion.code}</div>
-      <div style={{ color: theme.colors.textMuted, fontSize: theme.typography.small.size }}>{promotion.id}</div>
+      <div style={styles.strongText}>{promotion.code}</div>
+      <div style={styles.mutedCell}>{promotion.id}</div>
     </div>,
-    <span key={`${promotion.id}-type`}>{promotion.type === 'FIXED' ? 'Monto fijo' : 'Porcentaje'}</span>,
-    <span key={`${promotion.id}-value`}>
+    <span key={`${promotion.id}-type`} style={styles.secondaryText}>{promotion.type === 'FIXED' ? 'Monto fijo' : 'Porcentaje'}</span>,
+    <span key={`${promotion.id}-value`} style={styles.secondaryText}>
       {promotion.type === 'FIXED' ? formatMoney(promotion.value, 'ARS') : `${promotion.value}%`}
     </span>,
-    <span key={`${promotion.id}-usage`}>
+    <span key={`${promotion.id}-usage`} style={styles.secondaryText}>
       {promotion.usageLimit === null ? `${promotion.usageCount} usos` : `${promotion.usageCount} / ${promotion.usageLimit}`}
     </span>,
-    <span key={`${promotion.id}-expiration`}>{promotion.expirationDate ? formatDate(promotion.expirationDate) : 'Sin vencimiento'}</span>,
+    <span key={`${promotion.id}-expiration`} style={promotion.expirationDate ? styles.secondaryText : styles.metaText}>
+      {promotion.expirationDate ? formatDate(promotion.expirationDate) : 'Sin vencimiento'}
+    </span>,
     <StatusBadge key={`${promotion.id}-active`} status={promotion.active ? 'ACTIVE' : 'INACTIVE'} />,
-    <div key={`${promotion.id}-actions`} style={{ display: 'flex', gap: 8 }}>
+    <div key={`${promotion.id}-actions`} style={actionGroupLayout}>
       <Button variant="ghost" onClick={() => void toggleActive(promotion)} disabled={saving}>
         {promotion.active ? 'Desactivar' : 'Activar'}
       </Button>
     </div>
-  ])), [promotions, saving])
+  ])), [promotions, saving, styles])
 
   return (
     <AdminLayout>
@@ -189,7 +256,7 @@ export default function AdminStorePromotionsScreen() {
       />
 
       {error ? (
-        <div style={{ marginTop: theme.spacing.lg }}>
+        <div role="alert" aria-live="assertive" style={{ marginTop: theme.spacing.lg }}>
           <ErrorAlert message={error} actionLabel="Reintentar" onAction={() => void loadPromotions()} actionDisabled={loading} />
         </div>
       ) : null}
@@ -199,14 +266,14 @@ export default function AdminStorePromotionsScreen() {
           {activeStores.length === 0 ? (
             <EmptyState title="No hay stores activas" description="Necesitas una membership activa para operar promociones." />
           ) : (
-            <div style={{ display: 'grid', gap: theme.spacing.md }}>
+            <div style={stackLayout}>
               {activeStores.map((membership) => (
-                <div key={membership.storeId} style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.lg, flexWrap: 'wrap' }}>
+                <div key={membership.storeId} style={styles.membershipRow}>
                   <div>
-                    <div style={{ fontWeight: 600 }}>{membership.storeSlug}</div>
-                    <div style={{ color: theme.colors.textMuted, marginTop: 4 }}>{membership.role}</div>
+                    <div style={styles.strongText}>{membership.storeSlug}</div>
+                    <div style={styles.metaText}>{membership.role}</div>
                   </div>
-                  <div style={{ color: theme.colors.textMuted }}>{membership.storeId}</div>
+                  <div style={styles.mutedCell}>{membership.storeId}</div>
                 </div>
               ))}
             </div>
@@ -216,33 +283,54 @@ export default function AdminStorePromotionsScreen() {
 
       <Section title="Crear promoción">
         <Card>
-          <form onSubmit={(event) => void onSubmit(event)} style={{ display: 'grid', gap: theme.spacing.lg }}>
-            <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+          <form onSubmit={(event) => void onSubmit(event)} style={formLayout}>
+            <div style={formGridLayout}>
               <Field label="Código" helpText="Se normaliza en mayúsculas y debe ser único por store.">
-                <Input value={form.code} onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))} placeholder="BIENVENIDA10" />
+                <Input
+                  value={form.code}
+                  onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))}
+                  placeholder="BIENVENIDA10"
+                  aria-label="Código"
+                  autoComplete="off"
+                />
               </Field>
               <Field label="Tipo">
-                <select
+                <Select
                   value={form.type}
                   onChange={(event) => setForm((prev) => ({ ...prev, type: event.target.value as StorePromotionType }))}
-                  style={{ padding: '10px 12px', borderRadius: theme.radius.md, border: `1px solid ${theme.colors.borderDefault}` }}
-                >
-                  <option value="FIXED">Monto fijo</option>
-                  <option value="PERCENTAGE">Porcentaje</option>
-                </select>
+                  options={promotionTypeOptions}
+                  aria-label="Tipo"
+                />
               </Field>
               <Field label="Valor" helpText={form.type === 'FIXED' ? 'Monto en ARS.' : 'Porcentaje entre 0 y 100.'}>
-                <Input value={form.value} onChange={(event) => setForm((prev) => ({ ...prev, value: event.target.value }))} placeholder={form.type === 'FIXED' ? '500' : '10'} />
+                <Input
+                  value={form.value}
+                  onChange={(event) => setForm((prev) => ({ ...prev, value: event.target.value }))}
+                  placeholder={form.type === 'FIXED' ? '500' : '10'}
+                  aria-label="Valor"
+                  inputMode="decimal"
+                />
               </Field>
               <Field label="Vencimiento" helpText="Opcional. Si se completa, deja de aplicar al vencer.">
-                <Input type="datetime-local" value={form.expirationDate} onChange={(event) => setForm((prev) => ({ ...prev, expirationDate: event.target.value }))} />
+                <Input
+                  type="datetime-local"
+                  value={form.expirationDate}
+                  onChange={(event) => setForm((prev) => ({ ...prev, expirationDate: event.target.value }))}
+                  aria-label="Vencimiento"
+                />
               </Field>
               <Field label="Límite de uso" helpText="Opcional. Dejalo vacío para ilimitado.">
-                <Input value={form.usageLimit} onChange={(event) => setForm((prev) => ({ ...prev, usageLimit: event.target.value }))} placeholder="100" />
+                <Input
+                  value={form.usageLimit}
+                  onChange={(event) => setForm((prev) => ({ ...prev, usageLimit: event.target.value }))}
+                  placeholder="100"
+                  aria-label="Límite de uso"
+                  inputMode="numeric"
+                />
               </Field>
             </div>
             <div>
-              <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : 'Crear promoción'}</Button>
+              <Button type="submit" disabled={saving} aria-busy={saving}>{saving ? 'Guardando...' : 'Crear promoción'}</Button>
             </div>
           </form>
         </Card>
@@ -251,9 +339,13 @@ export default function AdminStorePromotionsScreen() {
       <Section title="Promociones activas e históricas">
         <Card>
           {loading ? (
-            <LoadingBlock label="Cargando promociones..." />
+            <div role="status" aria-live="polite">
+              <LoadingBlock label="Cargando promociones..." />
+            </div>
           ) : promotions.length === 0 ? (
-            <EmptyState title="No hay promociones creadas" description="Creá el primer cupón para habilitar descuentos en checkout." />
+            <div role="status" aria-live="polite">
+              <EmptyState title="No hay promociones creadas" description="Creá el primer cupón para habilitar descuentos en checkout." />
+            </div>
           ) : (
             <Table
               headers={['Código', 'Tipo', 'Valor', 'Usos', 'Vencimiento', 'Estado', 'Acciones']}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { storeAdminAdapter } from '../../../../api/adapters/storeAdminAdapter'
 import type { StoreShippingZone, StoreShippingZoneCreateReq, StoreShippingZoneType } from '../../../../api/contracts/v1/storeAdmin'
@@ -47,6 +48,44 @@ const initialForm: ZoneFormState = {
   currency: 'ARS'
 }
 
+const actionGroupLayout: CSSProperties = {
+  display: 'flex',
+  gap: 8,
+  flexWrap: 'wrap'
+}
+
+const stackLayout: CSSProperties = {
+  display: 'grid',
+  gap: 12
+}
+
+const formLayout: CSSProperties = {
+  display: 'grid',
+  gap: 16
+}
+
+const formGridLayout: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))'
+}
+
+const filterGridLayout: CSSProperties = {
+  display: 'grid',
+  gap: 16,
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))'
+}
+
+const shippingZoneTypeOptions = [
+  { value: 'EXACT', label: 'EXACT' },
+  { value: 'RANGE', label: 'RANGE' }
+]
+
+const zoneFilterOptions = [
+  { value: 'ALL', label: 'Todos' },
+  ...shippingZoneTypeOptions
+]
+
 type ToastItem = {
   id: string
   message: string
@@ -65,6 +104,47 @@ export default function AdminStoreScreen() {
   const [toasts, setToasts] = useState<ToastItem[]>([])
   const [typeFilter, setTypeFilter] = useState<'ALL' | StoreShippingZoneType>('ALL')
   const [query, setQuery] = useState('')
+  const styles = useMemo(() => {
+    const metaText: CSSProperties = {
+      color: theme.colors.textMuted,
+      fontSize: theme.typography.small.size,
+      lineHeight: 1.45
+    }
+    const strongText: CSSProperties = {
+      color: theme.colors.textPrimary,
+      fontWeight: 700,
+      lineHeight: 1.35
+    }
+    const secondaryText: CSSProperties = {
+      color: theme.colors.textSecondary,
+      lineHeight: 1.5
+    }
+
+    return {
+      metaText,
+      strongText,
+      secondaryText,
+      mutedCell: {
+        ...metaText,
+        overflowWrap: 'anywhere'
+      } satisfies CSSProperties,
+      membershipRow: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: theme.spacing.lg,
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        padding: theme.spacing.md,
+        border: `1px solid ${theme.colors.borderDefault}`,
+        borderRadius: theme.radius.md,
+        background: theme.colors.bgSurfaceAlt
+      } satisfies CSSProperties,
+      softPanel: {
+        borderColor: theme.colors.borderStrong,
+        background: theme.colors.bgHover
+      } satisfies CSSProperties
+    }
+  }, [theme.mode])
 
   const addToast = (message: string, variant: ToastItem['variant'] = 'info') => {
     const id = `${Date.now()}-${Math.random()}`
@@ -215,18 +295,20 @@ export default function AdminStoreScreen() {
 
   const tableRows = filteredZones.map((zone) => ([
     <div key={`${zone.zoneId}-id`}>
-      <div style={{ fontWeight: 600 }}>{zone.zoneId}</div>
-      <div style={{ color: theme.colors.textMuted, fontSize: theme.typography.small.size }}>
+      <div style={styles.strongText}>{zone.zoneId}</div>
+      <div style={styles.mutedCell}>
         {zone.type === 'EXACT' ? `CP ${zone.postalCode ?? ''}` : `Rango ${zone.rangeStart ?? ''}-${zone.rangeEnd ?? ''}`}
       </div>
     </div>,
     <div key={`${zone.zoneId}-type`}>{typeBadge(zone.type)}</div>,
-    <div key={`${zone.zoneId}-postal`}>
+    <div key={`${zone.zoneId}-postal`} style={styles.secondaryText}>
       {zone.type === 'EXACT' ? zone.postalCode ?? '-' : `${zone.rangeStart ?? ''} - ${zone.rangeEnd ?? ''}`}
     </div>,
-    <div key={`${zone.zoneId}-cost`}>{zone.costAmount}</div>,
-    <div key={`${zone.zoneId}-currency`}>{zone.currency}</div>,
-    <Button key={`${zone.zoneId}-action`} variant="ghost" onClick={() => setPendingDeleteId(zone.zoneId)} disabled={saving}>Eliminar</Button>
+    <div key={`${zone.zoneId}-cost`} style={styles.secondaryText}>{zone.costAmount}</div>,
+    <div key={`${zone.zoneId}-currency`} style={styles.secondaryText}>{zone.currency}</div>,
+    <div key={`${zone.zoneId}-action`} style={actionGroupLayout}>
+      <Button variant="ghost" onClick={() => setPendingDeleteId(zone.zoneId)} disabled={saving}>Eliminar</Button>
+    </div>
   ]))
 
   return (
@@ -250,7 +332,7 @@ export default function AdminStoreScreen() {
       />
 
       {error && (
-        <div style={{ marginTop: theme.spacing.lg }}>
+        <div role="alert" aria-live="assertive" style={{ marginTop: theme.spacing.lg }}>
           <ErrorAlert message={error} actionLabel="Reintentar" onAction={() => void loadZones()} actionDisabled={loadingZones} />
         </div>
       )}
@@ -258,14 +340,16 @@ export default function AdminStoreScreen() {
       <Section title="Stores activas">
         <Card>
           {activeStores.length === 0 && (
-            <EmptyState title="No hay stores activas" />
+            <div role="status" aria-live="polite">
+              <EmptyState title="No hay stores activas" />
+            </div>
           )}
           {activeStores.length > 0 && (
-            <div style={{ display: 'grid', gap: 8 }}>
+            <div style={stackLayout}>
               {activeStores.map((store) => (
-                <div key={store.storeId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontWeight: 600 }}>{store.storeSlug}</div>
-                  <div style={{ color: theme.colors.textMuted }}>{store.role}</div>
+                <div key={store.storeId} style={styles.membershipRow}>
+                  <div style={styles.strongText}>{store.storeSlug}</div>
+                  <div style={styles.metaText}>{store.role}</div>
                 </div>
               ))}
             </div>
@@ -289,16 +373,13 @@ export default function AdminStoreScreen() {
         )}
       >
         <Card>
-          <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+          <div style={filterGridLayout}>
             <FormField label="Tipo">
               <SelectField
                 value={typeFilter}
                 onChange={(event) => setTypeFilter(event.target.value as 'ALL' | StoreShippingZoneType)}
-                options={[
-                  { value: 'ALL', label: 'Todos' },
-                  { value: 'EXACT', label: 'EXACT' },
-                  { value: 'RANGE', label: 'RANGE' }
-                ]}
+                options={zoneFilterOptions}
+                aria-label="Tipo de zona"
               />
             </FormField>
             <FormField label="Buscar por código o rango">
@@ -306,6 +387,8 @@ export default function AdminStoreScreen() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="1900 / 1000-1999 / zoneId"
+                aria-label="Buscar por código o rango"
+                inputMode="numeric"
               />
             </FormField>
           </div>
@@ -313,12 +396,18 @@ export default function AdminStoreScreen() {
       </Section>
 
       <Section title="Zonas de envío">
-        {loadingZones && <LoadingBlock label="Cargando zonas..." />}
+        {loadingZones && (
+          <div role="status" aria-live="polite">
+            <LoadingBlock label="Cargando zonas..." />
+          </div>
+        )}
         {!loadingZones && filteredZones.length === 0 && (
-          <EmptyState
-            title={hasActiveFilters ? 'No hay zonas que coincidan con los filtros' : 'No hay zonas configuradas'}
-            description={hasActiveFilters ? 'Probá cambiando la búsqueda o el tipo.' : undefined}
-          />
+          <div role="status" aria-live="polite">
+            <EmptyState
+              title={hasActiveFilters ? 'No hay zonas que coincidan con los filtros' : 'No hay zonas configuradas'}
+              description={hasActiveFilters ? 'Probá cambiando la búsqueda o el tipo.' : undefined}
+            />
+          </div>
         )}
         {!loadingZones && filteredZones.length > 0 && (
           <DataTable
@@ -330,19 +419,17 @@ export default function AdminStoreScreen() {
 
       <Section title="Crear zona">
         <Card>
-          <form onSubmit={onSubmit} style={{ display: 'grid', gap: theme.spacing.lg }}>
+          <form onSubmit={onSubmit} style={formLayout}>
             <FormField label="Tipo">
               <SelectField
                 value={form.type}
                 onChange={(event) => setForm((prev) => ({ ...prev, type: event.target.value as StoreShippingZoneType }))}
-                options={[
-                  { value: 'EXACT', label: 'EXACT' },
-                  { value: 'RANGE', label: 'RANGE' }
-                ]}
+                options={shippingZoneTypeOptions}
+                aria-label="Tipo"
               />
             </FormField>
 
-            <Card variant="soft">
+            <Card variant="soft" style={styles.softPanel}>
               {form.type === 'EXACT' ? (
                 <FormField label="Código postal">
                   <TextInput
@@ -350,17 +437,21 @@ export default function AdminStoreScreen() {
                     value={form.postalCode}
                     onChange={(event) => setForm((prev) => ({ ...prev, postalCode: event.target.value }))}
                     placeholder="1234"
+                    aria-label="Código postal"
+                    inputMode="numeric"
                     required
                   />
                 </FormField>
               ) : (
-                <div style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+                <div style={formGridLayout}>
                   <FormField label="Rango inicio">
                     <TextInput
                       type="number"
                       value={form.rangeStart}
                       onChange={(event) => setForm((prev) => ({ ...prev, rangeStart: event.target.value }))}
                       placeholder="1000"
+                      aria-label="Rango inicio"
+                      inputMode="numeric"
                       required
                     />
                   </FormField>
@@ -370,6 +461,8 @@ export default function AdminStoreScreen() {
                       value={form.rangeEnd}
                       onChange={(event) => setForm((prev) => ({ ...prev, rangeEnd: event.target.value }))}
                       placeholder="1999"
+                      aria-label="Rango fin"
+                      inputMode="numeric"
                       required
                     />
                   </FormField>
@@ -377,7 +470,7 @@ export default function AdminStoreScreen() {
               )}
             </Card>
 
-            <div style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+            <div style={formGridLayout}>
               <FormField label="Costo">
                 <TextInput
                   type="number"
@@ -385,6 +478,8 @@ export default function AdminStoreScreen() {
                   value={form.costAmount}
                   onChange={(event) => setForm((prev) => ({ ...prev, costAmount: event.target.value }))}
                   placeholder="5.00"
+                  aria-label="Costo"
+                  inputMode="decimal"
                   required
                 />
               </FormField>
@@ -395,13 +490,14 @@ export default function AdminStoreScreen() {
                   value={form.currency}
                   onChange={(event) => setForm((prev) => ({ ...prev, currency: event.target.value }))}
                   placeholder="ARS"
+                  aria-label="Moneda"
                   required
                 />
               </FormField>
             </div>
 
             <div>
-              <Button type="submit" variant="primary" disabled={saving}>
+              <Button type="submit" variant="primary" disabled={saving} aria-busy={saving}>
                 {saving ? 'Guardando...' : 'Crear zona'}
               </Button>
             </div>

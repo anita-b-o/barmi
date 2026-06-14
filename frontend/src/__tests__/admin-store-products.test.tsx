@@ -64,6 +64,31 @@ afterEach(() => {
 })
 
 describe('admin store products', () => {
+  it('renders in light and dark themes without breaking the admin surface', async () => {
+    for (const preference of ['light', 'dark'] as const) {
+      document.body.innerHTML = ''
+      window.localStorage.setItem('barmi-theme-mode', preference)
+
+      mockFetch({
+        '/api/auth/me': { body: authMe },
+        '/api/store/products': { body: listResponse },
+        '/api/store/categories': { body: categoriesResponse }
+      })
+
+      const { cleanup } = await renderAppAt('/admin/store/products')
+      await flush()
+      await flush()
+
+      expect(document.documentElement.dataset.theme).toBe(preference)
+      expect(document.body.textContent).toContain('Productos STORE')
+      expect(document.body.textContent).toContain('Crear producto')
+      expect(document.body.textContent).toContain('Cafe tostado')
+      expect(document.body.textContent).toContain('Categorías STORE')
+
+      await cleanup()
+    }
+  })
+
   it('renders the screen with active store memberships and loads products', async () => {
     mockFetch({
       '/api/auth/me': { body: authMe },
@@ -81,6 +106,31 @@ describe('admin store products', () => {
     expect(document.body.textContent).toContain('Cafe tostado')
     expect(document.body.textContent).toContain('Te negro')
     expect(document.body.textContent).toContain('Categorías STORE')
+    expect(document.querySelector('input[aria-label="SKU"]')).toBeTruthy()
+    expect(document.querySelector('input[aria-label="Nombre"]')).toBeTruthy()
+    expect(document.querySelector('input[aria-label="Precio en centavos"]')).toBeTruthy()
+    expect(document.querySelector('input[aria-label="Stock disponible"]')).toBeTruthy()
+    expect(document.querySelector('select[aria-label="Categoría del producto"]')).toBeTruthy()
+
+    await cleanup()
+  })
+
+  it('shows empty products and categories states accessibly', async () => {
+    mockFetch({
+      '/api/auth/me': { body: authMe },
+      '/api/store/products': { body: [] },
+      '/api/store/categories': { body: [] }
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store/products')
+    await flush()
+    await flush()
+
+    const statusRegions = Array.from(document.querySelectorAll('[role="status"]'))
+    expect(document.body.textContent).toContain('Todavía no hay productos')
+    expect(document.body.textContent).toContain('Todavía no hay categorías')
+    expect(statusRegions.some((region) => region.textContent?.includes('Todavía no hay productos'))).toBe(true)
+    expect(statusRegions.some((region) => region.textContent?.includes('Todavía no hay categorías'))).toBe(true)
 
     await cleanup()
   })
@@ -323,6 +373,7 @@ describe('admin store products', () => {
     await flush()
 
     expect(document.body.textContent).toContain('product_sku_conflict')
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain('product_sku_conflict')
 
     await cleanup()
   })

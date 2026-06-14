@@ -1,5 +1,30 @@
 export type StoreShippingZoneType = 'EXACT' | 'RANGE'
 export type StorePromotionType = 'FIXED' | 'PERCENTAGE'
+export type StoreCapability =
+  | 'ABOUT'
+  | 'GALLERY'
+  | 'BLOG'
+  | 'PRODUCTS'
+  | 'RESERVATIONS'
+  | 'PROMOTIONS'
+  | 'SHIPPING'
+  | 'CHECKOUT'
+  | 'CONTACT'
+
+export type StoreCapabilityMetadata = {
+  key: StoreCapability
+  label: string
+  description: string
+}
+
+export type StoreCapabilities = {
+  enabled: StoreCapability[]
+  available: StoreCapabilityMetadata[]
+}
+
+export type StoreCapabilitiesUpdateReq = {
+  enabled: StoreCapability[]
+}
 
 export type StoreAdminProduct = {
   id: string

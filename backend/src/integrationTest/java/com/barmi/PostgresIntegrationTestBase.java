@@ -35,6 +35,7 @@ public abstract class PostgresIntegrationTestBase {
               store_shipping_zones,
               beta_feedback_entries,
               beta_product_events,
+              store_capabilities,
               saas_subscriptions,
               ecosystem_external_products,
               ecosystem_promotions,

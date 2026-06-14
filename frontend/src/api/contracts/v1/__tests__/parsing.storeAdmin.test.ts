@@ -12,6 +12,7 @@ import zonesListSample from '../_samples/store.admin.shipping.zones.list.json'
 import zoneSample from '../_samples/store.admin.shipping.zone.json'
 import promotionSample from '../_samples/store.admin.promotion.json'
 import discoverySample from '../_samples/store.admin.discovery.json'
+import capabilitiesSample from '../_samples/store.admin.capabilities.json'
 import {
   parseStoreAdminProduct,
   parseStoreAdminProducts,
@@ -25,7 +26,8 @@ import {
   parseStoreFunnelAnalytics,
   parseStoreAnalyticsSummary,
   parseStoreShippingZone,
-  parseStoreShippingZones
+  parseStoreShippingZones,
+  parseStoreCapabilities
 } from '../../../adapters/storeAdminAdapter'
 
 describe('store admin contracts parsing', () => {
@@ -151,5 +153,13 @@ describe('store admin contracts parsing', () => {
     expect(res.ecosystem?.slug).toBe('demo-ecosystem')
     expect(res.publicCategoryKey).toBe('cafeteria')
     expect(res.categories).toHaveLength(3)
+  })
+
+  it('parses store capabilities sample', () => {
+    const res = parseStoreCapabilities(capabilitiesSample)
+    expect(res.enabled).toEqual(['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'])
+    expect(res.available).toHaveLength(9)
+    expect(res.available[0].key).toBe('ABOUT')
+    expect(res.available[0].label).toBe('Sobre mí')
   })
 })

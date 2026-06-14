@@ -12,6 +12,7 @@ type ErrorStateProps = {
 export default function ErrorState({ message, actionLabel, onAction, actionDisabled = false }: ErrorStateProps) {
   return (
     <div
+      role="alert"
       style={{
         background: alpha(theme.colors.error, 0.08),
         border: `1px solid ${alpha(theme.colors.error, 0.22)}`,
