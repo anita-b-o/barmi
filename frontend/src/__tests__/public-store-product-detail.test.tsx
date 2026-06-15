@@ -25,6 +25,7 @@ const storeResponse = {
   slug: 'demo-store',
   id: 'store-id',
   name: 'Demo Store',
+  capabilities: ['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'],
   categories: [{ id: 'cat-1', name: 'Panaderia', sortOrder: 10 }],
   promotions: []
 }
@@ -198,6 +199,29 @@ describe('public store product detail', () => {
       storeSlug: 'demo-store',
       productSlug: 'no-existe'
     })
+
+    await cleanup()
+  })
+
+  it('treats product detail as unavailable and noindex when PRODUCTS is disabled', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          capabilities: ['ABOUT', 'CONTACT']
+        }
+      },
+      '/api/public/stores/demo-store/products/pan-de-campo': { body: productDetail },
+      '/api/public/stores/demo-store/products': { body: [listedProduct] }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store/products/pan-de-campo')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Producto no encontrado')
+    expect(document.body.textContent).not.toContain('Agregar al carrito')
+    expect(metaContent('meta[name="robots"]')).toBe('noindex,follow')
 
     await cleanup()
   })

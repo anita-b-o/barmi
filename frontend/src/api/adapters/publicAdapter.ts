@@ -3,12 +3,34 @@ import {
   PublicProduct,
   PublicProductsPage,
   PublicStore,
+  PublicStoreCapability,
   PublicStoreCatalogSort,
   PublicStoreProductDetail,
   PublicStoreCategory,
   PublicStorePromotion
 } from '../contracts/v1/public'
 import { assertArray, assertNumber, assertRecord, assertString } from './validators'
+
+export const ecommerceDefaultPublicStoreCapabilities: PublicStoreCapability[] = [
+  'ABOUT',
+  'PRODUCTS',
+  'PROMOTIONS',
+  'SHIPPING',
+  'CHECKOUT',
+  'CONTACT'
+]
+
+const PUBLIC_STORE_CAPABILITIES = new Set<PublicStoreCapability>([
+  'ABOUT',
+  'GALLERY',
+  'BLOG',
+  'PRODUCTS',
+  'RESERVATIONS',
+  'PROMOTIONS',
+  'SHIPPING',
+  'CHECKOUT',
+  'CONTACT'
+])
 
 function assertBoolean(value: unknown, message: string): asserts value is boolean {
   if (typeof value !== 'boolean') throw new Error(message)
@@ -47,6 +69,26 @@ function parsePublicCategory(data: unknown, index: number): PublicStoreCategory 
   }
 }
 
+function parsePublicStoreCapabilities(data: unknown, message: string): PublicStoreCapability[] {
+  if (data === undefined || data === null) return ecommerceDefaultPublicStoreCapabilities
+  assertArray(data, message)
+  return data.map((item, index) => {
+    assertString(item, `${message} at ${index} is invalid`)
+    const normalized = item.trim().toUpperCase() as PublicStoreCapability
+    if (!PUBLIC_STORE_CAPABILITIES.has(normalized)) {
+      throw new Error(`${message} at ${index} is invalid`)
+    }
+    return normalized
+  })
+}
+
+export function hasPublicStoreCapability(
+  capabilities: PublicStoreCapability[] | undefined | null,
+  capability: PublicStoreCapability
+) {
+  return (capabilities ?? ecommerceDefaultPublicStoreCapabilities).includes(capability)
+}
+
 export function parsePublicStore(data: unknown): PublicStore {
   assertRecord(data, 'Invalid public store payload')
   assertString(data.slug, 'Public store slug is required')
@@ -62,6 +104,7 @@ export function parsePublicStore(data: unknown): PublicStore {
     slug: data.slug,
     id: data.id,
     name: data.name,
+    capabilities: parsePublicStoreCapabilities(data.capabilities, 'Public store capabilities'),
     categories: (data.categories ?? []).map((item, index) => parsePublicCategory(item, index)),
     promotions: (data.promotions ?? []).map((item, index) => parsePublicPromotion(item, index))
   }
@@ -135,7 +178,8 @@ export function parsePublicStoreProductDetail(data: unknown): PublicStoreProduct
     store: {
       slug: store.slug,
       name: store.name,
-      categoryName: store.categoryName ?? null
+      categoryName: store.categoryName ?? null,
+      capabilities: parsePublicStoreCapabilities(store.capabilities, 'Public store product detail store capabilities')
     },
     product: {
       slug: product.slug,

@@ -3,6 +3,7 @@ package com.barmi.api;
 import com.barmi.domain.catalog.StorePromotion;
 import com.barmi.domain.catalog.StorePromotionType;
 import com.barmi.domain.catalog.StoreCategory;
+import com.barmi.app.store.StoreCapabilityService;
 import com.barmi.app.tenant.TenantContext;
 import com.barmi.domain.catalog.Product;
 import com.barmi.domain.store.Store;
@@ -33,6 +34,7 @@ public class PublicController {
     private final ProductRepository productRepository;
     private final StorePromotionRepository storePromotionRepository;
     private final StoreCategoryRepository storeCategoryRepository;
+    private final StoreCapabilityService storeCapabilityService;
     private final String defaultCurrency;
 
     public PublicController(
@@ -40,12 +42,14 @@ public class PublicController {
             ProductRepository productRepository,
             StorePromotionRepository storePromotionRepository,
             StoreCategoryRepository storeCategoryRepository,
+            StoreCapabilityService storeCapabilityService,
             @Value("${app.money.defaultCurrency:ARS}") String defaultCurrency
     ) {
         this.storeRepository = storeRepository;
         this.productRepository = productRepository;
         this.storePromotionRepository = storePromotionRepository;
         this.storeCategoryRepository = storeCategoryRepository;
+        this.storeCapabilityService = storeCapabilityService;
         this.defaultCurrency = defaultCurrency == null || defaultCurrency.isBlank() ? "ARS" : defaultCurrency.trim().toUpperCase(Locale.ROOT);
     }
 
@@ -63,6 +67,7 @@ public class PublicController {
                             "id", s.getId(),
                             "slug", s.getSlug(),
                             "name", s.getName(),
+                            "capabilities", storeCapabilityService.getEnabledCapabilityNamesForStore(s.getId()),
                             "categories", publicCategories.stream().map(this::toPublicCategory).toList(),
                             "promotions", storePromotionRepository.findVisiblePublicPromotions(s.getId(), Instant.now()).stream()
                                     .map(this::toPublicPromotion)

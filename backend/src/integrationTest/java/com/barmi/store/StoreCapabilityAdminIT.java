@@ -107,6 +107,24 @@ class StoreCapabilityAdminIT extends PostgresIntegrationTestBase {
     }
 
     @Test
+    void publicStorePayloadIncludesOnlyEnabledCapabilities() throws Exception {
+        ApiTestClient.ApiTestResponse update = api.putJson(
+                "/api/store/capabilities",
+                Map.of("enabled", List.of("ABOUT", "CONTACT")),
+                authHeaders(store, ownerEmail)
+        );
+        assertThat(update.status()).isEqualTo(200);
+
+        ApiTestClient.ApiTestResponse response = api.get("/api/public/stores/" + store.getSlug(), null);
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat((List<String>) response.body().get("capabilities")).containsExactly("ABOUT", "CONTACT");
+        assertThat(response.body()).doesNotContainKeys("available");
+        assertThat(response.rawBody()).doesNotContain(otherStore.getId().toString());
+        assertThat(response.rawBody()).doesNotContain(otherOwnerEmail);
+    }
+
+    @Test
     void putUpdatesOnlyCurrentStoreCapabilities() throws Exception {
         ApiTestClient.ApiTestResponse update = api.putJson(
                 "/api/store/capabilities",

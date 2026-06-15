@@ -17,10 +17,16 @@ describe('public contracts parsing', () => {
     expect(store.slug).toBe('demo-store')
     expect(store.id).toBe('11111111-1111-1111-1111-111111111111')
     expect(store.name).toBe('Demo Store')
+    expect(store.capabilities).toEqual(['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'])
     expect(store.categories).toHaveLength(1)
     expect(store.categories[0].name).toBe('Bebidas')
     expect(store.promotions).toHaveLength(1)
     expect(store.promotions[0].code).toBe('BIENVENIDA10')
+  })
+
+  it('uses ecommerce capabilities as public store fallback', () => {
+    const store = parsePublicStore({ ...storeSample, capabilities: undefined })
+    expect(store.capabilities).toEqual(['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'])
   })
 
   it('parses public products sample', () => {

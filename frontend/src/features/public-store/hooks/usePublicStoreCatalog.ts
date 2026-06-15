@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { extractBackendErrorMessage } from '@/core/errors'
-import { publicAdapter } from '../../../api/adapters/publicAdapter'
+import { hasPublicStoreCapability, publicAdapter } from '../../../api/adapters/publicAdapter'
 import type { PublicStoreCatalogSort } from '../../../api/contracts/v1/public'
 
 type UsePublicStoreCatalogParams = {
@@ -30,6 +30,7 @@ export function usePublicStoreCatalog({
     queryFn: () => publicAdapter.getStore(slug ?? ''),
     enabled
   })
+  const productsEnabled = hasPublicStoreCapability(storeQuery.data?.capabilities, 'PRODUCTS')
 
   const productsQuery = useQuery({
     queryKey: ['public-store-products', slug, query, availableOnly, sort, normalizedCategoryId, page, size],
@@ -39,13 +40,15 @@ export function usePublicStoreCatalog({
       sort,
       categoryId: categoryId || undefined
     }, page, size),
-    enabled,
+    enabled: enabled && Boolean(storeQuery.data) && productsEnabled,
     placeholderData: keepPreviousData
   })
 
   const refetch = () => {
     void storeQuery.refetch()
-    void productsQuery.refetch()
+    if (storeQuery.data && productsEnabled) {
+      void productsQuery.refetch()
+    }
   }
 
   const storeError = storeQuery.error
@@ -58,9 +61,10 @@ export function usePublicStoreCatalog({
 
   return {
     store: storeQuery.data ?? null,
-    products: productsQuery.data?.content ?? [],
-    productsPage: productsQuery.data ?? null,
-    isInitialLoading: (storeQuery.isLoading || productsQuery.isLoading) && (!storeQuery.data || !productsQuery.data),
+    products: productsEnabled ? productsQuery.data?.content ?? [] : [],
+    productsPage: productsEnabled ? productsQuery.data ?? null : null,
+    productsEnabled,
+    isInitialLoading: storeQuery.isLoading || (productsEnabled && productsQuery.isLoading && (!storeQuery.data || !productsQuery.data)),
     isFetchingProducts: productsQuery.isFetching,
     isRetrying: storeQuery.isFetching || productsQuery.isFetching,
     error,

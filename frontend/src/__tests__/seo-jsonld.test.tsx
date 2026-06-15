@@ -60,6 +60,7 @@ const publicStoreBody = {
   slug: 'demo-store',
   id: 'store-private-id',
   name: 'Demo Store',
+  capabilities: ['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'],
   categories: [{ id: 'category-private-id', slug: 'category-private-id', name: 'Panaderia', sortOrder: 1 }],
   promotions: []
 }
@@ -329,6 +330,27 @@ describe('public JSON-LD metadata', () => {
     expect(rawJsonLd).not.toContain('category-private-id')
     expect(rawJsonLd).not.toContain('SKU-PRIVATE')
     expectAllUrlsAbsolute(firstJsonLd())
+    await cleanup()
+  })
+
+  it('does not emit Product JSON-LD when PRODUCTS is disabled', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...publicStoreBody,
+          capabilities: ['ABOUT', 'CONTACT']
+        }
+      },
+      '/api/public/stores/demo-store/products/pan-de-campo': { body: productDetailBody },
+      '/api/public/stores/demo-store/products': { body: publicStoreProductsPage.content }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store/products/pan-de-campo')
+    await flush()
+    await flush()
+
+    expect(document.head.querySelector<HTMLMetaElement>('meta[name="robots"]')?.content).toBe('noindex,follow')
+    expect(jsonLdScripts()).toHaveLength(0)
     await cleanup()
   })
 

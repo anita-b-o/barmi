@@ -17,7 +17,17 @@ function publicStoreSlugFromPath(pathname: string) {
   }
 }
 
-export default function PublicStoreLayout({ children }: { children: React.ReactNode }) {
+type PublicStoreLayoutProps = {
+  children: React.ReactNode
+  showCatalogNav?: boolean
+  showCheckoutNav?: boolean
+}
+
+export default function PublicStoreLayout({
+  children,
+  showCatalogNav = true,
+  showCheckoutNav = true
+}: PublicStoreLayoutProps) {
   const location = useLocation()
   const cart = useCart()
   const storeSlug = publicStoreSlugFromPath(location.pathname) ?? cart.storeSlug ?? 'demo-store'
@@ -54,16 +64,18 @@ export default function PublicStoreLayout({ children }: { children: React.ReactN
           <NavLink to={routes.ecosystemStoresMap} style={{ textDecoration: 'none' }}>
             <Button variant="ghost">Mapa de tiendas</Button>
           </NavLink>
-          <NavLink to={routes.storeCheckout} style={{ textDecoration: 'none' }}>
-            <Button variant="primary">Carrito{cartItems > 0 ? ` (${cartItems})` : ''}</Button>
-          </NavLink>
+          {showCheckoutNav ? (
+            <NavLink to={routes.storeCheckout} style={{ textDecoration: 'none' }}>
+              <Button variant="primary">Carrito{cartItems > 0 ? ` (${cartItems})` : ''}</Button>
+            </NavLink>
+          ) : null}
         </>
       )}
       feedbackStoreSlug={storeSlug}
       navigation={(
         <>
-          <NavLink to={routes.publicStore(storeSlug)} end style={navLinkStyle}>Catálogo</NavLink>
-          <NavLink to={routes.storeCheckout} style={navLinkStyle}>Checkout{cartItems > 0 ? ` (${cartItems})` : ''}</NavLink>
+          {showCatalogNav ? <NavLink to={routes.publicStore(storeSlug)} end style={navLinkStyle}>Catálogo</NavLink> : null}
+          {showCheckoutNav ? <NavLink to={routes.storeCheckout} style={navLinkStyle}>Checkout{cartItems > 0 ? ` (${cartItems})` : ''}</NavLink> : null}
           <NavLink to={routes.storeOrders} style={navLinkStyle}>Mis órdenes</NavLink>
         </>
       )}

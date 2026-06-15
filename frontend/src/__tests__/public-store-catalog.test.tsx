@@ -17,6 +17,7 @@ const storeResponse = {
   slug: 'demo-store',
   id: 's1',
   name: 'Demo Store',
+  capabilities: ['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'],
   categories: [
     { id: 'cat-1', slug: 'cat-1', name: 'Bebidas', sortOrder: 10 },
     { id: 'cat-2', slug: 'cat-2', name: 'Snacks', sortOrder: 20 }
@@ -87,6 +88,63 @@ describe('public store catalog discovery', () => {
     expect(document.body.textContent).toContain('Cafe molido')
     expect(document.body.textContent).not.toContain('Te verde')
     expect(handler.mock.calls.some(([url]) => String(url).includes('q=cafe'))).toBe(true)
+
+    await cleanup()
+  })
+
+  it('does not render or request catalog when PRODUCTS is disabled', async () => {
+    const handler = mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          capabilities: ['ABOUT', 'CONTACT'],
+          categories: [],
+          promotions: []
+        }
+      },
+      '/api/public/stores/demo-store/products': {
+        body: productsPage([
+          { priceCents: 1000, id: 'p1', slug: 'p1', name: 'Cafe molido', sku: 'SKU-CAFE', stockQuantity: 5, isAvailable: true, categoryId: null, categoryName: null }
+        ])
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Esta tienda no muestra productos')
+    expect(document.body.textContent).not.toContain('Cafe molido')
+    expect(document.querySelector('input[aria-label="Buscar productos"]')).toBeNull()
+    expect(handler.mock.calls.map(([url]) => String(url)).filter((url) => url.includes('/api/public/stores/demo-store/products'))).toHaveLength(0)
+
+    await cleanup()
+  })
+
+  it('hides cart and checkout actions when CHECKOUT is disabled', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          capabilities: ['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CONTACT']
+        }
+      },
+      '/api/public/stores/demo-store/products': {
+        body: productsPage([
+          { priceCents: 1000, id: 'p1', slug: 'p1', name: 'Cafe molido', sku: 'SKU-CAFE', stockQuantity: 5, isAvailable: true, categoryId: null, categoryName: null }
+        ])
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Cafe molido')
+    expect(document.body.textContent).not.toContain('Carrito de Demo Store')
+    expect(document.body.textContent).not.toContain('Ir al checkout de la tienda')
+    expect(document.body.textContent).not.toContain('Agregar')
+    expect(Array.from(document.querySelectorAll('a')).some((link) => link.getAttribute('href') === '/checkout')).toBe(false)
 
     await cleanup()
   })
@@ -979,7 +1037,7 @@ describe('public store catalog discovery', () => {
 
     expect(document.body.textContent).toContain('No pudimos cargar la tienda')
     expect(storeCalls).toBe(1)
-    expect(productCalls).toBe(1)
+    expect(productCalls).toBe(0)
 
     const retryButton = Array.from(document.querySelectorAll('button'))
       .find((button) => button.textContent?.includes('Reintentar'))
@@ -989,7 +1047,7 @@ describe('public store catalog discovery', () => {
     await flush()
 
     expect(storeCalls).toBe(2)
-    expect(productCalls).toBe(2)
+    expect(productCalls).toBe(1)
     expect(document.body.textContent).toContain('Cafe')
     expect(document.body.textContent).not.toContain('No pudimos cargar la tienda')
 

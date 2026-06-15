@@ -82,6 +82,21 @@ public class StoreCapabilityService {
         }
     }
 
+    public List<String> getEnabledCapabilityNamesForStore(UUID storeId) {
+        ensureDefaults(storeId);
+        Set<StoreCapability> enabled = EnumSet.noneOf(StoreCapability.class);
+        for (StoreCapabilitySetting setting : storeCapabilitySettingRepository.findAllByStoreIdOrderByCapabilityAsc(storeId)) {
+            if (setting.isEnabled()) {
+                enabled.add(setting.getCapability());
+            }
+        }
+        return StoreCapabilityMetadata.available().stream()
+                .map(StoreCapabilityMetadata::key)
+                .filter(enabled::contains)
+                .map(Enum::name)
+                .toList();
+    }
+
     private EnumSet<StoreCapability> parseCapabilities(Collection<String> enabledKeys) {
         if (enabledKeys == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "enabled_required");

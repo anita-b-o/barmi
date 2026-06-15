@@ -2,7 +2,8 @@
   "store": {
     "slug": "demo-store",
     "name": "Demo Store",
-    "categoryName": "Panaderia"
+    "categoryName": "Panaderia",
+    "capabilities": ["ABOUT", "PRODUCTS", "PROMOTIONS", "SHIPPING", "CHECKOUT", "CONTACT"]
   },
   "product": {
     "slug": "pan-de-campo",

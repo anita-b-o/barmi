@@ -70,6 +70,8 @@ export default function PublicStoreProductDetailScreen() {
   const {
     detail,
     cartProduct,
+    productsEnabled,
+    checkoutEnabled,
     isLoading,
     isCartLookupLoading,
     isNotFound,
@@ -81,7 +83,7 @@ export default function PublicStoreProductDetailScreen() {
   const canonicalPath = storeSlug && productSlug
     ? routes.publicStoreProduct(storeSlug, productSlug)
     : '/public'
-  const robots = detail && !isNotFound && !isError ? 'index,follow' : 'noindex,follow'
+  const robots = detail && productsEnabled && !isNotFound && !isError ? 'index,follow' : 'noindex,follow'
 
   useSeoMetadata({
     title: product && store ? `${product.name} en ${store.name} | Barmi` : 'Producto no encontrado | Barmi',
@@ -168,7 +170,7 @@ export default function PublicStoreProductDetailScreen() {
 
   if (!storeSlug || !productSlug) {
     return (
-      <PublicStoreLayout>
+      <PublicStoreLayout showCatalogNav={productsEnabled} showCheckoutNav={checkoutEnabled}>
         <EcosystemSurfaceSection>
           <EmptyState title="Producto no encontrado" />
         </EcosystemSurfaceSection>
@@ -178,7 +180,7 @@ export default function PublicStoreProductDetailScreen() {
 
   if (isLoading) {
     return (
-      <PublicStoreLayout>
+      <PublicStoreLayout showCatalogNav={productsEnabled} showCheckoutNav={checkoutEnabled}>
         <EcosystemSurfaceSection>
           <LoadingBlock label="Cargando producto..." />
         </EcosystemSurfaceSection>
@@ -188,7 +190,7 @@ export default function PublicStoreProductDetailScreen() {
 
   if (!detail || isNotFound || isError) {
     return (
-      <PublicStoreLayout>
+      <PublicStoreLayout showCatalogNav={productsEnabled} showCheckoutNav={checkoutEnabled}>
         <EcosystemSurfaceSection>
           <EmptyState
             title="Producto no encontrado"
@@ -202,10 +204,10 @@ export default function PublicStoreProductDetailScreen() {
 
   const loadedProduct = detail.product
   const loadedStore = detail.store
-  const canAddToCart = loadedProduct.isAvailable && cartProduct && !isCartLookupLoading
+  const canAddToCart = checkoutEnabled && loadedProduct.isAvailable && cartProduct && !isCartLookupLoading
 
   return (
-    <PublicStoreLayout>
+    <PublicStoreLayout showCatalogNav={productsEnabled} showCheckoutNav={checkoutEnabled}>
       <Breadcrumbs items={[
         { label: 'Store', href: routes.publicStore(storeSlug) },
         { label: loadedProduct.name }
@@ -228,7 +230,7 @@ export default function PublicStoreProductDetailScreen() {
                 <Badge variant={loadedProduct.isAvailable ? 'success' : 'error'}>
                   {loadedProduct.isAvailable ? `Disponible ahora · Stock disponible: ${loadedProduct.stockQuantity}` : 'Sin stock disponible'}
                 </Badge>
-                {cartQty > 0 ? <Badge variant="success">En carrito: {cartQty}</Badge> : null}
+                {checkoutEnabled && cartQty > 0 ? <Badge variant="success">En carrito: {cartQty}</Badge> : null}
               </div>
 
               <div style={detailStyles.compactStack}>
@@ -262,29 +264,31 @@ export default function PublicStoreProductDetailScreen() {
               </div>
 
               <div style={detailStyles.actionRow}>
-                <Button
-                  variant="primary"
-                  disabled={!canAddToCart}
-                  onClick={() => {
-                    if (!cartProduct) return
-                    trackBetaEvent({
-                      eventName: 'public_product_detail_add_to_cart',
-                      storeSlug,
-                      productSlug: loadedProduct.slug,
-                      metadata: {
-                        isAvailable: loadedProduct.isAvailable ? 'true' : 'false',
-                        quantity: '1'
-                      }
-                    })
-                    cart.addItem(storeSlug, {
-                      productId: cartProduct.id,
-                      name: loadedProduct.name,
-                      priceCents: loadedProduct.priceCents
-                    })
-                  }}
-                >
-                  {loadedProduct.isAvailable ? 'Agregar al carrito' : 'Sin stock'}
-                </Button>
+                {checkoutEnabled ? (
+                  <Button
+                    variant="primary"
+                    disabled={!canAddToCart}
+                    onClick={() => {
+                      if (!cartProduct) return
+                      trackBetaEvent({
+                        eventName: 'public_product_detail_add_to_cart',
+                        storeSlug,
+                        productSlug: loadedProduct.slug,
+                        metadata: {
+                          isAvailable: loadedProduct.isAvailable ? 'true' : 'false',
+                          quantity: '1'
+                        }
+                      })
+                      cart.addItem(storeSlug, {
+                        productId: cartProduct.id,
+                        name: loadedProduct.name,
+                        priceCents: loadedProduct.priceCents
+                      })
+                    }}
+                  >
+                    {loadedProduct.isAvailable ? 'Agregar al carrito' : 'Sin stock'}
+                  </Button>
+                ) : null}
                 <Button variant="secondary" onClick={() => navigate(routes.publicStore(storeSlug))}>
                   Volver a la tienda
                 </Button>

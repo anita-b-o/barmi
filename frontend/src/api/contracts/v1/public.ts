@@ -1,7 +1,19 @@
+export type PublicStoreCapability =
+  | 'ABOUT'
+  | 'GALLERY'
+  | 'BLOG'
+  | 'PRODUCTS'
+  | 'RESERVATIONS'
+  | 'PROMOTIONS'
+  | 'SHIPPING'
+  | 'CHECKOUT'
+  | 'CONTACT'
+
 export type PublicStore = {
   slug: string
   id: string
   name: string
+  capabilities: PublicStoreCapability[]
   categories: PublicStoreCategory[]
   promotions: PublicStorePromotion[]
 }
@@ -118,6 +130,7 @@ export type PublicStoreProductDetail = {
     slug: string
     name: string
     categoryName: string | null
+    capabilities: PublicStoreCapability[]
   }
   product: {
     slug: string
