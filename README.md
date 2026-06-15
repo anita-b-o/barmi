@@ -188,6 +188,13 @@ Stores ecommerce existentes y nuevas reciben por default `ABOUT`, `PRODUCTS`, `P
 - `GET /api/store/capabilities`
 - `PUT /api/store/capabilities`
 
+Los presets de secciones son una forma amigable de elegir una experiencia inicial sin pedirle al usuario que entienda capabilities internas. Están disponibles en:
+
+- `GET /api/store/capability-presets`
+- `POST /api/store/capability-presets/{presetKey}/apply`
+
+Presets actuales: `ONLINE_STORE`, `SERVICES`, `PORTFOLIO`, `BLOG` y `SIMPLE_PAGE`. Aplicar un preset reemplaza las secciones visibles/configuradas de la store actual, pero no elimina productos, promociones, envíos ni otros datos existentes.
+
 Readiness de publicación está disponible en:
 
 - `GET /api/store/readiness`
@@ -198,10 +205,10 @@ Este alcance sólo persiste y administra visibilidad/intención de experiencia. 
 
 Roadmap recomendado:
 
-1. capabilities admin
-2. storefront visibility por módulo
-3. storefront visibility por parte de tienda
-4. blog/reservas/galería como partes reales
+1. presets
+2. onboarding por preset
+3. módulos reales `BLOG`, `GALLERY` y `RESERVATIONS`
+4. templates visuales por preset
 
 ### ECOSYSTEM público
 

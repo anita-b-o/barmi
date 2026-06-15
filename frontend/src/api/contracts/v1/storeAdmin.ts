@@ -26,6 +26,24 @@ export type StoreCapabilitiesUpdateReq = {
   enabled: StoreCapability[]
 }
 
+export type StoreCapabilityPresetKey =
+  | 'ONLINE_STORE'
+  | 'SERVICES'
+  | 'PORTFOLIO'
+  | 'BLOG'
+  | 'SIMPLE_PAGE'
+
+export type StoreCapabilityPreset = {
+  key: StoreCapabilityPresetKey
+  name: string
+  description: string
+  capabilities: StoreCapability[]
+}
+
+export type StoreCapabilityPresets = {
+  presets: StoreCapabilityPreset[]
+}
+
 export type StoreReadinessStep = {
   id: string
   capability: StoreCapability

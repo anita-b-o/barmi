@@ -107,6 +107,24 @@ class StoreCapabilityAdminIT extends PostgresIntegrationTestBase {
     }
 
     @Test
+    void ownerCanListCapabilityPresets() throws Exception {
+        ApiTestClient.ApiTestResponse response = api.get("/api/store/capability-presets", authHeaders(store, ownerEmail));
+
+        assertThat(response.status()).isEqualTo(200);
+        List<Map<String, Object>> presets = (List<Map<String, Object>>) response.body().get("presets");
+        assertThat(presets).extracting("key").containsExactly("ONLINE_STORE", "SERVICES", "PORTFOLIO", "BLOG", "SIMPLE_PAGE");
+        assertThat(presets.get(0).get("name")).isEqualTo("Tienda online");
+        assertThat((List<String>) presets.get(0).get("capabilities")).containsExactly(
+                "ABOUT",
+                "CONTACT",
+                "PRODUCTS",
+                "PROMOTIONS",
+                "SHIPPING",
+                "CHECKOUT"
+        );
+    }
+
+    @Test
     void publicStorePayloadIncludesOnlyEnabledCapabilities() throws Exception {
         ApiTestClient.ApiTestResponse update = api.putJson(
                 "/api/store/capabilities",
@@ -159,6 +177,79 @@ class StoreCapabilityAdminIT extends PostgresIntegrationTestBase {
     }
 
     @Test
+    void applyOnlineStorePresetEnablesExpectedCapabilitiesForCurrentStore() throws Exception {
+        ApiTestClient.ApiTestResponse response = api.postJson(
+                "/api/store/capability-presets/ONLINE_STORE/apply",
+                null,
+                authHeaders(store, ownerEmail)
+        );
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat((List<String>) response.body().get("enabled")).containsExactly(
+                "ABOUT",
+                "PRODUCTS",
+                "PROMOTIONS",
+                "SHIPPING",
+                "CHECKOUT",
+                "CONTACT"
+        );
+        assertThat(enabledCapabilitiesFor(store.getId())).containsExactlyInAnyOrder(
+                "ABOUT",
+                "CONTACT",
+                "PRODUCTS",
+                "PROMOTIONS",
+                "SHIPPING",
+                "CHECKOUT"
+        );
+        assertThat(enabledCapabilitiesFor(otherStore.getId())).containsExactlyInAnyOrder(
+                "ABOUT",
+                "PRODUCTS",
+                "PROMOTIONS",
+                "SHIPPING",
+                "CHECKOUT",
+                "CONTACT"
+        );
+    }
+
+    @Test
+    void applySimplePagePresetReplacesCapabilitiesWithoutDeletingStoreData() throws Exception {
+        UUID productId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "insert into products (id, store_id, sku, name, price_cents, stock_quantity, public_slug, is_active) values (?, ?, ?, ?, ?, ?, ?, true)",
+                productId,
+                store.getId(),
+                "SKU-PRESET",
+                "Producto existente",
+                1200,
+                5,
+                "producto-existente"
+        );
+
+        ApiTestClient.ApiTestResponse response = api.postJson(
+                "/api/store/capability-presets/SIMPLE_PAGE/apply",
+                null,
+                authHeaders(store, ownerEmail)
+        );
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat((List<String>) response.body().get("enabled")).containsExactly("ABOUT", "CONTACT");
+        assertThat(enabledCapabilitiesFor(store.getId())).containsExactlyInAnyOrder("ABOUT", "CONTACT");
+        assertThat(productExists(productId)).isTrue();
+    }
+
+    @Test
+    void invalidPresetFails() throws Exception {
+        ApiTestClient.ApiTestResponse response = api.postJson(
+                "/api/store/capability-presets/UNKNOWN/apply",
+                null,
+                authHeaders(store, ownerEmail)
+        );
+
+        assertThat(response.status()).isEqualTo(400);
+        assertThat(errorCode(response)).isEqualTo("invalid_capability_preset");
+    }
+
+    @Test
     void invalidCapabilityFails() throws Exception {
         ApiTestClient.ApiTestResponse response = api.putJson(
                 "/api/store/capabilities",
@@ -178,11 +269,21 @@ class StoreCapabilityAdminIT extends PostgresIntegrationTestBase {
                 Map.of("enabled", List.of("ABOUT")),
                 authHeaders(store, staffEmail)
         );
+        ApiTestClient.ApiTestResponse presetsResponse = api.get("/api/store/capability-presets", authHeaders(store, staffEmail));
+        ApiTestClient.ApiTestResponse applyPresetResponse = api.postJson(
+                "/api/store/capability-presets/SIMPLE_PAGE/apply",
+                null,
+                authHeaders(store, staffEmail)
+        );
 
         assertThat(getResponse.status()).isEqualTo(403);
         assertThat(putResponse.status()).isEqualTo(403);
+        assertThat(presetsResponse.status()).isEqualTo(403);
+        assertThat(applyPresetResponse.status()).isEqualTo(403);
         assertThat(errorCode(getResponse)).isEqualTo("forbidden");
         assertThat(errorCode(putResponse)).isEqualTo("forbidden");
+        assertThat(errorCode(presetsResponse)).isEqualTo("forbidden");
+        assertThat(errorCode(applyPresetResponse)).isEqualTo("forbidden");
     }
 
     private void createUserAndMembership(Store targetStore, String email, StoreMemberRole role) {
@@ -232,6 +333,15 @@ class StoreCapabilityAdminIT extends PostgresIntegrationTestBase {
                 storeId
         );
         return count == null ? 0 : count;
+    }
+
+    private boolean productExists(UUID productId) {
+        Integer count = jdbcTemplate.queryForObject(
+                "select count(*) from products where id = ?",
+                Integer.class,
+                productId
+        );
+        return count != null && count == 1;
     }
 
     private String errorCode(ApiTestClient.ApiTestResponse response) {

@@ -1,0 +1,34 @@
+{
+  "presets": [
+    {
+      "key": "ONLINE_STORE",
+      "name": "Tienda online",
+      "description": "Vendé productos, gestioná envíos y aceptá pedidos.",
+      "capabilities": ["ABOUT", "CONTACT", "PRODUCTS", "PROMOTIONS", "SHIPPING", "CHECKOUT"]
+    },
+    {
+      "key": "SERVICES",
+      "name": "Servicios",
+      "description": "Mostrá lo que ofrecés y facilitá que te contacten.",
+      "capabilities": ["ABOUT", "CONTACT"]
+    },
+    {
+      "key": "PORTFOLIO",
+      "name": "Portfolio",
+      "description": "Mostrá tu trabajo, imágenes y forma de contacto.",
+      "capabilities": ["ABOUT", "CONTACT", "GALLERY"]
+    },
+    {
+      "key": "BLOG",
+      "name": "Blog o contenido",
+      "description": "Publicá contenido y presentá tu actividad.",
+      "capabilities": ["ABOUT", "CONTACT", "BLOG"]
+    },
+    {
+      "key": "SIMPLE_PAGE",
+      "name": "Página simple",
+      "description": "Una presencia básica con información y contacto.",
+      "capabilities": ["ABOUT", "CONTACT"]
+    }
+  ]
+}

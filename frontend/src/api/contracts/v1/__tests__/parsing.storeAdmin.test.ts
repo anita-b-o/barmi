@@ -13,6 +13,7 @@ import zoneSample from '../_samples/store.admin.shipping.zone.json'
 import promotionSample from '../_samples/store.admin.promotion.json'
 import discoverySample from '../_samples/store.admin.discovery.json'
 import capabilitiesSample from '../_samples/store.admin.capabilities.json'
+import capabilityPresetsSample from '../_samples/store.admin.capability-presets.json'
 import readinessSample from '../_samples/store.admin.readiness.json'
 import {
   parseStoreAdminProduct,
@@ -29,6 +30,7 @@ import {
   parseStoreShippingZone,
   parseStoreShippingZones,
   parseStoreCapabilities,
+  parseStoreCapabilityPresets,
   parseStoreReadiness
 } from '../../../adapters/storeAdminAdapter'
 
@@ -163,6 +165,14 @@ describe('store admin contracts parsing', () => {
     expect(res.available).toHaveLength(9)
     expect(res.available[0].key).toBe('ABOUT')
     expect(res.available[0].label).toBe('Sobre mí')
+  })
+
+  it('parses store capability presets sample', () => {
+    const res = parseStoreCapabilityPresets(capabilityPresetsSample)
+    expect(res.presets).toHaveLength(5)
+    expect(res.presets[0].key).toBe('ONLINE_STORE')
+    expect(res.presets[0].capabilities).toEqual(['ABOUT', 'CONTACT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT'])
+    expect(res.presets[4].name).toBe('Página simple')
   })
 
   it('parses store readiness sample', () => {

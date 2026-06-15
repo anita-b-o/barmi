@@ -66,6 +66,17 @@ public class StoreCapabilityService {
         return toDto(settingsByCapability.values());
     }
 
+    public StoreCapabilityPresetsDto listCapabilityPresets() {
+        storeAuthorizationService.requireAdmin();
+        storeAuthorizationService.requireCurrentStore();
+        return new StoreCapabilityPresetsDto(StoreCapabilityPreset.metadata());
+    }
+
+    public StoreCapabilitiesDto applyCapabilityPreset(String presetKey) {
+        StoreCapabilityPreset preset = StoreCapabilityPreset.fromKey(presetKey);
+        return updateCurrentStoreCapabilities(preset.capabilityNames());
+    }
+
     public void ensureDefaults(UUID storeId) {
         if (storeId == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "store_id_required");
@@ -146,6 +157,91 @@ public class StoreCapabilityService {
             List<String> enabled,
             List<StoreCapabilityMetadata> available
     ) {}
+
+    public record StoreCapabilityPresetsDto(List<StoreCapabilityPresetMetadata> presets) {}
+
+    public record StoreCapabilityPresetMetadata(
+            String key,
+            String name,
+            String description,
+            List<String> capabilities
+    ) {}
+
+    public enum StoreCapabilityPreset {
+        ONLINE_STORE(
+                "Tienda online",
+                "Vendé productos, gestioná envíos y aceptá pedidos.",
+                StoreCapability.ABOUT,
+                StoreCapability.CONTACT,
+                StoreCapability.PRODUCTS,
+                StoreCapability.PROMOTIONS,
+                StoreCapability.SHIPPING,
+                StoreCapability.CHECKOUT
+        ),
+        SERVICES(
+                "Servicios",
+                "Mostrá lo que ofrecés y facilitá que te contacten.",
+                StoreCapability.ABOUT,
+                StoreCapability.CONTACT
+        ),
+        PORTFOLIO(
+                "Portfolio",
+                "Mostrá tu trabajo, imágenes y forma de contacto.",
+                StoreCapability.ABOUT,
+                StoreCapability.CONTACT,
+                StoreCapability.GALLERY
+        ),
+        BLOG(
+                "Blog o contenido",
+                "Publicá contenido y presentá tu actividad.",
+                StoreCapability.ABOUT,
+                StoreCapability.CONTACT,
+                StoreCapability.BLOG
+        ),
+        SIMPLE_PAGE(
+                "Página simple",
+                "Una presencia básica con información y contacto.",
+                StoreCapability.ABOUT,
+                StoreCapability.CONTACT
+        );
+
+        private final String displayName;
+        private final String description;
+        private final List<StoreCapability> capabilities;
+
+        StoreCapabilityPreset(String displayName, String description, StoreCapability... capabilities) {
+            this.displayName = displayName;
+            this.description = description;
+            this.capabilities = List.of(capabilities);
+        }
+
+        private static StoreCapabilityPreset fromKey(String key) {
+            if (key == null || key.isBlank()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_capability_preset");
+            }
+            try {
+                return StoreCapabilityPreset.valueOf(key.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_capability_preset");
+            }
+        }
+
+        private static List<StoreCapabilityPresetMetadata> metadata() {
+            return Arrays.stream(values())
+                    .map(StoreCapabilityPreset::toMetadata)
+                    .toList();
+        }
+
+        private StoreCapabilityPresetMetadata toMetadata() {
+            return new StoreCapabilityPresetMetadata(name(), displayName, description, capabilityNames());
+        }
+
+        private List<String> capabilityNames() {
+            return capabilities.stream()
+                    .map(Enum::name)
+                    .toList();
+        }
+    }
 
     public record StoreCapabilityMetadata(
             StoreCapability key,

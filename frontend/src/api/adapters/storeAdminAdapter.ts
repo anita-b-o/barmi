@@ -4,6 +4,9 @@ import type {
   StoreCapabilities,
   StoreCapability,
   StoreCapabilityMetadata,
+  StoreCapabilityPreset,
+  StoreCapabilityPresetKey,
+  StoreCapabilityPresets,
   StoreCapabilitiesUpdateReq,
   StoreReadiness,
   StoreReadinessStep,
@@ -90,6 +93,19 @@ function parseStoreCapability(value: unknown, message: string): StoreCapability 
     value === 'SHIPPING' ||
     value === 'CHECKOUT' ||
     value === 'CONTACT'
+  ) {
+    return value
+  }
+  throw new Error(message)
+}
+
+function parseStoreCapabilityPresetKey(value: unknown, message: string): StoreCapabilityPresetKey {
+  if (
+    value === 'ONLINE_STORE' ||
+    value === 'SERVICES' ||
+    value === 'PORTFOLIO' ||
+    value === 'BLOG' ||
+    value === 'SIMPLE_PAGE'
   ) {
     return value
   }
@@ -196,6 +212,27 @@ export function parseStoreCapabilities(data: unknown): StoreCapabilities {
   return {
     enabled: data.enabled.map((item, index) => parseStoreCapability(item, `Store capability enabled at ${index} is invalid`)),
     available: data.available.map((item, index) => parseStoreCapabilityMetadata(item, index))
+  }
+}
+
+function parseStoreCapabilityPreset(data: unknown, index: number): StoreCapabilityPreset {
+  assertRecord(data, `Store capability preset at ${index} is invalid`)
+  assertString(data.name, `Store capability preset at ${index} name is required`)
+  assertString(data.description, `Store capability preset at ${index} description is required`)
+  assertArray(data.capabilities, `Store capability preset at ${index} capabilities is required`)
+  return {
+    key: parseStoreCapabilityPresetKey(data.key, `Store capability preset at ${index} key is invalid`),
+    name: data.name,
+    description: data.description,
+    capabilities: data.capabilities.map((item, capabilityIndex) => parseStoreCapability(item, `Store capability preset at ${index} capability ${capabilityIndex} is invalid`))
+  }
+}
+
+export function parseStoreCapabilityPresets(data: unknown): StoreCapabilityPresets {
+  assertRecord(data, 'Invalid store capability presets payload')
+  assertArray(data.presets, 'Store capability presets is required')
+  return {
+    presets: data.presets.map((item, index) => parseStoreCapabilityPreset(item, index))
   }
 }
 
@@ -575,6 +612,19 @@ export const storeAdminAdapter = {
         method: 'PUT',
         body: JSON.stringify(payload)
       },
+      {},
+      auth
+    )
+    return parseStoreCapabilities(data)
+  },
+  async listStoreCapabilityPresets(auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>('/api/store/capability-presets', {}, {}, auth)
+    return parseStoreCapabilityPresets(data)
+  },
+  async applyStoreCapabilityPreset(presetKey: StoreCapabilityPresetKey, auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>(
+      `/api/store/capability-presets/${encodeURIComponent(presetKey)}/apply`,
+      { method: 'POST' },
       {},
       auth
     )
