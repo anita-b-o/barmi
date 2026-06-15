@@ -14,6 +14,7 @@ public interface StoreMemberRepository extends JpaRepository<StoreMember, UUID> 
     Optional<StoreMember> findByIdAndStoreId(UUID id, UUID storeId);
     Optional<StoreMember> findByStoreIdAndMemberEmail(UUID storeId, String memberEmail);
     Optional<StoreMember> findByStoreIdAndMemberEmailAndStatus(UUID storeId, String memberEmail, StoreMemberStatus status);
+    boolean existsByStoreIdAndStatus(UUID storeId, StoreMemberStatus status);
     long countByStoreIdAndRoleAndStatus(UUID storeId, StoreMemberRole role, StoreMemberStatus status);
     List<StoreMember> findByMemberEmail(String memberEmail);
 }

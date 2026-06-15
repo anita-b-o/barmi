@@ -176,7 +176,8 @@ Notas:
 - promotions admin
 - stock / disponibilidad MVP en productos STORE con descuento al confirmar pago
 - shipping zones admin
-- módulos/capabilities admin en `/admin/store/modules`
+- partes de tienda admin en `/admin/store/modules`
+- onboarding de publicación en `/admin/store/onboarding`
 
 ### Store Capabilities / módulos
 
@@ -187,14 +188,20 @@ Stores ecommerce existentes y nuevas reciben por default `ABOUT`, `PRODUCTS`, `P
 - `GET /api/store/capabilities`
 - `PUT /api/store/capabilities`
 
-Este alcance sólo persiste y administra visibilidad/intención de experiencia. No aplica enforcement todavía: no bloquea creación de productos, checkout, shipping, promociones ni oculta secciones públicas del storefront.
+Readiness de publicación está disponible en:
+
+- `GET /api/store/readiness`
+
+La respuesta incluye `score`, `completedSteps`, `pendingSteps`, `blockers`, `publishReady` y una lista `steps` con label, estado y CTA. Reglas mínimas: una tienda institucional requiere `ABOUT` + `CONTACT`; una tienda ecommerce requiere `PRODUCTS` + `SHIPPING` + `CHECKOUT`. Promociones suman progreso si están habilitadas, pero no bloquean publicar. `BLOG`, `GALLERY` y `RESERVATIONS` quedan modeladas como pasos futuros no bloqueantes.
+
+Este alcance sólo persiste y administra visibilidad/intención de experiencia. Readiness informa preparación para publicar, pero no bloquea creación de productos, checkout, shipping, promociones ni oculta secciones públicas del storefront.
 
 Roadmap recomendado:
 
 1. capabilities admin
 2. storefront visibility por módulo
-3. onboarding dinámico
-4. blog/reservas/galería como módulos reales
+3. storefront visibility por parte de tienda
+4. blog/reservas/galería como partes reales
 
 ### ECOSYSTEM público
 
@@ -472,6 +479,7 @@ No es una referencia exhaustiva. Para payloads más detallados, ver `backend/REA
 - `GET /api/store/shipping/zones`
 - `POST /api/store/shipping/zones`
 - `DELETE /api/store/shipping/zones/{zoneId}`
+- `GET /api/store/readiness`
 - `GET /api/store/fulfillments`
 - `GET /api/store/fulfillments/{fulfillmentId}`
 - `POST /api/store/orders/{orderId}/fulfillment`

@@ -5,6 +5,8 @@ import type {
   StoreCapability,
   StoreCapabilityMetadata,
   StoreCapabilitiesUpdateReq,
+  StoreReadiness,
+  StoreReadinessStep,
   StoreOperationalReport,
   StoreOperationalReportRange,
   StoreProductAnalytics,
@@ -194,6 +196,58 @@ export function parseStoreCapabilities(data: unknown): StoreCapabilities {
   return {
     enabled: data.enabled.map((item, index) => parseStoreCapability(item, `Store capability enabled at ${index} is invalid`)),
     available: data.available.map((item, index) => parseStoreCapabilityMetadata(item, index))
+  }
+}
+
+function parseStoreReadinessStep(data: unknown, index: number): StoreReadinessStep {
+  assertRecord(data, `Store readiness step at ${index} is invalid`)
+  assertString(data.id, `Store readiness step at ${index} id is required`)
+  assertString(data.label, `Store readiness step at ${index} label is required`)
+  assertString(data.ctaLabel, `Store readiness step at ${index} ctaLabel is required`)
+  assertNullableString(data.ctaRoute, `Store readiness step at ${index} ctaRoute is invalid`)
+  assertBoolean(data.required, `Store readiness step at ${index} required is required`)
+  assertBoolean(data.blocksPublishing, `Store readiness step at ${index} blocksPublishing is required`)
+  assertBoolean(data.implemented, `Store readiness step at ${index} implemented is required`)
+  assertBoolean(data.completed, `Store readiness step at ${index} completed is required`)
+  return {
+    id: data.id,
+    capability: parseStoreCapability(data.capability, `Store readiness step at ${index} capability is invalid`),
+    label: data.label,
+    ctaLabel: data.ctaLabel,
+    ctaRoute: data.ctaRoute ?? null,
+    required: data.required,
+    blocksPublishing: data.blocksPublishing,
+    implemented: data.implemented,
+    completed: data.completed
+  }
+}
+
+export function parseStoreReadiness(data: unknown): StoreReadiness {
+  assertRecord(data, 'Invalid store readiness payload')
+  assertNumber(data.score, 'Store readiness score is required')
+  assertBoolean(data.publishReady, 'Store readiness publishReady is required')
+  assertArray(data.completedSteps, 'Store readiness completedSteps is required')
+  assertArray(data.pendingSteps, 'Store readiness pendingSteps is required')
+  assertArray(data.blockers, 'Store readiness blockers is required')
+  assertArray(data.enabledCapabilities, 'Store readiness enabledCapabilities is required')
+  assertArray(data.steps, 'Store readiness steps is required')
+  return {
+    score: data.score,
+    publishReady: data.publishReady,
+    completedSteps: data.completedSteps.map((item, index) => {
+      assertString(item, `Store readiness completedSteps at ${index} is invalid`)
+      return item
+    }),
+    pendingSteps: data.pendingSteps.map((item, index) => {
+      assertString(item, `Store readiness pendingSteps at ${index} is invalid`)
+      return item
+    }),
+    blockers: data.blockers.map((item, index) => {
+      assertString(item, `Store readiness blockers at ${index} is invalid`)
+      return item
+    }),
+    enabledCapabilities: data.enabledCapabilities.map((item, index) => parseStoreCapability(item, `Store readiness enabledCapabilities at ${index} is invalid`)),
+    steps: data.steps.map((item, index) => parseStoreReadinessStep(item, index))
   }
 }
 
@@ -506,6 +560,10 @@ function parseStoreShippingZoneWithIndex(data: unknown, index: number): StoreShi
 }
 
 export const storeAdminAdapter = {
+  async getStoreReadiness(auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>('/api/store/readiness', {}, {}, auth)
+    return parseStoreReadiness(data)
+  },
   async getStoreCapabilities(auth: AuthRequestContext) {
     const data = await requestJsonWithAuth<unknown>('/api/store/capabilities', {}, {}, auth)
     return parseStoreCapabilities(data)

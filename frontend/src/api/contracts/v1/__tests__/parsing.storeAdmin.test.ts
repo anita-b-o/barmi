@@ -13,6 +13,7 @@ import zoneSample from '../_samples/store.admin.shipping.zone.json'
 import promotionSample from '../_samples/store.admin.promotion.json'
 import discoverySample from '../_samples/store.admin.discovery.json'
 import capabilitiesSample from '../_samples/store.admin.capabilities.json'
+import readinessSample from '../_samples/store.admin.readiness.json'
 import {
   parseStoreAdminProduct,
   parseStoreAdminProducts,
@@ -27,7 +28,8 @@ import {
   parseStoreAnalyticsSummary,
   parseStoreShippingZone,
   parseStoreShippingZones,
-  parseStoreCapabilities
+  parseStoreCapabilities,
+  parseStoreReadiness
 } from '../../../adapters/storeAdminAdapter'
 
 describe('store admin contracts parsing', () => {
@@ -161,5 +163,14 @@ describe('store admin contracts parsing', () => {
     expect(res.available).toHaveLength(9)
     expect(res.available[0].key).toBe('ABOUT')
     expect(res.available[0].label).toBe('Sobre mí')
+  })
+
+  it('parses store readiness sample', () => {
+    const res = parseStoreReadiness(readinessSample)
+    expect(res.score).toBe(75)
+    expect(res.publishReady).toBe(false)
+    expect(res.completedSteps).toContain('store_profile')
+    expect(res.blockers).toEqual(['first_product', 'shipping_setup'])
+    expect(res.steps[2].ctaRoute).toBe('/admin/store/products')
   })
 })

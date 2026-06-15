@@ -14,6 +14,8 @@ public interface StoreShippingZoneRepository extends JpaRepository<StoreShipping
 
     Optional<StoreShippingZone> findByStoreIdAndTypeAndPostalCode(UUID storeId, ShippingZoneType type, String postalCode);
 
+    boolean existsByStoreId(UUID storeId);
+
     List<StoreShippingZone> findByStoreIdOrderByCreatedAtAsc(UUID storeId);
 
     @Query("select z from StoreShippingZone z where z.storeId = :storeId and z.type = :type and z.rangeStart <= :postalCode and z.rangeEnd >= :postalCode")

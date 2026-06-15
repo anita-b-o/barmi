@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { FormEvent, useEffect, useState } from 'react'
+import type { StoreReadiness } from '@/api/contracts/v1/storeAdmin'
 import { routes } from '@/core/constants/routes'
 import { useAuth } from '@/core/auth/authContext'
 import AdminLayout from '@/layouts/AdminLayout'
@@ -19,6 +20,7 @@ import { theme } from '@/app/theme'
 import { AnalyticsSummaryPanel, StoreOperationalReportPanel, useStoreAnalyticsSummary, useStoreOperationalReport } from '@/features/analytics'
 import { storeAdminAdapter } from '../../../api/adapters/storeAdminAdapter'
 import type { StoreOperationalReportRange } from '@/api/contracts/v1/storeAdmin'
+import { StoreReadinessChecklist } from '@/features/store/onboarding'
 
 const operationalAreas = [
   {
@@ -46,10 +48,10 @@ const operationalAreas = [
     cta: 'Gestionar productos'
   },
   {
-    title: 'Módulos de tienda',
-    description: 'Elegí qué módulos preparar para la presencia pública de esta store.',
+    title: 'Partes de tu tienda',
+    description: 'Elegí qué querés mostrar en tu tienda pública.',
     href: routes.adminStoreModules,
-    cta: 'Configurar módulos'
+    cta: 'Editar partes'
   },
   {
     title: 'Analytics',
@@ -90,6 +92,9 @@ export default function AdminStoreScreen() {
   const [publicLongitude, setPublicLongitude] = useState('')
   const [ecosystemOptions, setEcosystemOptions] = useState<Array<{ value: string; label: string }>>([])
   const [categoryOptions, setCategoryOptions] = useState<Array<{ value: string; label: string }>>([])
+  const [readiness, setReadiness] = useState<StoreReadiness | null>(null)
+  const [readinessLoading, setReadinessLoading] = useState(true)
+  const [readinessError, setReadinessError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -122,6 +127,26 @@ export default function AdminStoreScreen() {
       }
     }
     void loadDiscovery()
+    return () => {
+      cancelled = true
+    }
+  }, [authRequest])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadReadiness = async () => {
+      try {
+        setReadinessLoading(true)
+        setReadinessError(null)
+        const data = await storeAdminAdapter.getStoreReadiness(authRequest)
+        if (!cancelled) setReadiness(data)
+      } catch (error) {
+        if (!cancelled) setReadinessError(error instanceof Error ? error.message : 'No se pudo cargar el estado para publicar tu tienda.')
+      } finally {
+        if (!cancelled) setReadinessLoading(false)
+      }
+    }
+    void loadReadiness()
     return () => {
       cancelled = true
     }
@@ -205,6 +230,21 @@ export default function AdminStoreScreen() {
               ))}
             </div>
           )}
+        </Card>
+      </Section>
+
+      <Section
+        title="Tienda lista para publicar"
+        action={(
+          <Link to={routes.adminStoreOnboarding} style={{ textDecoration: 'none' }}>
+            <Button variant="secondary">Ver pasos</Button>
+          </Link>
+        )}
+      >
+        <Card>
+          {readinessLoading ? <LoadingState label="Revisando tu tienda..." /> : null}
+          {readinessError ? <ErrorState message={readinessError} /> : null}
+          {readiness ? <StoreReadinessChecklist readiness={readiness} compact /> : null}
         </Card>
       </Section>
 
@@ -329,7 +369,7 @@ export default function AdminStoreScreen() {
         </Card>
       </Section>
 
-      <Section title="Capacidades disponibles">
+      <Section title="Accesos de tu tienda">
         <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
           {operationalAreas.map((area) => (
             <Card key={area.href} variant="soft">

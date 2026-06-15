@@ -101,7 +101,7 @@ describe('admin store modules', () => {
       await flush()
 
       expect(document.documentElement.dataset.theme).toBe(preference)
-      expect(document.body.textContent).toContain('Módulos de tu tienda')
+      expect(document.body.textContent).toContain('Partes de tu tienda')
       expect(document.body.textContent).toContain('Elegí qué querés mostrar en tu tienda pública.')
       expect(document.body.textContent).toContain('demo-store')
       expect(document.body.textContent).not.toContain('legacy-store')
@@ -144,7 +144,7 @@ describe('admin store modules', () => {
     expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({
       enabled: ['ABOUT', 'GALLERY', 'PRODUCTS', 'PROMOTIONS', 'CHECKOUT', 'CONTACT']
     })
-    expect(document.querySelector('[role="status"]')?.textContent).toContain('Módulos de tienda guardados.')
+    expect(document.querySelector('[role="status"]')?.textContent).toContain('Partes de tu tienda guardadas.')
 
     await cleanup()
   })
@@ -195,8 +195,8 @@ describe('admin store modules', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Módulos de tienda')
-    const link = Array.from(document.querySelectorAll('a')).find((anchor) => anchor.textContent?.includes('Configurar módulos'))
+    expect(document.body.textContent).toContain('Partes de tu tienda')
+    const link = Array.from(document.querySelectorAll('a')).find((anchor) => anchor.textContent?.includes('Editar partes'))
     expect(link?.getAttribute('href')).toBe('/admin/store/modules')
 
     await cleanup()

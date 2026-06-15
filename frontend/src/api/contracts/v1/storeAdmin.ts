@@ -26,6 +26,28 @@ export type StoreCapabilitiesUpdateReq = {
   enabled: StoreCapability[]
 }
 
+export type StoreReadinessStep = {
+  id: string
+  capability: StoreCapability
+  label: string
+  ctaLabel: string
+  ctaRoute: string | null
+  required: boolean
+  blocksPublishing: boolean
+  implemented: boolean
+  completed: boolean
+}
+
+export type StoreReadiness = {
+  score: number
+  completedSteps: string[]
+  pendingSteps: string[]
+  blockers: string[]
+  publishReady: boolean
+  enabledCapabilities: StoreCapability[]
+  steps: StoreReadinessStep[]
+}
+
 export type StoreAdminProduct = {
   id: string
   storeId: string

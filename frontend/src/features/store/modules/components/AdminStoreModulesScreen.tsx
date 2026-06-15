@@ -98,7 +98,7 @@ export default function AdminStoreModulesScreen() {
       const data = await storeAdminAdapter.updateStoreCapabilities({ enabled: selected }, authRequest)
       setAvailable(data.available)
       setEnabled(new Set(data.enabled))
-      setSuccess('Módulos de tienda guardados.')
+      setSuccess('Partes de tu tienda guardadas.')
     } catch (err) {
       setError(toErrorMessage(err))
     } finally {
@@ -110,7 +110,7 @@ export default function AdminStoreModulesScreen() {
     <AdminLayout>
       <Breadcrumbs items={[{ label: 'Admin', href: routes.adminHome }, { label: 'Store', href: routes.adminStore }, { label: 'Modulos' }]} />
       <PageHeader
-        title="Módulos de tu tienda"
+        title="Partes de tu tienda"
         eyebrow="Store admin"
         tone="store"
         subtitle={me?.email}
@@ -153,7 +153,7 @@ export default function AdminStoreModulesScreen() {
         </Card>
       </Section>
 
-      <Section title="Módulos">
+      <Section title="Qué mostrar">
         <Card>
           {loading ? (
             <LoadingState label="Cargando módulos de tienda..." />

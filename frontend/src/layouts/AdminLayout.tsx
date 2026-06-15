@@ -44,13 +44,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
   const storeLinks = [
     { to: routes.adminStore, label: 'Hub store', end: true },
+    { to: routes.adminStoreOnboarding, label: 'Publicar tienda' },
     { to: routes.adminOrders, label: 'Órdenes' },
     { to: routes.adminFulfillments, label: 'Fulfillments' },
     { to: routes.adminMembers, label: 'Miembros' },
-    { to: routes.adminStoreModules, label: 'Módulos' },
+    { to: routes.adminStoreModules, label: 'Partes de tu tienda' },
     { to: routes.adminStoreProducts, label: 'Productos' },
     { to: routes.adminStorePromotions, label: 'Promociones' },
-    { to: routes.adminShippingZones, label: 'Shipping zones' }
+    { to: routes.adminShippingZones, label: 'Envíos' }
   ]
   const ecosystemLinks = [
     { to: routes.adminEcosystem, label: 'Hub ecosystem', end: true },

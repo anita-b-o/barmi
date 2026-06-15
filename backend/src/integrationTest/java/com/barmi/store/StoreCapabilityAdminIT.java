@@ -125,6 +125,19 @@ class StoreCapabilityAdminIT extends PostgresIntegrationTestBase {
     }
 
     @Test
+    void readinessIsTenantScopedAndReturnsPublicationBlockers() throws Exception {
+        ApiTestClient.ApiTestResponse response = api.get("/api/store/readiness", authHeaders(store, ownerEmail));
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body().get("score")).isEqualTo(50);
+        assertThat(response.body().get("publishReady")).isEqualTo(false);
+        assertThat((List<String>) response.body().get("completedSteps")).contains("store_profile", "contact_info", "checkout_enabled");
+        assertThat((List<String>) response.body().get("pendingSteps")).contains("first_product", "shipping_setup", "first_promotion");
+        assertThat((List<String>) response.body().get("blockers")).containsExactlyInAnyOrder("first_product", "shipping_setup");
+        assertThat(response.rawBody()).doesNotContain(otherStore.getId().toString());
+    }
+
+    @Test
     void putUpdatesOnlyCurrentStoreCapabilities() throws Exception {
         ApiTestClient.ApiTestResponse update = api.putJson(
                 "/api/store/capabilities",

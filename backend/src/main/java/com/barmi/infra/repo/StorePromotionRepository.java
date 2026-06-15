@@ -15,6 +15,7 @@ import java.util.UUID;
 public interface StorePromotionRepository extends JpaRepository<StorePromotion, UUID> {
     List<StorePromotion> findByStoreIdOrderByCreatedAtDesc(UUID storeId);
     Optional<StorePromotion> findByIdAndStoreId(UUID id, UUID storeId);
+    boolean existsByStoreId(UUID storeId);
     boolean existsByStoreIdAndCode(UUID storeId, String code);
     Optional<StorePromotion> findByStoreIdAndCode(UUID storeId, String code);
 

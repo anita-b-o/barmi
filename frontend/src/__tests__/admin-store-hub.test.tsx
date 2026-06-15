@@ -33,6 +33,22 @@ const discoverySettings = {
   ]
 }
 
+const readinessResponse = {
+  score: 67,
+  publishReady: false,
+  completedSteps: ['store_profile', 'contact_info', 'checkout_enabled'],
+  pendingSteps: ['first_product', 'shipping_setup'],
+  blockers: ['first_product', 'shipping_setup'],
+  enabledCapabilities: ['ABOUT', 'CONTACT', 'PRODUCTS', 'SHIPPING', 'CHECKOUT'],
+  steps: [
+    { id: 'store_profile', capability: 'ABOUT', label: 'Información de tu tienda', ctaLabel: 'Revisar información', ctaRoute: '/admin/store', required: true, blocksPublishing: true, implemented: true, completed: true },
+    { id: 'contact_info', capability: 'CONTACT', label: 'Contacto', ctaLabel: 'Ir a miembros', ctaRoute: '/admin/members', required: true, blocksPublishing: true, implemented: true, completed: true },
+    { id: 'first_product', capability: 'PRODUCTS', label: 'Primer producto', ctaLabel: 'Ir a Productos', ctaRoute: '/admin/store/products', required: true, blocksPublishing: true, implemented: true, completed: false },
+    { id: 'shipping_setup', capability: 'SHIPPING', label: 'Configurar envíos', ctaLabel: 'Ir a Envíos', ctaRoute: '/admin/shipping/zones', required: true, blocksPublishing: true, implemented: true, completed: false },
+    { id: 'checkout_enabled', capability: 'CHECKOUT', label: 'Publicar compras online', ctaLabel: 'Revisar tienda', ctaRoute: '/admin/store/modules', required: true, blocksPublishing: true, implemented: true, completed: true }
+  ]
+}
+
 beforeEach(() => {
   clearStorage()
   document.body.innerHTML = ''
@@ -85,6 +101,9 @@ describe('admin store hub', () => {
       },
       '/api/store/admin/discovery': {
         body: discoverySettings
+      },
+      '/api/store/readiness': {
+        body: readinessResponse
       }
     })
 
@@ -104,6 +123,9 @@ describe('admin store hub', () => {
     expect(document.body.textContent).toContain('Analytics MVP')
     expect(document.body.textContent).toContain('Reporting operativo MVP')
     expect(document.body.textContent).toContain('Discovery público')
+    expect(document.body.textContent).toContain('Tienda lista para publicar')
+    expect(document.body.textContent).toContain('67% completado')
+    expect(document.body.textContent).toContain('Primer producto')
     expect(document.body.textContent).toContain('OWNER puede editar')
     expect(document.body.textContent).toContain('Palermo, CABA')
     expect(document.body.textContent).not.toContain('Crear zona')
@@ -173,6 +195,9 @@ describe('admin store hub', () => {
           }
         }
         return { body: discoverySettings }
+      },
+      '/api/store/readiness': {
+        body: readinessResponse
       }
     })
 
@@ -258,6 +283,9 @@ describe('admin store hub', () => {
           ...discoverySettings,
           actorRole: 'ADMIN'
         }
+      },
+      '/api/store/readiness': {
+        body: readinessResponse
       }
     })
 
