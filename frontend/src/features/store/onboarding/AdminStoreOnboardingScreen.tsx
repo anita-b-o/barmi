@@ -13,6 +13,7 @@ import Button from '@/components/primitives/Button'
 import ErrorState from '@/components/feedback/ErrorState'
 import LoadingState from '@/components/feedback/LoadingState'
 import { StoreReadinessChecklist } from './StoreReadinessChecklist'
+import { readinessTitle } from './readinessProfile'
 
 export default function AdminStoreOnboardingScreen() {
   const { me, logout, authRequest } = useAuth()
@@ -40,11 +41,13 @@ export default function AdminStoreOnboardingScreen() {
     }
   }, [authRequest])
 
+  const title = readinessTitle(readiness)
+
   return (
     <AdminLayout>
-      <Breadcrumbs items={[{ label: 'Admin', href: routes.adminHome }, { label: 'Store', href: routes.adminStore }, { label: 'Publicar tu tienda' }]} />
+      <Breadcrumbs items={[{ label: 'Admin', href: routes.adminHome }, { label: 'Store', href: routes.adminStore }, { label: title }]} />
       <PageHeader
-        title="Publicar tu tienda"
+        title={title}
         eyebrow="Primeros pasos"
         tone="store"
         subtitle={me?.email}
@@ -53,16 +56,16 @@ export default function AdminStoreOnboardingScreen() {
 
       <ContextHeader
         badge={readiness?.publishReady ? 'Lista' : 'Pendiente'}
-        title={readiness?.publishReady ? 'Tu tienda ya tiene lo básico para salir al público' : 'Completá lo mínimo para publicar con confianza'}
+        title={readiness?.publishReady ? 'Ya tenés lo básico para salir al público' : 'Completá lo mínimo para publicar con confianza'}
         description="Una lista corta con acciones concretas. Cada botón te lleva a la pantalla existente donde se completa ese paso."
         tone="store"
       />
 
       <Section
-        title="Tienda lista para publicar"
+        title={title}
         action={(
-          <Link to={routes.adminStore} style={{ textDecoration: 'none' }}>
-            <Button variant="secondary">Volver al Hub Store</Button>
+          <Link to={routes.adminStoreModules} style={{ textDecoration: 'none' }}>
+            <Button variant="secondary">Elegir tipo de sitio</Button>
           </Link>
         )}
       >

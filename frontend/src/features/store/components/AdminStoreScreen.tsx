@@ -21,6 +21,7 @@ import { AnalyticsSummaryPanel, StoreOperationalReportPanel, useStoreAnalyticsSu
 import { storeAdminAdapter } from '../../../api/adapters/storeAdminAdapter'
 import type { StoreOperationalReportRange } from '@/api/contracts/v1/storeAdmin'
 import { StoreReadinessChecklist } from '@/features/store/onboarding'
+import { readinessTitle } from '@/features/store/onboarding/readinessProfile'
 
 const operationalAreas = [
   {
@@ -153,6 +154,7 @@ export default function AdminStoreScreen() {
   }, [authRequest])
 
   const canEditDiscovery = actorRole === 'OWNER'
+  const onboardingTitle = readinessTitle(readiness)
 
   const handleDiscoverySubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -234,11 +236,16 @@ export default function AdminStoreScreen() {
       </Section>
 
       <Section
-        title="Tienda lista para publicar"
+        title={onboardingTitle}
         action={(
-          <Link to={routes.adminStoreOnboarding} style={{ textDecoration: 'none' }}>
-            <Button variant="secondary">Ver pasos</Button>
-          </Link>
+          <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+            <Link to={routes.adminStoreModules} style={{ textDecoration: 'none' }}>
+              <Button variant="secondary">Elegir tipo de sitio</Button>
+            </Link>
+            <Link to={routes.adminStoreOnboarding} style={{ textDecoration: 'none' }}>
+              <Button variant="secondary">Ver pasos</Button>
+            </Link>
+          </div>
         )}
       >
         <Card>

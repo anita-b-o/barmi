@@ -93,32 +93,39 @@ export function StoreReadinessChecklist({ readiness, compact = false }: StoreRea
       </div>
 
       <ul style={styles.stepList}>
-        {visibleSteps.map((step) => (
-          <li key={step.id} style={styles.step}>
-            <div style={styles.stepMain}>
-              <span
-                aria-hidden="true"
-                style={{
-                  ...styles.icon,
-                  color: step.completed ? theme.colors.success : theme.colors.error,
-                  background: step.completed ? theme.colors.statusSuccessSoft : theme.colors.statusErrorSoft
-                }}
-              >
-                {step.completed ? '✓' : '×'}
-              </span>
-              <span style={styles.stepLabel}>{step.label}</span>
-            </div>
-            <div style={styles.actions}>
-              {!step.completed && step.required ? <Badge variant="warning">Necesario</Badge> : null}
-              {!step.completed && step.ctaRoute ? (
-                <Link to={step.ctaRoute} style={{ textDecoration: 'none' }}>
-                  <Button variant="secondary">{step.ctaLabel}</Button>
-                </Link>
-              ) : null}
-              {!step.implemented ? <Badge variant="neutral">Próximamente</Badge> : null}
-            </div>
-          </li>
-        ))}
+        {visibleSteps.map((step) => {
+          const future = !step.implemented
+          const iconColor = step.completed ? theme.colors.success : future ? theme.colors.textMuted : theme.colors.error
+          const iconBackground = step.completed ? theme.colors.statusSuccessSoft : future ? theme.colors.bgHover : theme.colors.statusErrorSoft
+          const iconLabel = step.completed ? '✓' : future ? 'i' : '×'
+
+          return (
+            <li key={step.id} style={styles.step}>
+              <div style={styles.stepMain}>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    ...styles.icon,
+                    color: iconColor,
+                    background: iconBackground
+                  }}
+                >
+                  {iconLabel}
+                </span>
+                <span style={styles.stepLabel}>{step.label}</span>
+              </div>
+              <div style={styles.actions}>
+                {!step.completed && step.required ? <Badge variant="warning">Necesario</Badge> : null}
+                {step.ctaRoute && (!step.completed || !step.blocksPublishing) ? (
+                  <Link to={step.ctaRoute} style={{ textDecoration: 'none' }}>
+                    <Button variant="secondary">{step.ctaLabel}</Button>
+                  </Link>
+                ) : null}
+                {future ? <Badge variant="neutral">Próximamente</Badge> : null}
+              </div>
+            </li>
+          )
+        })}
       </ul>
     </div>
   )

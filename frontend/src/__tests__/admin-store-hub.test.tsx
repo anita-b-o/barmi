@@ -34,18 +34,32 @@ const discoverySettings = {
 }
 
 const readinessResponse = {
-  score: 67,
+  score: 50,
   publishReady: false,
-  completedSteps: ['store_profile', 'contact_info', 'checkout_enabled'],
+  completedSteps: ['store_profile', 'store_preview'],
   pendingSteps: ['first_product', 'shipping_setup'],
   blockers: ['first_product', 'shipping_setup'],
   enabledCapabilities: ['ABOUT', 'CONTACT', 'PRODUCTS', 'SHIPPING', 'CHECKOUT'],
   steps: [
-    { id: 'store_profile', capability: 'ABOUT', label: 'Información de tu tienda', ctaLabel: 'Revisar información', ctaRoute: '/admin/store', required: true, blocksPublishing: true, implemented: true, completed: true },
-    { id: 'contact_info', capability: 'CONTACT', label: 'Contacto', ctaLabel: 'Ir a miembros', ctaRoute: '/admin/members', required: true, blocksPublishing: true, implemented: true, completed: true },
-    { id: 'first_product', capability: 'PRODUCTS', label: 'Primer producto', ctaLabel: 'Ir a Productos', ctaRoute: '/admin/store/products', required: true, blocksPublishing: true, implemented: true, completed: false },
-    { id: 'shipping_setup', capability: 'SHIPPING', label: 'Configurar envíos', ctaLabel: 'Ir a Envíos', ctaRoute: '/admin/shipping/zones', required: true, blocksPublishing: true, implemented: true, completed: false },
-    { id: 'checkout_enabled', capability: 'CHECKOUT', label: 'Publicar compras online', ctaLabel: 'Revisar tienda', ctaRoute: '/admin/store/modules', required: true, blocksPublishing: true, implemented: true, completed: true }
+    { id: 'store_profile', capability: 'ABOUT', label: 'Perfil de tu tienda', ctaLabel: 'Revisar perfil', ctaRoute: '/admin/store', required: true, blocksPublishing: true, implemented: true, completed: true },
+    { id: 'first_product', capability: 'PRODUCTS', label: 'Primer producto', ctaLabel: 'Crear producto', ctaRoute: '/admin/store/products', required: true, blocksPublishing: true, implemented: true, completed: false },
+    { id: 'shipping_setup', capability: 'SHIPPING', label: 'Envíos', ctaLabel: 'Configurar envíos', ctaRoute: '/admin/shipping/zones', required: true, blocksPublishing: true, implemented: true, completed: false },
+    { id: 'checkout_enabled', capability: 'CHECKOUT', label: 'Compras online', ctaLabel: 'Elegir tipo de sitio', ctaRoute: '/admin/store/modules', required: true, blocksPublishing: true, implemented: true, completed: true },
+    { id: 'store_preview', capability: 'ABOUT', label: 'Vista previa de tu tienda', ctaLabel: 'Ver tienda', ctaRoute: '/public/demo-store', required: false, blocksPublishing: false, implemented: true, completed: true }
+  ]
+}
+
+const simpleReadinessResponse = {
+  score: 50,
+  publishReady: false,
+  completedSteps: ['store_profile', 'site_preview'],
+  pendingSteps: ['contact_info'],
+  blockers: ['contact_info'],
+  enabledCapabilities: ['ABOUT', 'CONTACT'],
+  steps: [
+    { id: 'store_profile', capability: 'ABOUT', label: 'Perfil de tu sitio', ctaLabel: 'Revisar perfil', ctaRoute: '/admin/store', required: true, blocksPublishing: true, implemented: true, completed: true },
+    { id: 'contact_info', capability: 'CONTACT', label: 'Contacto', ctaLabel: 'Gestionar contacto', ctaRoute: '/admin/members', required: true, blocksPublishing: true, implemented: true, completed: false },
+    { id: 'site_preview', capability: 'ABOUT', label: 'Vista previa de tu sitio', ctaLabel: 'Ver sitio', ctaRoute: '/public/demo-store', required: false, blocksPublishing: false, implemented: true, completed: true }
   ]
 }
 
@@ -123,9 +137,10 @@ describe('admin store hub', () => {
     expect(document.body.textContent).toContain('Analytics MVP')
     expect(document.body.textContent).toContain('Reporting operativo MVP')
     expect(document.body.textContent).toContain('Discovery público')
-    expect(document.body.textContent).toContain('Tienda lista para publicar')
-    expect(document.body.textContent).toContain('67% completado')
+    expect(document.body.textContent).toContain('Prepará tu tienda online')
+    expect(document.body.textContent).toContain('50% completado')
     expect(document.body.textContent).toContain('Primer producto')
+    expect(document.body.textContent).toContain('Elegir tipo de sitio')
     expect(document.body.textContent).toContain('OWNER puede editar')
     expect(document.body.textContent).toContain('Palermo, CABA')
     expect(document.body.textContent).not.toContain('Crear zona')
@@ -138,6 +153,67 @@ describe('admin store hub', () => {
     expect(links).toContain('/admin/store/products')
     expect(links).toContain('/admin/store/promotions')
     expect(links).toContain('/admin/shipping/zones')
+    expect(links).toContain('/admin/store/modules')
+
+    await cleanup()
+  })
+
+  it('reflects simple site readiness in the hub card', async () => {
+    mockFetch({
+      '/api/auth/me': { body: authMe },
+      '/api/store/analytics/summary': {
+        body: {
+          storeId: 'store-1',
+          storeSlug: 'demo-store',
+          totalOrders: 0,
+          ordersByStatus: { PENDING_PAYMENT: 0, PAID: 0, CANCELLED: 0 },
+          confirmedSalesTotalAmount: 0,
+          confirmedSalesCurrency: 'ARS',
+          fulfillmentsByStatus: { PENDING: 0, DISPATCHED: 0, DELIVERED: 0, CANCELLED: 0 },
+          activeProducts: 0,
+          inactiveProducts: 0
+        }
+      },
+      '/api/store/analytics/report?range=7d': {
+        body: {
+          storeId: 'store-1',
+          storeSlug: 'demo-store',
+          rangeKey: '7d',
+          rangeLabel: 'Ultimos 7 dias',
+          from: '2026-03-12T00:00:00.000Z',
+          to: '2026-03-19T00:00:00.000Z',
+          timezone: 'America/Argentina/Buenos_Aires',
+          periodMetrics: {
+            ordersCreated: 0,
+            paymentsConfirmed: 0,
+            manualCancellations: 0,
+            stockConflicts: 0,
+            fulfillmentsCreated: 0,
+            confirmedSalesTotalAmount: 0,
+            confirmedSalesCurrency: 'ARS'
+          },
+          currentSnapshot: {
+            fulfillmentsByStatus: { PENDING: 0, DISPATCHED: 0, DELIVERED: 0, CANCELLED: 0 }
+          }
+        }
+      },
+      '/api/store/admin/discovery': {
+        body: discoverySettings
+      },
+      '/api/store/readiness': {
+        body: simpleReadinessResponse
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Prepará tu sitio')
+    expect(document.body.textContent).toContain('50% completado')
+    expect(document.body.textContent).toContain('Contacto')
+    expect(document.body.textContent).not.toContain('Crear producto')
+    expect(document.body.textContent).not.toContain('Configurar envíos')
 
     await cleanup()
   })

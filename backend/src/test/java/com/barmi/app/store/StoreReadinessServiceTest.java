@@ -42,22 +42,25 @@ class StoreReadinessServiceTest {
     void scoresCompletedAndPendingStepsForEcommerceStore() {
         Store store = new Store(UUID.randomUUID(), "demo-store", "Demo Store");
         enable(store, StoreCapability.ABOUT, StoreCapability.CONTACT, StoreCapability.PRODUCTS, StoreCapability.PROMOTIONS, StoreCapability.SHIPPING, StoreCapability.CHECKOUT);
-        when(members.existsByStoreIdAndStatus(store.getId(), StoreMemberStatus.ACTIVE)).thenReturn(true);
         when(products.countByStoreIdAndActiveTrue(store.getId())).thenReturn(1L);
         when(promotions.existsByStoreId(store.getId())).thenReturn(false);
         when(shippingZones.existsByStoreId(store.getId())).thenReturn(false);
 
         StoreReadinessService.StoreReadinessDto readiness = service.evaluate(store);
 
-        assertThat(readiness.score()).isEqualTo(67);
-        assertThat(readiness.completedSteps()).contains("store_profile", "contact_info", "first_product", "checkout_enabled");
+        assertThat(readiness.score()).isEqualTo(75);
+        assertThat(readiness.completedSteps()).contains("store_profile", "first_product", "checkout_enabled", "store_preview");
         assertThat(readiness.pendingSteps()).contains("first_promotion", "shipping_setup");
         assertThat(readiness.blockers()).containsExactly("shipping_setup");
         assertThat(readiness.publishReady()).isFalse();
+        assertThat(readiness.steps()).extracting(StoreReadinessService.ReadinessStepDto::id)
+                .containsSequence("store_profile", "first_product", "shipping_setup", "checkout_enabled", "first_promotion", "store_preview");
+        assertThat(readiness.steps()).extracting(StoreReadinessService.ReadinessStepDto::label)
+                .doesNotContain("Contacto");
     }
 
     @Test
-    void institutionalStoreRequiresOnlyProfileAndContactForPublishing() {
+    void simplePageRequiresOnlyProfileAndContactForPublishing() {
         Store store = new Store(UUID.randomUUID(), "about-store", "About Store");
         enable(store, StoreCapability.ABOUT, StoreCapability.CONTACT);
         when(members.existsByStoreIdAndStatus(store.getId(), StoreMemberStatus.ACTIVE)).thenReturn(true);
@@ -68,6 +71,27 @@ class StoreReadinessServiceTest {
         assertThat(readiness.pendingSteps()).isEmpty();
         assertThat(readiness.blockers()).isEmpty();
         assertThat(readiness.publishReady()).isTrue();
+        assertThat(readiness.steps()).extracting(StoreReadinessService.ReadinessStepDto::id)
+                .containsExactly("store_profile", "contact_info", "site_preview");
+        assertThat(readiness.steps()).extracting(StoreReadinessService.ReadinessStepDto::id)
+                .doesNotContain("first_product", "shipping_setup");
+    }
+
+    @Test
+    void servicesStoreDoesNotAskForProductsOrShipping() {
+        Store store = new Store(UUID.randomUUID(), "services-store", "Services Store");
+        enable(store, StoreCapability.ABOUT, StoreCapability.CONTACT, StoreCapability.RESERVATIONS);
+        when(members.existsByStoreIdAndStatus(store.getId(), StoreMemberStatus.ACTIVE)).thenReturn(false);
+
+        StoreReadinessService.StoreReadinessDto readiness = service.evaluate(store);
+
+        assertThat(readiness.score()).isEqualTo(50);
+        assertThat(readiness.blockers()).containsExactly("contact_info");
+        assertThat(readiness.publishReady()).isFalse();
+        assertThat(readiness.steps()).extracting(StoreReadinessService.ReadinessStepDto::id)
+                .containsExactly("store_profile", "contact_info", "reservations_coming_soon", "site_preview");
+        assertThat(readiness.steps()).extracting(StoreReadinessService.ReadinessStepDto::id)
+                .doesNotContain("first_product", "shipping_setup");
     }
 
     @Test
@@ -83,6 +107,62 @@ class StoreReadinessServiceTest {
         assertThat(readiness.pendingSteps()).contains("checkout_enabled");
         assertThat(readiness.blockers()).containsExactly("checkout_enabled");
         assertThat(readiness.publishReady()).isFalse();
+    }
+
+    @Test
+    void portfolioWithGalleryDoesNotBlockPublishing() {
+        Store store = new Store(UUID.randomUUID(), "portfolio-store", "Portfolio Store");
+        enable(store, StoreCapability.ABOUT, StoreCapability.CONTACT, StoreCapability.GALLERY);
+        when(members.existsByStoreIdAndStatus(store.getId(), StoreMemberStatus.ACTIVE)).thenReturn(true);
+
+        StoreReadinessService.StoreReadinessDto readiness = service.evaluate(store);
+
+        assertThat(readiness.publishReady()).isTrue();
+        assertThat(readiness.blockers()).isEmpty();
+        assertThat(readiness.pendingSteps()).containsExactly("gallery_coming_soon");
+        assertThat(readiness.steps()).filteredOn(step -> step.id().equals("gallery_coming_soon"))
+                .singleElement()
+                .satisfies(step -> {
+                    assertThat(step.label()).isEqualTo("Galería próximamente");
+                    assertThat(step.blocksPublishing()).isFalse();
+                    assertThat(step.implemented()).isFalse();
+                });
+    }
+
+    @Test
+    void blogCapabilityDoesNotBlockPublishing() {
+        Store store = new Store(UUID.randomUUID(), "blog-store", "Blog Store");
+        enable(store, StoreCapability.ABOUT, StoreCapability.CONTACT, StoreCapability.BLOG);
+        when(members.existsByStoreIdAndStatus(store.getId(), StoreMemberStatus.ACTIVE)).thenReturn(true);
+
+        StoreReadinessService.StoreReadinessDto readiness = service.evaluate(store);
+
+        assertThat(readiness.publishReady()).isTrue();
+        assertThat(readiness.blockers()).isEmpty();
+        assertThat(readiness.pendingSteps()).containsExactly("blog_coming_soon");
+        assertThat(readiness.steps()).filteredOn(step -> step.id().equals("blog_coming_soon"))
+                .singleElement()
+                .satisfies(step -> {
+                    assertThat(step.label()).isEqualTo("Blog próximamente");
+                    assertThat(step.blocksPublishing()).isFalse();
+                    assertThat(step.implemented()).isFalse();
+                });
+    }
+
+    @Test
+    void publishReadyMatchesInferredProfile() {
+        Store ecommerce = new Store(UUID.randomUUID(), "shop-store", "Shop Store");
+        enable(ecommerce, StoreCapability.ABOUT, StoreCapability.CONTACT, StoreCapability.PRODUCTS, StoreCapability.SHIPPING, StoreCapability.CHECKOUT);
+        when(products.countByStoreIdAndActiveTrue(ecommerce.getId())).thenReturn(1L);
+        when(shippingZones.existsByStoreId(ecommerce.getId())).thenReturn(true);
+
+        Store site = new Store(UUID.randomUUID(), "site-store", "Site Store");
+        enable(site, StoreCapability.ABOUT, StoreCapability.CONTACT, StoreCapability.BLOG);
+        when(members.existsByStoreIdAndStatus(site.getId(), StoreMemberStatus.ACTIVE)).thenReturn(false);
+
+        assertThat(service.evaluate(ecommerce).publishReady()).isTrue();
+        assertThat(service.evaluate(site).publishReady()).isFalse();
+        assertThat(service.evaluate(site).blockers()).containsExactly("contact_info");
     }
 
     private void enable(Store store, StoreCapability... capabilities) {

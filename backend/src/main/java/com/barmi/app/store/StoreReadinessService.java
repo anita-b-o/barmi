@@ -63,26 +63,15 @@ public class StoreReadinessService {
                 || enabled.contains(StoreCapability.SHIPPING)
                 || enabled.contains(StoreCapability.CHECKOUT);
 
-        List<StepDefinition> definitions = List.of(
-                new StepDefinition("store_profile", StoreCapability.ABOUT, "Información de tu tienda", "Revisar información", "/admin/store", true, true, () -> hasStoreProfile(store)),
-                new StepDefinition("contact_info", StoreCapability.CONTACT, "Contacto", "Ir a miembros", "/admin/members", true, true, () -> storeMemberRepository.existsByStoreIdAndStatus(storeId, StoreMemberStatus.ACTIVE)),
-                new StepDefinition("first_product", StoreCapability.PRODUCTS, "Primer producto", "Ir a Productos", "/admin/store/products", true, true, () -> productRepository.countByStoreIdAndActiveTrue(storeId) > 0),
-                new StepDefinition("first_promotion", StoreCapability.PROMOTIONS, "Primera promoción", "Ir a Promociones", "/admin/store/promotions", false, true, () -> storePromotionRepository.existsByStoreId(storeId)),
-                new StepDefinition("shipping_setup", StoreCapability.SHIPPING, "Configurar envíos", "Ir a Envíos", "/admin/shipping/zones", true, true, () -> storeShippingZoneRepository.existsByStoreId(storeId)),
-                new StepDefinition("checkout_enabled", StoreCapability.CHECKOUT, "Publicar compras online", "Revisar tienda", "/admin/store/modules", true, true, () -> enabled.contains(StoreCapability.CHECKOUT)),
-                new StepDefinition("blog_setup", StoreCapability.BLOG, "Novedades", "Próximamente", null, false, false, () -> false),
-                new StepDefinition("gallery_setup", StoreCapability.GALLERY, "Fotos de tu tienda", "Próximamente", null, false, false, () -> false),
-                new StepDefinition("reservations_setup", StoreCapability.RESERVATIONS, "Reservas", "Próximamente", null, false, false, () -> false)
-        );
+        List<StepDefinition> definitions = ecommerce
+                ? ecommerceDefinitions(store, storeId, enabled)
+                : siteDefinitions(store, storeId, enabled);
 
         List<ReadinessStepDto> steps = new ArrayList<>();
         for (StepDefinition definition : definitions) {
-            if (shouldInclude(definition, enabled, ecommerce)) {
+            if (shouldInclude(definition, enabled)) {
                 boolean completed = definition.completed().getAsBoolean();
-                boolean blocksPublishing = definition.required()
-                        && (definition.capability() == StoreCapability.ABOUT
-                        || definition.capability() == StoreCapability.CONTACT
-                        || ecommerceCapability(definition.capability()));
+                boolean blocksPublishing = definition.blocksPublishing();
                 steps.add(new ReadinessStepDto(
                         definition.id(),
                         definition.capability().name(),
@@ -109,8 +98,10 @@ public class StoreReadinessService {
                 .filter(step -> step.blocksPublishing() && !step.completed())
                 .map(ReadinessStepDto::id)
                 .toList();
-        long scorableSteps = steps.stream().filter(ReadinessStepDto::implemented).count();
-        long completedScorableSteps = steps.stream().filter(step -> step.implemented() && step.completed()).count();
+        long scorableSteps = definitions.stream().filter(StepDefinition::scoreable).count();
+        long completedScorableSteps = definitions.stream()
+                .filter(definition -> definition.scoreable() && definition.completed().getAsBoolean())
+                .count();
         int score = scorableSteps == 0 ? 100 : (int) Math.round((completedScorableSteps * 100.0) / scorableSteps);
 
         return new StoreReadinessDto(
@@ -134,14 +125,8 @@ public class StoreReadinessService {
         return enabled;
     }
 
-    private boolean shouldInclude(StepDefinition definition, EnumSet<StoreCapability> enabled, boolean ecommerce) {
-        if (!definition.implemented()) {
-            return enabled.contains(definition.capability());
-        }
-        if (definition.capability() == StoreCapability.CHECKOUT) {
-            return ecommerce;
-        }
-        return enabled.contains(definition.capability());
+    private boolean shouldInclude(StepDefinition definition, EnumSet<StoreCapability> enabled) {
+        return definition.alwaysVisible() || enabled.contains(definition.capability());
     }
 
     private boolean hasStoreProfile(Store store) {
@@ -149,10 +134,41 @@ public class StoreReadinessService {
                 && store.getSlug() != null && !store.getSlug().isBlank();
     }
 
-    private boolean ecommerceCapability(StoreCapability capability) {
-        return capability == StoreCapability.PRODUCTS
-                || capability == StoreCapability.SHIPPING
-                || capability == StoreCapability.CHECKOUT;
+    private List<StepDefinition> ecommerceDefinitions(Store store, UUID storeId, EnumSet<StoreCapability> enabled) {
+        List<StepDefinition> definitions = new ArrayList<>();
+        definitions.add(new StepDefinition("store_profile", StoreCapability.ABOUT, "Perfil de tu tienda", "Revisar perfil", "/admin/store", true, true, true, true, true, () -> hasStoreProfile(store)));
+        definitions.add(new StepDefinition("first_product", StoreCapability.PRODUCTS, "Primer producto", "Crear producto", "/admin/store/products", true, true, true, true, true, () -> productRepository.countByStoreIdAndActiveTrue(storeId) > 0));
+        definitions.add(new StepDefinition("shipping_setup", StoreCapability.SHIPPING, "Envíos", "Configurar envíos", "/admin/shipping/zones", true, true, true, true, true, () -> storeShippingZoneRepository.existsByStoreId(storeId)));
+        definitions.add(new StepDefinition("checkout_enabled", StoreCapability.CHECKOUT, "Compras online", "Elegir tipo de sitio", "/admin/store/modules", true, true, true, true, true, () -> enabled.contains(StoreCapability.CHECKOUT)));
+        if (enabled.contains(StoreCapability.PROMOTIONS)) {
+            definitions.add(new StepDefinition("first_promotion", StoreCapability.PROMOTIONS, "Promociones", "Crear promoción", "/admin/store/promotions", false, false, true, false, false, () -> storePromotionRepository.existsByStoreId(storeId)));
+        }
+        definitions.addAll(futureDefinitions(enabled));
+        definitions.add(new StepDefinition("store_preview", StoreCapability.ABOUT, "Vista previa de tu tienda", "Ver tienda", "/public/" + store.getSlug(), false, false, true, false, true, () -> true));
+        return definitions;
+    }
+
+    private List<StepDefinition> siteDefinitions(Store store, UUID storeId, EnumSet<StoreCapability> enabled) {
+        List<StepDefinition> definitions = new ArrayList<>();
+        definitions.add(new StepDefinition("store_profile", StoreCapability.ABOUT, "Perfil de tu sitio", "Revisar perfil", "/admin/store", true, true, true, true, true, () -> hasStoreProfile(store)));
+        definitions.add(new StepDefinition("contact_info", StoreCapability.CONTACT, "Contacto", "Gestionar contacto", "/admin/members", true, true, true, true, true, () -> storeMemberRepository.existsByStoreIdAndStatus(storeId, StoreMemberStatus.ACTIVE)));
+        definitions.addAll(futureDefinitions(enabled));
+        definitions.add(new StepDefinition("site_preview", StoreCapability.ABOUT, "Vista previa de tu sitio", "Ver sitio", "/public/" + store.getSlug(), false, false, true, false, true, () -> true));
+        return definitions;
+    }
+
+    private List<StepDefinition> futureDefinitions(EnumSet<StoreCapability> enabled) {
+        List<StepDefinition> definitions = new ArrayList<>();
+        if (enabled.contains(StoreCapability.GALLERY)) {
+            definitions.add(new StepDefinition("gallery_coming_soon", StoreCapability.GALLERY, "Galería próximamente", "Próximamente", null, false, false, false, false, false, () -> false));
+        }
+        if (enabled.contains(StoreCapability.BLOG)) {
+            definitions.add(new StepDefinition("blog_coming_soon", StoreCapability.BLOG, "Blog próximamente", "Próximamente", null, false, false, false, false, false, () -> false));
+        }
+        if (enabled.contains(StoreCapability.RESERVATIONS)) {
+            definitions.add(new StepDefinition("reservations_coming_soon", StoreCapability.RESERVATIONS, "Reservas próximamente", "Próximamente", null, false, false, false, false, false, () -> false));
+        }
+        return definitions;
     }
 
     private record StepDefinition(
@@ -162,7 +178,10 @@ public class StoreReadinessService {
             String ctaLabel,
             String ctaRoute,
             boolean required,
+            boolean blocksPublishing,
             boolean implemented,
+            boolean scoreable,
+            boolean alwaysVisible,
             BooleanSupplier completed
     ) {}
 
