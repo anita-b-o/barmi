@@ -28,6 +28,8 @@ const preferredOrder: StoreCapability[] = [
   'CONTACT'
 ]
 
+const futureCapabilities = new Set<StoreCapability>(['GALLERY', 'BLOG', 'RESERVATIONS'])
+
 function sortCapabilities(available: StoreCapabilityMetadata[]) {
   return [...available].sort((a, b) => preferredOrder.indexOf(a.key) - preferredOrder.indexOf(b.key))
 }
@@ -201,6 +203,7 @@ export default function AdminStoreModulesScreen() {
               <div style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
                 {presets.map((preset) => {
                   const isApplying = applyingPreset === preset.key
+                  const includesFutureCapability = preset.capabilities.some((capability) => futureCapabilities.has(capability))
                   return (
                     <article
                       key={preset.key}
@@ -217,9 +220,12 @@ export default function AdminStoreModulesScreen() {
                       <div style={{ display: 'grid', gap: theme.spacing.sm }}>
                         <h3 style={{ margin: 0, fontSize: theme.typography.h3.size, letterSpacing: 0 }}>{preset.name}</h3>
                         <p style={{ margin: 0, color: theme.colors.textMuted, lineHeight: 1.45 }}>{preset.description}</p>
+                        {includesFutureCapability ? <Badge variant="info">Incluye partes próximamente</Badge> : null}
                         <div style={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap' }} aria-label={`Secciones incluidas en ${preset.name}`}>
                           {preset.capabilities.map((capability) => (
-                            <Badge key={capability} variant="neutral">{presetCapabilityLabel(capability, available)}</Badge>
+                            <Badge key={capability} variant="neutral">
+                              {presetCapabilityLabel(capability, available)}{futureCapabilities.has(capability) ? ' próximamente' : ''}
+                            </Badge>
                           ))}
                         </div>
                       </div>
@@ -248,6 +254,7 @@ export default function AdminStoreModulesScreen() {
                 <div style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
                   {sortedAvailable.map((capability) => {
                     const checked = enabled.has(capability.key)
+                    const future = futureCapabilities.has(capability.key)
                     return (
                       <label
                         key={capability.key}
@@ -262,7 +269,10 @@ export default function AdminStoreModulesScreen() {
                         }}
                       >
                         <span style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'center' }}>
-                          <span style={{ fontWeight: 700, color: theme.colors.textPrimary }}>{capability.label}</span>
+                          <span style={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 700, color: theme.colors.textPrimary }}>{capability.label}</span>
+                            {future ? <Badge variant="neutral">Próximamente</Badge> : null}
+                          </span>
                           <input
                             aria-label={capability.label}
                             type="checkbox"
@@ -271,15 +281,17 @@ export default function AdminStoreModulesScreen() {
                             style={{ width: 20, height: 20, accentColor: theme.colors.actionPrimary }}
                           />
                         </span>
-                        <span style={{ color: theme.colors.textMuted, lineHeight: 1.45 }}>{capability.description}</span>
+                        <span style={{ color: theme.colors.textMuted, lineHeight: 1.45 }}>
+                          {future ? `${capability.description} Todavía no suma pasos ni bloquea la publicación.` : capability.description}
+                        </span>
                       </label>
                     )
                   })}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <Link to={routes.adminStore} style={{ textDecoration: 'none' }}>
-                    <Button type="button" variant="ghost">Volver al hub</Button>
+                  <Link to={routes.adminStorePublish} style={{ textDecoration: 'none' }}>
+                    <Button type="button" variant="ghost">Volver a publicar</Button>
                   </Link>
                   <Button type="submit" variant="primary" disabled={saving} aria-busy={saving}>
                     {saving ? 'Guardando...' : 'Guardar secciones'}

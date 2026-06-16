@@ -42,7 +42,9 @@ describe('admin store appearance', () => {
       expect(document.body.textContent).toContain('Clásica')
       expect(document.body.textContent).toContain('Negocio local')
       expect(document.body.textContent).toContain('Portfolio')
-      expect(document.body.textContent).toContain('Preview textual')
+      expect(document.body.textContent).toContain('Elegí la forma general en que se ordena tu sitio.')
+      const backLink = Array.from(document.querySelectorAll('a')).find((anchor) => anchor.textContent?.includes('Volver a publicar'))
+      expect(backLink?.getAttribute('href')).toBe('/admin/store/publish')
       expect((document.querySelector('input[aria-label="Moderna"]') as HTMLInputElement).checked).toBe(true)
 
       await cleanup()

@@ -164,7 +164,7 @@ export default function AdminStoreAppearanceScreen() {
               {success ? <div role="status" style={{ color: theme.colors.success, fontWeight: 700 }}>{success}</div> : null}
 
               <div style={{ color: theme.colors.textMuted, lineHeight: 1.6 }}>
-                Preview textual: estos presets ajustan jerarquía, spacing y superficies usando los mismos tokens. No agregan colores, fuentes ni plantillas por tienda.
+                Elegí la forma general en que se ordena tu sitio. No cambia tus productos, datos de contacto ni lo que tus clientes pueden hacer.
               </div>
 
               <div style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
@@ -219,8 +219,8 @@ export default function AdminStoreAppearanceScreen() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, flexWrap: 'wrap', alignItems: 'center' }}>
-                <Link to={routes.adminStore} style={{ color: theme.colors.textMuted, textDecoration: 'none' }}>
-                  Volver al hub
+                <Link to={routes.adminStorePublish} style={{ color: theme.colors.textMuted, textDecoration: 'none' }}>
+                  Volver a publicar
                 </Link>
                 <Button type="submit" variant="primary" disabled={saving || selectedPreset === savedPreset}>
                   {saving ? 'Guardando...' : 'Guardar apariencia'}

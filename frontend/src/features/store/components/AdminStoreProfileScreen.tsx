@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { StoreReadiness } from '@/api/contracts/v1/storeAdmin'
 import { storeAdminAdapter } from '@/api/adapters/storeAdminAdapter'
 import { useAuth } from '@/core/auth/authContext'
@@ -38,7 +39,14 @@ export default function AdminStoreProfileScreen() {
         tone="store"
       />
 
-      <Section title="Información pública">
+      <Section
+        title="Información pública"
+        action={(
+          <Link to={routes.adminStorePublish} style={{ textDecoration: 'none' }}>
+            <Button variant="secondary">Volver a publicar</Button>
+          </Link>
+        )}
+      >
         <Card>
           <StorePublicProfileForm authRequest={authRequest} onSaved={reloadReadiness} />
         </Card>

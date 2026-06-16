@@ -142,6 +142,8 @@ describe('admin store modules', () => {
       expect(document.body.textContent).toContain('Elegí un tipo de sitio')
       expect(document.body.textContent).toContain('Tienda online')
       expect(document.body.textContent).toContain('Servicios')
+      expect(document.body.textContent).toContain('Incluye partes próximamente')
+      expect(document.body.textContent).toContain('Galería próximamente')
       expect(document.body.textContent).toContain('Personalizar secciones')
       expect(document.body.textContent).toContain('demo-store')
       expect(document.body.textContent).not.toContain('legacy-store')
@@ -216,6 +218,8 @@ describe('admin store modules', () => {
     expect(document.querySelector('[role="status"]')?.textContent).toContain('Tipo de sitio "Página simple" aplicado.')
     expect((document.querySelector('input[aria-label="Productos"]') as HTMLInputElement).checked).toBe(false)
     expect((document.querySelector('input[aria-label="Contacto"]') as HTMLInputElement).checked).toBe(true)
+    const backLink = Array.from(document.querySelectorAll('a')).find((anchor) => anchor.textContent?.includes('Volver a publicar'))
+    expect(backLink?.getAttribute('href')).toBe('/admin/store/publish')
 
     await cleanup()
   })

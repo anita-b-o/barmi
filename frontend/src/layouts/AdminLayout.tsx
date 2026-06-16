@@ -44,7 +44,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
   const storeLinks = [
     { to: routes.adminStore, label: 'Hub store', end: true },
-    { to: routes.adminStoreOnboarding, label: 'Publicar tienda' },
+    { to: routes.adminStorePublish, label: 'Publicar sitio' },
     { to: routes.adminOrders, label: 'Órdenes' },
     { to: routes.adminFulfillments, label: 'Fulfillments' },
     { to: routes.adminMembers, label: 'Miembros' },

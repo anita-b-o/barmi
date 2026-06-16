@@ -125,6 +125,8 @@ describe('admin store publishing center', () => {
     expect(document.body.textContent).toContain('Completá estos pasos para publicar tu presencia digital.')
     expect(document.body.textContent).toContain('50% completado')
     expect(document.body.textContent).toContain('Faltan pasos')
+    expect(document.body.textContent).toContain('Tienda pública')
+    expect(document.body.textContent).toContain('Ver vista previa')
 
     await cleanup()
   })
@@ -155,6 +157,7 @@ describe('admin store publishing center', () => {
     expect(links).toContain('/admin/store/products')
     expect(links).toContain('/admin/shipping/zones')
     expect(links).toContain('/admin/store/promotions')
+    expect(links).toContain('/public/demo-store')
 
     await cleanup()
   })
@@ -174,13 +177,14 @@ describe('admin store publishing center', () => {
     expect(document.body.textContent).toContain('Portfolio')
     expect(document.body.textContent).toContain('100% completado')
     expect(document.body.textContent).toContain('Lista para publicar')
+    expect(document.body.textContent).toContain('Abrir sitio público')
     expect(document.body.textContent).not.toContain('Administrar productos')
     expect(document.body.textContent).not.toContain('Configurar envíos')
 
     await cleanup()
   })
 
-  it('shows future sections as neutral and outside the score', async () => {
+  it('keeps future sections out of the publishing steps', async () => {
     mockPublishingCenter({
       readiness: simpleReadiness,
       capabilities: ['ABOUT', 'CONTACT']
@@ -190,12 +194,10 @@ describe('admin store publishing center', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Próximamente')
-    expect(document.body.textContent).toContain('Blog')
-    expect(document.body.textContent).toContain('Galería')
-    expect(document.body.textContent).toContain('Reservas')
-    expect(document.body.textContent).toContain('Neutral')
-    expect(document.body.textContent).toContain('No cuenta para el score.')
+    expect(document.body.textContent).toContain('Más adelante')
+    expect(document.body.textContent).toContain('Blog, galería y reservas están pensados para una etapa posterior.')
+    expect(document.body.textContent).not.toContain('Neutral')
+    expect(document.body.textContent).not.toContain('No cuenta para el score.')
 
     await cleanup()
   })

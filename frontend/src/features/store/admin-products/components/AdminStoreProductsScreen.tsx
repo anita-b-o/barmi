@@ -384,7 +384,7 @@ export default function AdminStoreProductsScreen() {
         subtitle={me?.email}
         actions={(
           <>
-            <Link to={routes.adminStore} style={{ color: theme.colors.textMuted, textDecoration: 'none' }}>Volver al hub</Link>
+            <Link to={routes.adminStorePublish} style={{ color: theme.colors.textMuted, textDecoration: 'none' }}>Volver a publicar</Link>
             <Button variant="ghost" onClick={logout}>Cerrar sesión</Button>
           </>
         )}

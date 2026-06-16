@@ -40,8 +40,6 @@ const appearanceLabels: Record<StoreAppearancePreset, string> = {
   PORTFOLIO: 'Portfolio'
 }
 
-const futureSections = ['Blog', 'Galería', 'Reservas']
-
 function sameCapabilities(left: StoreCapability[], right: StoreCapability[]) {
   if (left.length !== right.length) return false
   const rightSet = new Set(right)
@@ -89,7 +87,7 @@ function toErrorMessage(error: unknown) {
 }
 
 export default function AdminStorePublishingCenterScreen() {
-  const { me, logout, authRequest } = useAuth()
+  const { me, memberships, logout, authRequest } = useAuth()
   const [readiness, setReadiness] = useState<StoreReadiness | null>(null)
   const [enabledCapabilities, setEnabledCapabilities] = useState<StoreCapability[]>([])
   const [presets, setPresets] = useState<StoreCapabilityPreset[]>([])
@@ -134,6 +132,9 @@ export default function AdminStorePublishingCenterScreen() {
   const readinessForDisplay = withPublicProfileCtas(readiness)
   const publicInfoComplete = isProfileComplete(profile, readiness)
   const capabilitySet = useMemo(() => new Set(enabledCapabilities), [enabledCapabilities])
+  const activeStoreSlug = memberships.stores.find((membership) => membership.status === 'ACTIVE')?.storeSlug
+  const previewRoute = readiness?.steps.find((step) => step.ctaRoute?.startsWith('/public/'))?.ctaRoute ?? null
+  const publicStoreHref = previewRoute ?? (activeStoreSlug ? routes.publicStore(activeStoreSlug) : null)
 
   const sections: PublishSection[] = [
     {
@@ -193,6 +194,20 @@ export default function AdminStorePublishingCenterScreen() {
     })
   }
 
+  sections.push({
+    title: 'Tienda pública',
+    value: readiness?.publishReady ? 'Lista para abrir' : 'Vista previa disponible',
+    detail: publicStoreHref
+      ? readiness?.publishReady
+        ? 'Abrí tu sitio como lo ve un cliente.'
+        : 'Podés revisar cómo se ve mientras terminás los pasos pendientes.'
+      : 'Cuando tengas una store activa, vas a poder abrir el sitio público desde acá.',
+    href: publicStoreHref ?? undefined,
+    cta: publicStoreHref ? (readiness?.publishReady ? 'Abrir sitio público' : 'Ver vista previa') : undefined,
+    badge: publicStoreHref ? (readiness?.publishReady ? 'Público' : 'Preview') : 'Falta store activa',
+    badgeVariant: publicStoreHref ? (readiness?.publishReady ? 'success' : 'info') : 'warning'
+  })
+
   return (
     <AdminLayout>
       <Breadcrumbs items={[{ label: 'Admin', href: routes.adminHome }, { label: 'Store', href: routes.adminStore }, { label: 'Publicar sitio' }]} />
@@ -229,20 +244,12 @@ export default function AdminStorePublishingCenterScreen() {
             </div>
           </Section>
 
-          <Section title="Próximamente">
-            <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
-              {futureSections.map((section) => (
-                <Card key={section} variant="soft" style={{ boxShadow: 'none' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'center' }}>
-                    <strong>{section}</strong>
-                    <Badge variant="neutral">Neutral</Badge>
-                  </div>
-                  <p style={{ margin: `${theme.spacing.sm} 0 0`, color: theme.colors.textMuted, lineHeight: 1.5 }}>
-                    No cuenta para el score.
-                  </p>
-                </Card>
-              ))}
-            </div>
+          <Section title="Más adelante">
+            <Card variant="soft" style={{ boxShadow: 'none' }}>
+              <p style={{ margin: 0, color: theme.colors.textMuted, lineHeight: 1.5 }}>
+                Blog, galería y reservas están pensados para una etapa posterior. No bloquean la publicación de este sitio.
+              </p>
+            </Card>
           </Section>
         </>
       ) : null}

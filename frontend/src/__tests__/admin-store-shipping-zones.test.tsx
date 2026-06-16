@@ -77,6 +77,8 @@ describe('admin store shipping zones', () => {
       expect(document.body.textContent).toContain('Crear zona')
       expect(document.body.textContent).toContain('zone-1')
       expect(document.body.textContent).toContain('zone-2')
+      const backLink = Array.from(document.querySelectorAll('a')).find((anchor) => anchor.textContent?.includes('Volver a publicar'))
+      expect(backLink?.getAttribute('href')).toBe('/admin/store/publish')
 
       await cleanup()
     }

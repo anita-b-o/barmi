@@ -84,6 +84,8 @@ describe('admin store products', () => {
       expect(document.body.textContent).toContain('Crear producto')
       expect(document.body.textContent).toContain('Cafe tostado')
       expect(document.body.textContent).toContain('Categorías STORE')
+      const backLink = Array.from(document.querySelectorAll('a')).find((anchor) => anchor.textContent?.includes('Volver a publicar'))
+      expect(backLink?.getAttribute('href')).toBe('/admin/store/publish')
 
       await cleanup()
     }
