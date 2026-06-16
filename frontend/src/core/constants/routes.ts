@@ -36,6 +36,7 @@ export const routes = {
   adminStoreProducts: '/admin/store/products',
   adminStoreModules: '/admin/store/modules',
   adminStoreAppearance: '/admin/store/appearance',
+  adminStoreProfile: '/admin/store/profile',
   adminStorePublish: '/admin/store/publish',
   adminStoreOnboarding: '/admin/store/onboarding',
   adminStorePromotions: '/admin/store/promotions',

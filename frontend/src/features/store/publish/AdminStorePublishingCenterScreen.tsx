@@ -21,6 +21,7 @@ import Section from '@/components/ui/Section'
 import { Breadcrumbs, ContextHeader } from '@/components/navigation'
 import PageHeader from '@/components/navigation/SectionHeader'
 import { StoreReadinessChecklist } from '@/features/store/onboarding'
+import { withPublicProfileCtas } from '@/features/store/components/profileRoutes'
 
 type PublishSection = {
   title: string
@@ -130,6 +131,7 @@ export default function AdminStorePublishingCenterScreen() {
   }, [authRequest])
 
   const currentPreset = useMemo(() => findCurrentPreset(presets, enabledCapabilities), [enabledCapabilities, presets])
+  const readinessForDisplay = withPublicProfileCtas(readiness)
   const publicInfoComplete = isProfileComplete(profile, readiness)
   const capabilitySet = useMemo(() => new Set(enabledCapabilities), [enabledCapabilities])
 
@@ -152,7 +154,7 @@ export default function AdminStorePublishingCenterScreen() {
       title: 'Información pública',
       value: publicInfoComplete ? 'Completado' : 'Pendiente',
       detail: 'Descripción y datos de contacto que aparecen en el sitio público.',
-      href: `${routes.adminStore}#public-profile`,
+      href: routes.adminStoreProfile,
       cta: 'Editar',
       badge: publicInfoComplete ? 'Completado' : 'Pendiente',
       badgeVariant: publicInfoComplete ? 'success' : 'warning'
@@ -213,7 +215,7 @@ export default function AdminStorePublishingCenterScreen() {
         <Card>
           {loading ? <LoadingState label="Revisando publicación..." /> : null}
           {error ? <ErrorState message={error} /> : null}
-          {readiness ? <StoreReadinessChecklist readiness={readiness} compact /> : null}
+          {readinessForDisplay ? <StoreReadinessChecklist readiness={readinessForDisplay} compact /> : null}
         </Card>
       </Section>
 

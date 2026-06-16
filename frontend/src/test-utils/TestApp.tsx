@@ -19,6 +19,7 @@ import {
   AdminStoreAppearanceScreen,
   AdminStoreModulesScreen,
   AdminStoreOnboardingScreen,
+  AdminStoreProfileScreen,
   AdminStorePublishingCenterScreen,
   AdminStoreProductAnalyticsScreen,
   AdminStoreProductsScreen,
@@ -199,6 +200,16 @@ export default function TestApp() {
             <RequireAuth>
               <RequireStoreMembership>
                 <AdminStoreAppearanceScreen />
+              </RequireStoreMembership>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={routes.adminStoreProfile}
+          element={
+            <RequireAuth>
+              <RequireStoreMembership>
+                <AdminStoreProfileScreen />
               </RequireStoreMembership>
             </RequireAuth>
           }

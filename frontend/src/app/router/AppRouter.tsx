@@ -47,6 +47,7 @@ const AdminStoreFunnelAnalyticsScreen = lazyWithPreload(() => import('@/pages/ad
 const AdminStoreProductsScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreProductsScreen'))
 const AdminStoreModulesScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreModulesScreen'))
 const AdminStoreAppearanceScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreAppearanceScreen'))
+const AdminStoreProfileScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreProfileScreen'))
 const AdminStorePublishingCenterScreen = lazyWithPreload(() => import('@/pages/admin/AdminStorePublishingCenterScreen'))
 const AdminStoreOnboardingScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreOnboardingScreen'))
 const AdminStorePromotionsScreen = lazyWithPreload(() => import('@/pages/admin/AdminStorePromotionsScreen'))
@@ -98,6 +99,7 @@ function collectRoutePreloaders(pathname: string) {
   if (pathname === routes.adminStoreProducts) return [AdminStoreProductsScreen]
   if (pathname === routes.adminStoreModules) return [AdminStoreModulesScreen]
   if (pathname === routes.adminStoreAppearance) return [AdminStoreAppearanceScreen]
+  if (pathname === routes.adminStoreProfile) return [AdminStoreProfileScreen]
   if (pathname === routes.adminStorePublish) return [AdminStorePublishingCenterScreen]
   if (pathname === routes.adminStoreOnboarding) return [AdminStoreOnboardingScreen]
   if (pathname === routes.adminStorePromotions) return [AdminStorePromotionsScreen]
@@ -305,6 +307,16 @@ function RoutedScreens() {
               <RequireAuth>
                 <RequireStoreMembership>
                   <AdminStoreAppearanceScreen />
+                </RequireStoreMembership>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={routes.adminStoreProfile}
+            element={
+              <RequireAuth>
+                <RequireStoreMembership>
+                  <AdminStoreProfileScreen />
                 </RequireStoreMembership>
               </RequireAuth>
             }

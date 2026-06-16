@@ -16,6 +16,7 @@ export { default as AdminStoreProductAnalyticsScreen } from './AdminStoreProduct
 export { default as AdminStoreProductsScreen } from './AdminStoreProductsScreen'
 export { default as AdminStoreModulesScreen } from './AdminStoreModulesScreen'
 export { default as AdminStoreAppearanceScreen } from './AdminStoreAppearanceScreen'
+export { default as AdminStoreProfileScreen } from './AdminStoreProfileScreen'
 export { default as AdminStorePublishingCenterScreen } from './AdminStorePublishingCenterScreen'
 export { default as AdminStoreOnboardingScreen } from './AdminStoreOnboardingScreen'
 export { default as AdminStorePromotionsScreen } from './AdminStorePromotionsScreen'

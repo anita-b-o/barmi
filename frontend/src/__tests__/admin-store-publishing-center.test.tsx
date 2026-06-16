@@ -151,7 +151,7 @@ describe('admin store publishing center', () => {
     const links = Array.from(document.querySelectorAll('a')).map((link) => link.getAttribute('href'))
     expect(links).toContain('/admin/store/modules')
     expect(links).toContain('/admin/store/appearance')
-    expect(links).toContain('/admin/store#public-profile')
+    expect(links).toContain('/admin/store/profile')
     expect(links).toContain('/admin/store/products')
     expect(links).toContain('/admin/shipping/zones')
     expect(links).toContain('/admin/store/promotions')

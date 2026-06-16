@@ -231,6 +231,7 @@ describe('admin store hub', () => {
     expect(document.body.textContent).toContain('Contacto')
     expect(document.body.textContent).not.toContain('Crear producto')
     expect(document.body.textContent).not.toContain('Configurar envíos')
+    expect(Array.from(document.querySelectorAll('a')).map((link) => link.getAttribute('href'))).toContain('/admin/store/profile')
 
     await cleanup()
   })
