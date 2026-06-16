@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { FormEvent, useCallback, useEffect, useState } from 'react'
-import type { StoreReadiness } from '@/api/contracts/v1/storeAdmin'
+import type { StoreCapabilities, StoreCapabilityPresetKey, StorePublicProfile, StoreReadiness } from '@/api/contracts/v1/storeAdmin'
 import { routes } from '@/core/constants/routes'
 import { useAuth } from '@/core/auth/authContext'
 import AdminLayout from '@/layouts/AdminLayout'
@@ -24,6 +24,37 @@ import { StoreReadinessChecklist } from '@/features/store/onboarding'
 import { readinessTitle } from '@/features/store/onboarding/readinessProfile'
 import StorePublicProfileForm from './StorePublicProfileForm'
 import { withPublicProfileCtas } from './profileRoutes'
+
+const firstRunPresetOptions: Array<{ label: string; preset: StoreCapabilityPresetKey }> = [
+  { label: 'Tienda online', preset: 'ONLINE_STORE' },
+  { label: 'Servicios', preset: 'SERVICES' },
+  { label: 'Portfolio', preset: 'PORTFOLIO' },
+  { label: 'Página simple', preset: 'SIMPLE_PAGE' }
+]
+
+function hasPublicProfileComplete(profile: StorePublicProfile | null) {
+  if (!profile) return false
+  const hasDescription = Boolean(profile.publicDescription?.trim())
+  const hasContact = Boolean(profile.publicEmail?.trim() || profile.publicPhone?.trim() || profile.publicWhatsapp?.trim())
+  return hasDescription && hasContact
+}
+
+function hasConfiguredCapabilities(capabilities: StoreCapabilities | null, readiness: StoreReadiness | null) {
+  return (capabilities?.enabled.length ?? readiness?.enabledCapabilities.length ?? 0) > 0
+}
+
+function shouldShowFirstRunExperience(
+  readiness: StoreReadiness | null,
+  profile: StorePublicProfile | null,
+  capabilities: StoreCapabilities | null,
+  productCount: number | null
+) {
+  if (!readiness || productCount === null) return false
+  return readiness.score < 20 &&
+    productCount === 0 &&
+    !hasPublicProfileComplete(profile) &&
+    !hasConfiguredCapabilities(capabilities, readiness)
+}
 
 const operationalAreas = [
   {
@@ -104,6 +135,12 @@ export default function AdminStoreScreen() {
   const [readiness, setReadiness] = useState<StoreReadiness | null>(null)
   const [readinessLoading, setReadinessLoading] = useState(true)
   const [readinessError, setReadinessError] = useState<string | null>(null)
+  const [publicProfile, setPublicProfile] = useState<StorePublicProfile | null>(null)
+  const [storeCapabilities, setStoreCapabilities] = useState<StoreCapabilities | null>(null)
+  const [firstRunLoading, setFirstRunLoading] = useState(true)
+  const [firstRunError, setFirstRunError] = useState<string | null>(null)
+  const [firstRunSuccess, setFirstRunSuccess] = useState(false)
+  const [applyingFirstRunPreset, setApplyingFirstRunPreset] = useState<StoreCapabilityPresetKey | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -162,9 +199,38 @@ export default function AdminStoreScreen() {
     }
   }, [loadReadiness])
 
+  const loadFirstRunData = useCallback(async (cancelled?: () => boolean) => {
+    try {
+      setFirstRunLoading(true)
+      setFirstRunError(null)
+      const [profileData, capabilitiesData] = await Promise.all([
+        storeAdminAdapter.getStorePublicProfile(authRequest),
+        storeAdminAdapter.getStoreCapabilities(authRequest)
+      ])
+      if (cancelled?.()) return
+      setPublicProfile(profileData)
+      setStoreCapabilities(capabilitiesData)
+    } catch (error) {
+      if (!cancelled?.()) setFirstRunError(error instanceof Error ? error.message : 'No se pudo preparar el onboarding inicial.')
+    } finally {
+      if (!cancelled?.()) setFirstRunLoading(false)
+    }
+  }, [authRequest])
+
+  useEffect(() => {
+    let cancelled = false
+    void loadFirstRunData(() => cancelled)
+    return () => {
+      cancelled = true
+    }
+  }, [loadFirstRunData])
+
   const canEditDiscovery = actorRole === 'OWNER'
   const readinessForDisplay = withPublicProfileCtas(readiness)
   const onboardingTitle = readinessTitle(readiness)
+  const totalProducts = analytics.summary ? analytics.summary.activeProducts + analytics.summary.inactiveProducts : null
+  const showFirstRunExperience = !firstRunLoading && shouldShowFirstRunExperience(readiness, publicProfile, storeCapabilities, totalProducts)
+  const showFirstRunCard = showFirstRunExperience || firstRunSuccess || firstRunError
 
   const handleDiscoverySubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -194,6 +260,21 @@ export default function AdminStoreScreen() {
     }
   }
 
+  const handleFirstRunPreset = async (preset: StoreCapabilityPresetKey) => {
+    try {
+      setApplyingFirstRunPreset(preset)
+      setFirstRunError(null)
+      const data = await storeAdminAdapter.applyStoreCapabilityPreset(preset, authRequest)
+      setStoreCapabilities(data)
+      setFirstRunSuccess(true)
+      void loadReadiness().catch(() => undefined)
+    } catch (error) {
+      setFirstRunError(error instanceof Error ? error.message : 'No se pudo aplicar el tipo de sitio.')
+    } finally {
+      setApplyingFirstRunPreset(null)
+    }
+  }
+
   return (
     <AdminLayout>
       <Breadcrumbs items={[{ label: 'Admin', href: routes.adminHome }, { label: 'Store' }]} />
@@ -211,6 +292,59 @@ export default function AdminStoreScreen() {
         description="Entrá a órdenes, fulfillments, miembros o shipping según la tarea. Este hub evita duplicar CRUDs y deja cada flujo en su pantalla natural."
         tone="store"
       />
+
+      {showFirstRunCard ? (
+        <Section title="Primeros pasos">
+          <Card
+            style={{
+              borderColor: theme.colors.actionPrimary,
+              background: theme.colors.bgSurfaceAlt
+            }}
+          >
+            {firstRunSuccess ? (
+              <div style={{ display: 'grid', gap: theme.spacing.lg }}>
+                <div role="status" style={{ fontSize: theme.typography.h3.size, fontWeight: 700, letterSpacing: 0 }}>
+                  Perfecto. Ahora vamos a preparar tu sitio.
+                </div>
+                <div>
+                  <Link to={routes.adminStorePublish} style={{ textDecoration: 'none' }}>
+                    <Button variant="primary">Ir a publicar sitio</Button>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gap: theme.spacing.lg }}>
+                <div style={{ display: 'grid', gap: theme.spacing.xs }}>
+                  <h2 style={{ margin: 0, fontSize: theme.typography.h2.size, letterSpacing: 0 }}>
+                    ¿Qué querés crear?
+                  </h2>
+                  <div style={{ color: theme.colors.textMuted }}>
+                    Elegí el punto de partida y seguimos con publicación.
+                  </div>
+                </div>
+                {firstRunError ? <ErrorState message={firstRunError} /> : null}
+                <div style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+                  {firstRunPresetOptions.map((option) => {
+                    const isApplying = applyingFirstRunPreset === option.preset
+                    return (
+                      <Button
+                        key={option.preset}
+                        type="button"
+                        variant="secondary"
+                        onClick={() => void handleFirstRunPreset(option.preset)}
+                        disabled={applyingFirstRunPreset !== null}
+                        aria-busy={isApplying}
+                      >
+                        {isApplying ? 'Aplicando...' : option.label}
+                      </Button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </Card>
+        </Section>
+      ) : null}
 
       <Section title="Stores activas">
         <Card>
@@ -268,7 +402,13 @@ export default function AdminStoreScreen() {
       <Section title="Información pública">
         <div id="public-profile" />
         <Card>
-          <StorePublicProfileForm authRequest={authRequest} onSaved={loadReadiness} />
+          <StorePublicProfileForm
+            authRequest={authRequest}
+            onSaved={() => {
+              void loadReadiness()
+              void loadFirstRunData()
+            }}
+          />
         </Card>
       </Section>
 

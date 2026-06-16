@@ -40,6 +40,65 @@ const publicProfile = {
   publicWhatsapp: '+54 9 221 555 0101'
 }
 
+const emptyPublicProfile = {
+  publicDescription: null,
+  publicEmail: null,
+  publicPhone: null,
+  publicWhatsapp: null
+}
+
+const storeCapabilities = {
+  enabled: ['ABOUT', 'CONTACT', 'PRODUCTS', 'SHIPPING', 'CHECKOUT'],
+  available: [
+    { key: 'ABOUT', label: 'Acerca de', description: 'Presentación pública' },
+    { key: 'CONTACT', label: 'Contacto', description: 'Canales públicos' },
+    { key: 'PRODUCTS', label: 'Productos', description: 'Catálogo público' },
+    { key: 'PROMOTIONS', label: 'Promociones', description: 'Cupones públicos' },
+    { key: 'SHIPPING', label: 'Envíos', description: 'Cobertura de entrega' },
+    { key: 'CHECKOUT', label: 'Checkout', description: 'Compra online' },
+    { key: 'GALLERY', label: 'Galería', description: 'Trabajos destacados' }
+  ]
+}
+
+const emptyStoreCapabilities = {
+  ...storeCapabilities,
+  enabled: []
+}
+
+const zeroAnalyticsSummary = {
+  storeId: 'store-1',
+  storeSlug: 'demo-store',
+  totalOrders: 0,
+  ordersByStatus: { PENDING_PAYMENT: 0, PAID: 0, CANCELLED: 0 },
+  confirmedSalesTotalAmount: 0,
+  confirmedSalesCurrency: 'ARS',
+  fulfillmentsByStatus: { PENDING: 0, DISPATCHED: 0, DELIVERED: 0, CANCELLED: 0 },
+  activeProducts: 0,
+  inactiveProducts: 0
+}
+
+const zeroOperationalReport = {
+  storeId: 'store-1',
+  storeSlug: 'demo-store',
+  rangeKey: '7d',
+  rangeLabel: 'Ultimos 7 dias',
+  from: '2026-03-12T00:00:00.000Z',
+  to: '2026-03-19T00:00:00.000Z',
+  timezone: 'America/Argentina/Buenos_Aires',
+  periodMetrics: {
+    ordersCreated: 0,
+    paymentsConfirmed: 0,
+    manualCancellations: 0,
+    stockConflicts: 0,
+    fulfillmentsCreated: 0,
+    confirmedSalesTotalAmount: 0,
+    confirmedSalesCurrency: 'ARS'
+  },
+  currentSnapshot: {
+    fulfillmentsByStatus: { PENDING: 0, DISPATCHED: 0, DELIVERED: 0, CANCELLED: 0 }
+  }
+}
+
 const readinessResponse = {
   score: 50,
   publishReady: false,
@@ -53,6 +112,20 @@ const readinessResponse = {
     { id: 'shipping_setup', capability: 'SHIPPING', label: 'Envíos', ctaLabel: 'Configurar envíos', ctaRoute: '/admin/shipping/zones', required: true, blocksPublishing: true, implemented: true, completed: false },
     { id: 'checkout_enabled', capability: 'CHECKOUT', label: 'Compras online', ctaLabel: 'Elegir tipo de sitio', ctaRoute: '/admin/store/modules', required: true, blocksPublishing: true, implemented: true, completed: true },
     { id: 'store_preview', capability: 'ABOUT', label: 'Vista previa de tu tienda', ctaLabel: 'Ver tienda', ctaRoute: '/public/demo-store', required: false, blocksPublishing: false, implemented: true, completed: true }
+  ]
+}
+
+const newStoreReadinessResponse = {
+  score: 10,
+  publishReady: false,
+  completedSteps: [],
+  pendingSteps: ['store_profile', 'first_product', 'checkout_enabled'],
+  blockers: ['store_profile', 'first_product'],
+  enabledCapabilities: [],
+  steps: [
+    { id: 'store_profile', capability: 'ABOUT', label: 'Perfil de tu tienda', ctaLabel: 'Revisar perfil', ctaRoute: '/admin/store', required: true, blocksPublishing: true, implemented: true, completed: false },
+    { id: 'first_product', capability: 'PRODUCTS', label: 'Primer producto', ctaLabel: 'Crear producto', ctaRoute: '/admin/store/products', required: true, blocksPublishing: true, implemented: true, completed: false },
+    { id: 'checkout_enabled', capability: 'CHECKOUT', label: 'Compras online', ctaLabel: 'Elegir tipo de sitio', ctaRoute: '/admin/store/modules', required: true, blocksPublishing: true, implemented: true, completed: false }
   ]
 }
 
@@ -125,6 +198,9 @@ describe('admin store hub', () => {
       },
       '/api/store/profile': {
         body: publicProfile
+      },
+      '/api/store/capabilities': {
+        body: storeCapabilities
       },
       '/api/store/readiness': {
         body: readinessResponse
@@ -217,6 +293,9 @@ describe('admin store hub', () => {
       '/api/store/profile': {
         body: publicProfile
       },
+      '/api/store/capabilities': {
+        body: storeCapabilities
+      },
       '/api/store/readiness': {
         body: simpleReadinessResponse
       }
@@ -277,6 +356,7 @@ describe('admin store hub', () => {
       },
       '/api/store/admin/discovery': { body: discoverySettings },
       '/api/store/readiness': { body: simpleReadinessResponse },
+      '/api/store/capabilities': { body: storeCapabilities },
       '/api/store/profile': (url, init) => {
         if (init?.method === 'PUT') {
           return {
@@ -380,6 +460,9 @@ describe('admin store hub', () => {
       '/api/store/profile': {
         body: publicProfile
       },
+      '/api/store/capabilities': {
+        body: storeCapabilities
+      },
       '/api/store/readiness': {
         body: readinessResponse
       }
@@ -471,6 +554,9 @@ describe('admin store hub', () => {
       '/api/store/profile': {
         body: publicProfile
       },
+      '/api/store/capabilities': {
+        body: storeCapabilities
+      },
       '/api/store/readiness': {
         body: readinessResponse
       }
@@ -488,5 +574,140 @@ describe('admin store hub', () => {
     expect(discoverySubmit.disabled).toBe(true)
 
     await cleanup()
+  })
+
+  it('shows the first run card for a new store', async () => {
+    mockFetch({
+      '/api/auth/me': { body: authMe },
+      '/api/store/analytics/summary': { body: zeroAnalyticsSummary },
+      '/api/store/analytics/report?range=7d': { body: zeroOperationalReport },
+      '/api/store/admin/discovery': { body: discoverySettings },
+      '/api/store/profile': { body: emptyPublicProfile },
+      '/api/store/capabilities': { body: emptyStoreCapabilities },
+      '/api/store/readiness': { body: newStoreReadinessResponse }
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('¿Qué querés crear?')
+    expect(document.body.textContent).toContain('Tienda online')
+    expect(document.body.textContent).toContain('Servicios')
+    expect(document.body.textContent).toContain('Portfolio')
+    expect(document.body.textContent).toContain('Página simple')
+
+    await cleanup()
+  })
+
+  it('does not show the first run card for a configured store', async () => {
+    mockFetch({
+      '/api/auth/me': { body: authMe },
+      '/api/store/analytics/summary': { body: zeroAnalyticsSummary },
+      '/api/store/analytics/report?range=7d': { body: zeroOperationalReport },
+      '/api/store/admin/discovery': { body: discoverySettings },
+      '/api/store/profile': { body: emptyPublicProfile },
+      '/api/store/capabilities': { body: storeCapabilities },
+      '/api/store/readiness': { body: { ...newStoreReadinessResponse, enabledCapabilities: storeCapabilities.enabled } }
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).not.toContain('¿Qué querés crear?')
+    expect(document.body.textContent).not.toContain('Perfecto. Ahora vamos a preparar tu sitio.')
+
+    await cleanup()
+  })
+
+  it('applies the selected first run preset through the existing endpoint', async () => {
+    const handler = mockFetch({
+      '/api/auth/me': { body: authMe },
+      '/api/store/analytics/summary': { body: zeroAnalyticsSummary },
+      '/api/store/analytics/report?range=7d': { body: zeroOperationalReport },
+      '/api/store/admin/discovery': { body: discoverySettings },
+      '/api/store/profile': { body: emptyPublicProfile },
+      '/api/store/capabilities': { body: emptyStoreCapabilities },
+      '/api/store/capability-presets/SERVICES/apply': { body: { ...storeCapabilities, enabled: ['ABOUT', 'CONTACT'] } },
+      '/api/store/readiness': { body: newStoreReadinessResponse }
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store')
+    await flush()
+    await flush()
+
+    await clickElement(Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Servicios')))
+    await flush()
+    await flush()
+
+    expect(handler.mock.calls.some(([url, init]) => String(url).includes('/api/store/capability-presets/SERVICES/apply') && init?.method === 'POST')).toBe(true)
+    expect(document.body.textContent).toContain('Perfecto. Ahora vamos a preparar tu sitio.')
+    expect(document.body.textContent).not.toContain('¿Qué querés crear?')
+
+    await cleanup()
+  })
+
+  it('navigates from first run completion to the publishing center', async () => {
+    mockFetch({
+      '/api/auth/me': { body: authMe },
+      '/api/store/analytics/summary': { body: zeroAnalyticsSummary },
+      '/api/store/analytics/report?range=7d': { body: zeroOperationalReport },
+      '/api/store/admin/discovery': { body: discoverySettings },
+      '/api/store/profile': { body: emptyPublicProfile },
+      '/api/store/capabilities': { body: emptyStoreCapabilities },
+      '/api/store/capability-presets/SIMPLE_PAGE/apply': { body: { ...storeCapabilities, enabled: ['ABOUT', 'CONTACT'] } },
+      '/api/store/readiness': { body: newStoreReadinessResponse }
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store')
+    await flush()
+    await flush()
+
+    await clickElement(Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Página simple')))
+    await flush()
+    await clickElement(Array.from(document.querySelectorAll('a')).find((link) => link.textContent?.includes('Ir a publicar sitio')))
+    await flush()
+
+    expect(window.location.pathname).toBe('/admin/store/publish')
+
+    await cleanup()
+  })
+
+  it('does not show the first run card again after a preset was chosen', async () => {
+    let presetChosen = false
+    const handler = mockFetch({
+      '/api/auth/me': { body: authMe },
+      '/api/store/analytics/summary': { body: zeroAnalyticsSummary },
+      '/api/store/analytics/report?range=7d': { body: zeroOperationalReport },
+      '/api/store/admin/discovery': { body: discoverySettings },
+      '/api/store/profile': { body: emptyPublicProfile },
+      '/api/store/capabilities': () => ({ body: presetChosen ? { ...storeCapabilities, enabled: ['ABOUT', 'CONTACT'] } : emptyStoreCapabilities }),
+      '/api/store/capability-presets/PORTFOLIO/apply': () => {
+        presetChosen = true
+        return { body: { ...storeCapabilities, enabled: ['ABOUT', 'CONTACT', 'GALLERY'] } }
+      },
+      '/api/store/readiness': { body: newStoreReadinessResponse }
+    })
+
+    const firstRender = await renderAppAt('/admin/store')
+    await flush()
+    await flush()
+
+    await clickElement(Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Portfolio')))
+    await flush()
+    await flush()
+    expect(handler.mock.calls.some(([url, init]) => String(url).includes('/api/store/capability-presets/PORTFOLIO/apply') && init?.method === 'POST')).toBe(true)
+    expect(document.body.textContent).toContain('Perfecto. Ahora vamos a preparar tu sitio.')
+
+    await firstRender.cleanup()
+    const secondRender = await renderAppAt('/admin/store')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).not.toContain('¿Qué querés crear?')
+    expect(document.body.textContent).not.toContain('Perfecto. Ahora vamos a preparar tu sitio.')
+
+    await secondRender.cleanup()
   })
 })
