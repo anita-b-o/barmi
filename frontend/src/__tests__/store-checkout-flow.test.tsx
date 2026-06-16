@@ -117,8 +117,10 @@ describe('store checkout flow', () => {
     expect(document.body.textContent).toContain('Zona')
     expect(document.body.textContent).toContain('Seguir esta orden')
     expect(document.body.textContent).toContain('Ver órdenes')
+    expect(document.body.textContent).toContain('Volver a la tienda')
     expect(Array.from(document.querySelectorAll('a')).some((link) => link.getAttribute('href') === '/store/orders/order-1')).toBe(true)
     expect(Array.from(document.querySelectorAll('a')).some((link) => link.getAttribute('href') === '/store/orders')).toBe(true)
+    expect(Array.from(document.querySelectorAll('a')).some((link) => link.getAttribute('href') === '/public/demo-store')).toBe(true)
 
     const payButton = Array.from(document.querySelectorAll('button'))
       .find((btn) => btn.textContent?.includes('Reintentar pago'))
@@ -128,6 +130,83 @@ describe('store checkout flow', () => {
     await flush()
 
     expect(openSpy).toHaveBeenCalledWith('https://checkout.mercadopago.example/store', '_self')
+
+    await cleanup()
+  })
+
+  it('keeps the real store slug when returning from checkout success', async () => {
+    window.localStorage.setItem('barmi.cart.v1', JSON.stringify({
+      storeSlug: 'beta-store',
+      items: [
+        { productId: 'p1', name: 'Producto 1', priceCents: 1000, qty: 1 }
+      ]
+    }))
+    mockFetch({
+      '/api/public/stores/beta-store/products': {
+        body: [
+          { id: 'p1', slug: 'p1', name: 'Producto 1', sku: 'SKU1', priceCents: 1000, stockQuantity: 4, isAvailable: true }
+        ]
+      },
+      '/api/public/stores/beta-store': {
+        body: {
+          slug: 'beta-store',
+          id: 's-beta',
+          name: 'Beta Store',
+          promotions: []
+        }
+      },
+      '/api/store/shipping/quote': {
+        body: {
+          postalCode: '1900',
+          type: 'EXACT',
+          zoneId: 'zone-1',
+          costAmount: 5,
+          currency: 'ARS'
+        }
+      },
+      '/api/store/checkout': {
+        body: {
+          totalAmount: 15,
+          originalAmount: 15,
+          discountAmount: 0,
+          appliedCouponCode: null,
+          createdAt: '2026-03-10T12:00:00.000Z',
+          shippingZoneId: 'zone-1',
+          orderId: 'order-beta',
+          shippingCurrency: 'ARS',
+          shippingCostAmount: 5,
+          currency: 'ARS',
+          shippingPostalCode: '1900',
+          subtotalAmount: 10,
+          status: 'PENDING_PAYMENT'
+        }
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/store/checkout')
+    await flush()
+    await flush()
+
+    const emailInput = Array.from(document.querySelectorAll('input'))
+      .find((input) => input.getAttribute('type') === 'email') as HTMLInputElement | undefined
+    expect(emailInput).toBeTruthy()
+    await setInputElementValue(emailInput!, 'buyer@example.com')
+
+    const quoteButton = Array.from(document.querySelectorAll('button'))
+      .find((btn) => btn.textContent?.includes('Calcular envío'))
+    await clickElement(quoteButton)
+    await flush()
+
+    const createButton = Array.from(document.querySelectorAll('button'))
+      .find((btn) => btn.textContent?.includes('Crear orden y continuar'))
+    await clickElement(createButton)
+    await flush()
+    await flush()
+
+    expect(window.location.pathname).toBe('/store/checkout/success')
+    const backToStoreLink = Array.from(document.querySelectorAll('a'))
+      .find((link) => link.textContent?.includes('Volver a la tienda'))
+    expect(backToStoreLink?.getAttribute('href')).toBe('/public/beta-store')
 
     await cleanup()
   })

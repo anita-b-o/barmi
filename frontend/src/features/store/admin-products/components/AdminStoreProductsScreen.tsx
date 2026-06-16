@@ -392,8 +392,8 @@ export default function AdminStoreProductsScreen() {
 
       <ContextHeader
         badge="Catálogo"
-        title="Gestión operativa de productos STORE"
-        description="El alta, edición y desactivación se resuelven sobre la store actual. El catálogo público muestra productos activos y marca la disponibilidad según stock."
+        title="Prepará los productos que se van a ver en tu tienda"
+        description="El catálogo público muestra productos activos y avisa disponibilidad según stock. Los precios se cargan en centavos para respetar el contrato actual."
       />
 
       {error && (
@@ -435,12 +435,12 @@ export default function AdminStoreProductsScreen() {
               </Card>
             ) : (
               <>
-                <FormField label="SKU" hint="Identificador interno único por store">
+                <FormField label="Código interno" hint="Identificador único para tu tienda. Puede ser el SKU que ya uses.">
                   <TextInput
                     value={form.sku}
                     onChange={(event) => setForm((prev) => ({ ...prev, sku: event.target.value }))}
                     placeholder="SKU-CAFE"
-                    aria-label="SKU"
+                    aria-label="Código interno"
                     autoComplete="off"
                   />
                 </FormField>
@@ -452,7 +452,7 @@ export default function AdminStoreProductsScreen() {
                     aria-label="Nombre"
                   />
                 </FormField>
-                <FormField label="Precio en centavos" hint="Se mantiene el contrato actual de priceCents">
+                <FormField label="Precio (centavos)" hint="Ejemplo: 1500 representa $15,00.">
                   <TextInput
                     value={form.priceCents}
                     onChange={(event) => setForm((prev) => ({ ...prev, priceCents: event.target.value }))}
@@ -546,7 +546,7 @@ export default function AdminStoreProductsScreen() {
             </div>
           ) : sortedProducts.length === 0 ? (
             <div role="status" aria-live="polite">
-              <EmptyState title="Todavía no hay productos" description="Creá el primer producto para habilitar la gestión del catálogo store." />
+              <EmptyState title="Todavía no hay productos" description="Creá el primer producto para que la tienda online tenga algo visible y el paso de publicación pueda completarse." />
             </div>
           ) : (
             <DataTable

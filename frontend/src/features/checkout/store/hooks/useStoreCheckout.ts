@@ -113,7 +113,8 @@ export function useStoreCheckout() {
       const state: StoreCheckoutSuccessState = {
         order,
         quote,
-        submittedItems: cart.items
+        submittedItems: cart.items,
+        storeSlug: currentStoreSlug ?? undefined
       }
       setSuccessState(state)
       setError(null)
@@ -275,7 +276,8 @@ export function useStoreCheckout() {
     return {
       order,
       quote,
-      submittedItems
+      submittedItems,
+      storeSlug: cart.storeSlug ?? undefined
     }
   }
 

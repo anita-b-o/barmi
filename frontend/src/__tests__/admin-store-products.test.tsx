@@ -108,7 +108,7 @@ describe('admin store products', () => {
     expect(document.body.textContent).toContain('Cafe tostado')
     expect(document.body.textContent).toContain('Te negro')
     expect(document.body.textContent).toContain('Categorías STORE')
-    expect(document.querySelector('input[aria-label="SKU"]')).toBeTruthy()
+    expect(document.querySelector('input[aria-label="Código interno"]')).toBeTruthy()
     expect(document.querySelector('input[aria-label="Nombre"]')).toBeTruthy()
     expect(document.querySelector('input[aria-label="Precio en centavos"]')).toBeTruthy()
     expect(document.querySelector('input[aria-label="Stock disponible"]')).toBeTruthy()

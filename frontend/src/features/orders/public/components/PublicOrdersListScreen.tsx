@@ -4,6 +4,7 @@ import { storeAdapter } from '../../../../api/adapters/storeAdapter'
 import { isApiError } from '../../../../api/client/errors'
 import type { StoreOrdersPage } from '../../../../api/contracts/v1/store'
 import { routes } from '@/core/constants/routes'
+import { getBrowserTenantContext } from '@/core/tenant'
 import { formatDate, formatMoney } from '@/core/utils/format'
 import PublicStoreLayout from '@/layouts/PublicStoreLayout'
 import { Breadcrumbs } from '@/components/navigation'
@@ -46,6 +47,8 @@ function getOrderStatusCopy(status: string, hasOperationalIssue: boolean) {
 }
 
 export default function OrdersListScreen() {
+  const tenant = getBrowserTenantContext()
+  const storeHref = tenant.slug ? routes.publicStore(tenant.slug) : routes.publicStore('demo-store')
   const [data, setData] = useState<StoreOrdersPage | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -84,7 +87,7 @@ export default function OrdersListScreen() {
 
   return (
     <PublicStoreLayout>
-      <Breadcrumbs items={[{ label: 'Store', href: routes.publicStore('demo-store') }, { label: 'Mis órdenes' }]} />
+      <Breadcrumbs items={[{ label: 'Store', href: storeHref }, { label: 'Mis órdenes' }]} />
       <div style={{ display: 'grid', gap: theme.spacing.xl, paddingBottom: theme.spacing.xxxl }}>
         <EcosystemHeroSection
           eyebrow="Store orders"
@@ -97,7 +100,7 @@ export default function OrdersListScreen() {
             </>
           )}
           actions={(
-            <Link to={routes.publicStore('demo-store')} style={{ textDecoration: 'none' }}>
+            <Link to={storeHref} style={{ textDecoration: 'none' }}>
               <Button variant="secondary">Volver a la tienda</Button>
             </Link>
           )}
@@ -127,7 +130,7 @@ export default function OrdersListScreen() {
                 title="Todavía no tenés órdenes"
                 description="Cuando cierres una compra vas a poder volver acá para seguir pago, estado y entrega sin perderte."
                 actionLabel="Volver a la tienda"
-                onAction={() => window.location.assign(routes.publicStore('demo-store'))}
+                onAction={() => window.location.assign(storeHref)}
               />
             )}
             <div style={{ display: 'grid', gap: theme.spacing.lg }}>

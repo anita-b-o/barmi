@@ -77,8 +77,8 @@ const filterGridLayout: CSSProperties = {
 }
 
 const shippingZoneTypeOptions = [
-  { value: 'EXACT', label: 'EXACT' },
-  { value: 'RANGE', label: 'RANGE' }
+  { value: 'EXACT', label: 'Un código postal' },
+  { value: 'RANGE', label: 'Rango de códigos postales' }
 ]
 
 const zoneFilterOptions = [
@@ -288,9 +288,9 @@ export default function AdminStoreScreen() {
 
   const typeBadge = (type: StoreShippingZoneType) => {
     if (type === 'EXACT') {
-      return <Badge variant="info">EXACT</Badge>
+      return <Badge variant="info">Código postal</Badge>
     }
-    return <Badge variant="neutral">RANGE</Badge>
+    return <Badge variant="neutral">Rango</Badge>
   }
 
   const tableRows = filteredZones.map((zone) => ([
@@ -327,8 +327,8 @@ export default function AdminStoreScreen() {
 
       <ContextHeader
         badge="Cobertura"
-        title="Configuración de zonas de envío de la store"
-        description="La acción dominante es crear una nueva zona. El listado queda como soporte para revisar o eliminar configuraciones existentes."
+        title="Definí dónde entregás y cuánto cuesta"
+        description="Creá una zona por código postal o por rango. Esta configuración se usa en checkout para calcular el total antes de confirmar la orden."
       />
 
       {error && (
@@ -405,7 +405,7 @@ export default function AdminStoreScreen() {
           <div role="status" aria-live="polite">
             <EmptyState
               title={hasActiveFilters ? 'No hay zonas que coincidan con los filtros' : 'No hay zonas configuradas'}
-              description={hasActiveFilters ? 'Probá cambiando la búsqueda o el tipo.' : undefined}
+              description={hasActiveFilters ? 'Probá cambiando la búsqueda o el tipo.' : 'Creá al menos una zona para que una tienda online pueda cotizar envíos en checkout.'}
             />
           </div>
         )}

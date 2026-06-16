@@ -65,11 +65,12 @@ export default function StoreCheckoutSuccessScreen() {
   const location = useLocation()
   const successState = location.state as StoreCheckoutSuccessState | null
   const detailHref = successState ? routes.storeOrderDetailPath(successState.order.orderId) : routes.storeOrders
+  const storeHref = successState?.storeSlug ? routes.publicStore(successState.storeSlug) : routes.storeOrders
   const hasDiscount = Boolean(successState && successState.order.discountAmount > 0)
 
   return (
     <PublicStoreLayout>
-      <Breadcrumbs items={[{ label: 'Store', href: routes.publicStore('demo-store') }, { label: 'Checkout' }, { label: 'Confirmación' }]} />
+      <Breadcrumbs items={[{ label: 'Store', href: storeHref }, { label: 'Checkout' }, { label: 'Confirmación' }]} />
 
       {!successState ? (
         <EcosystemSurfaceSection>
@@ -100,6 +101,11 @@ export default function StoreCheckoutSuccessScreen() {
                 <Link to={routes.storeOrders} style={successScreenStyles.actionLink}>
                   <Button variant="secondary">Ver órdenes</Button>
                 </Link>
+                {successState.storeSlug ? (
+                  <Link to={routes.publicStore(successState.storeSlug)} style={successScreenStyles.actionLink}>
+                    <Button variant="ghost">Volver a la tienda</Button>
+                  </Link>
+                ) : null}
               </>
             )}
             aside={(

@@ -25,6 +25,7 @@ export type StoreCheckoutSuccessState = {
   order: StoreCheckoutRes
   quote: StoreShippingQuoteRes | null
   submittedItems: StoreCartItemViewModel[]
+  storeSlug?: string
 }
 
 export type StoreCouponPreviewState = {

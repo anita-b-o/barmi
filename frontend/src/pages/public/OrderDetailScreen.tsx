@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { routes } from '@/core/constants/routes'
+import { getBrowserTenantContext } from '@/core/tenant'
 import { useStoreOrderDetail, StorePaymentInitiateAction } from '@/features/orders'
 import { formatDate, formatMoney } from '@/core/utils/format'
 import PublicStoreLayout from '@/layouts/PublicStoreLayout'
@@ -119,6 +120,8 @@ function getOrderStage(order: {
 export default function OrderDetailScreen() {
   const { orderId } = useParams()
   const [searchParams] = useSearchParams()
+  const tenant = getBrowserTenantContext()
+  const storeHref = tenant.slug ? routes.publicStore(tenant.slug) : routes.publicStore('demo-store')
   const order = useStoreOrderDetail(orderId)
   const redirectStatus = (searchParams.get('status') ?? searchParams.get('collection_status') ?? '').toLowerCase()
   const paymentId = searchParams.get('payment_id') ?? searchParams.get('collection_id')
@@ -145,7 +148,7 @@ export default function OrderDetailScreen() {
     <PublicStoreLayout>
       <Breadcrumbs
         items={[
-          { label: 'Store', href: routes.publicStore('demo-store') },
+          { label: 'Store', href: storeHref },
           { label: 'Mis órdenes', href: routes.storeOrders },
           { label: orderId ?? 'Detalle' }
         ]}

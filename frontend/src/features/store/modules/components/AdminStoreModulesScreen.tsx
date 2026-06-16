@@ -140,7 +140,7 @@ export default function AdminStoreModulesScreen() {
 
   return (
     <AdminLayout>
-      <Breadcrumbs items={[{ label: 'Admin', href: routes.adminHome }, { label: 'Store', href: routes.adminStore }, { label: 'Modulos' }]} />
+      <Breadcrumbs items={[{ label: 'Admin', href: routes.adminHome }, { label: 'Store', href: routes.adminStore }, { label: 'Módulos' }]} />
       <PageHeader
         title="Partes de tu tienda"
         eyebrow="Store admin"
