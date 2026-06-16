@@ -22,6 +22,7 @@ export const routes = {
   ecosystemOrderDetail: '/ecosystem/orders/:orderId',
   ecosystemOrderDetailPath: (orderId: string) => `/ecosystem/orders/${orderId}`,
   adminHome: '/admin',
+  adminBeta: '/admin/beta',
   adminSaas: '/admin/saas',
   adminOrders: '/admin/orders',
   adminOrderDetailPattern: '/admin/orders/:orderId',

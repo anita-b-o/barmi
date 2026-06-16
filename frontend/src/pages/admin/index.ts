@@ -7,6 +7,7 @@ export { default as AdminEcosystemOrdersListScreen } from './AdminEcosystemOrder
 export { default as AdminEcosystemOrderDetailScreen } from './AdminEcosystemOrderDetailScreen'
 export { default as AdminEcosystemPromotionsScreen } from './AdminEcosystemPromotionsScreen'
 export { default as AdminHomeScreen } from './AdminHomeScreen'
+export { default as AdminBetaLaunchToolkitScreen } from './AdminBetaLaunchToolkitScreen'
 export { default as AdminSaasScreen } from './AdminSaasScreen'
 export { default as AdminStoreOrderDetailScreen } from './AdminStoreOrderDetailScreen'
 export { default as AdminStoreOrdersListScreen } from './AdminStoreOrdersListScreen'

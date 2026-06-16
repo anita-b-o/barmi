@@ -51,7 +51,7 @@ public class StoreReadinessService {
         return evaluate(store);
     }
 
-    StoreReadinessDto evaluate(Store store) {
+    public StoreReadinessDto evaluate(Store store) {
         UUID storeId = store.getId();
         EnumSet<StoreCapability> enabled = enabledCapabilities(storeId);
         boolean ecommerce = enabled.contains(StoreCapability.PRODUCTS)

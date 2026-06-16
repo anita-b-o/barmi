@@ -268,8 +268,10 @@ Roadmap recomendado:
 
 - planes SaaS persistidos con límites declarativos (`maxProducts`, `analyticsEnabled`, `seoEnabled`)
 - suscripción única por store, con default `FREE` / `ACTIVE` para stores nuevas
+- toolkit operativo de beta cerrada en `/admin/beta` para revisar stores por readiness, estado de publicación, capabilities y fecha de creación
 - administración autenticada en `/admin/saas`
 - endpoints backend:
+- `GET /api/admin/beta/stores`
 - `GET /api/admin/saas/plans`
 - `POST /api/admin/saas/plans`
 - `PUT /api/admin/saas/plans/{planId}`
@@ -587,6 +589,7 @@ SEO público básico:
 Endpoints operativos internos de beta:
 
 - `GET /api/admin/beta/summary`
+- `GET /api/admin/beta/stores`
 - `GET /api/ecosystem/shipping/quote`
 - `POST /api/ecosystem/checkout`
 - `GET /api/ecosystem/orders`

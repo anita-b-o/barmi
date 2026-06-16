@@ -77,6 +77,20 @@ export type BetaMetricsSummary = {
   }>
 }
 
+export type BetaStoreStatus = 'READY' | 'IN_PROGRESS' | 'NOT_STARTED'
+
+export type BetaStore = {
+  storeId: string
+  storeSlug: string
+  storeName: string
+  readinessScore: number
+  publishReady: boolean
+  betaStatus: BetaStoreStatus
+  appearancePreset: string
+  capabilitiesEnabled: string[]
+  createdAt: string
+}
+
 export const betaAdapter = {
   submitTelemetry: async (payload: BetaTelemetryRequest) => {
     return requestJson('/api/public/beta/telemetry', {
@@ -92,5 +106,8 @@ export const betaAdapter = {
   },
   getMetricsSummary: async (auth: AuthRequestContext) => {
     return requestJsonWithAuth<BetaMetricsSummary>('/api/admin/beta/summary', {}, {}, auth)
+  },
+  getStores: async (auth: AuthRequestContext) => {
+    return requestJsonWithAuth<BetaStore[]>('/api/admin/beta/stores', {}, {}, auth)
   }
 }

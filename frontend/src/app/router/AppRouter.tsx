@@ -34,6 +34,7 @@ const EcosystemOrdersListScreen = lazyWithPreload(() => import('@/pages/ecosyste
 const EcosystemOrderDetailScreen = lazyWithPreload(() => import('@/pages/ecosystem/EcosystemOrderDetailScreen'))
 
 const AdminHomeScreen = lazyWithPreload(() => import('@/pages/admin/AdminHomeScreen'))
+const AdminBetaLaunchToolkitScreen = lazyWithPreload(() => import('@/pages/admin/AdminBetaLaunchToolkitScreen'))
 const AdminSaasScreen = lazyWithPreload(() => import('@/pages/admin/AdminSaasScreen'))
 const AdminStoreOrdersListScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreOrdersListScreen'))
 const FulfillmentListScreen = lazyWithPreload(() => import('@/pages/admin/FulfillmentListScreen'))
@@ -86,6 +87,7 @@ function collectRoutePreloaders(pathname: string) {
 
   if (pathname === routes.login) return [LoginScreen]
   if (pathname === routes.adminHome) return [AdminHomeScreen]
+  if (pathname === routes.adminBeta) return [AdminBetaLaunchToolkitScreen]
   if (pathname === routes.adminSaas) return [AdminSaasScreen]
   if (pathname === routes.adminOrders) return [AdminStoreOrdersListScreen]
   if (pathname.startsWith('/admin/orders/')) return [AdminStoreOrderDetailScreen]
@@ -188,6 +190,14 @@ function RoutedScreens() {
             element={
               <RequireAuth>
                 <AdminSaasScreen />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={routes.adminBeta}
+            element={
+              <RequireAuth>
+                <AdminBetaLaunchToolkitScreen />
               </RequireAuth>
             }
           />

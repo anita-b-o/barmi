@@ -12,6 +12,7 @@ import { BetaFeedbackWidget } from '@/features/beta'
 type AdminScope = 'home' | 'platform' | 'store' | 'ecosystem'
 
 function resolveScope(pathname: string): AdminScope {
+  if (pathname.startsWith('/admin/beta')) return 'platform'
   if (pathname.startsWith('/admin/saas')) return 'platform'
   if (pathname.startsWith('/admin/ecosystem')) return 'ecosystem'
   if (
@@ -62,6 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { to: routes.adminEcosystemShipping, label: 'Shipping zones' }
   ]
   const platformLinks = [
+    { to: routes.adminBeta, label: 'Beta Toolkit', end: true },
     { to: routes.adminSaas, label: 'Planes SaaS', end: true }
   ]
   const scopedLinks = scope === 'ecosystem' ? ecosystemLinks : scope === 'store' ? storeLinks : scope === 'platform' ? platformLinks : []

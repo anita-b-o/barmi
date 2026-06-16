@@ -28,6 +28,7 @@ import {
   FulfillmentDetailScreen,
   FulfillmentListScreen,
   MembersListScreen,
+  AdminBetaLaunchToolkitScreen,
   AdminHomeScreen,
   AdminSaasScreen,
   AdminStoreScreen
@@ -81,6 +82,14 @@ export default function TestApp() {
           element={
             <RequireAuth>
               <AdminSaasScreen />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path={routes.adminBeta}
+          element={
+            <RequireAuth>
+              <AdminBetaLaunchToolkitScreen />
             </RequireAuth>
           }
         />
