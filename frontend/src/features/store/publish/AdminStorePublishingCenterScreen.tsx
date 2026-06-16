@@ -33,6 +33,19 @@ type PublishSection = {
   badgeVariant?: 'neutral' | 'success' | 'warning' | 'info'
 }
 
+type PublicSiteCapability = {
+  capability: StoreCapability
+  label: string
+}
+
+const publicSiteCapabilities: PublicSiteCapability[] = [
+  { capability: 'ABOUT', label: 'Sobre nosotros' },
+  { capability: 'CONTACT', label: 'Contacto' },
+  { capability: 'PRODUCTS', label: 'Productos' },
+  { capability: 'PROMOTIONS', label: 'Promociones' },
+  { capability: 'CHECKOUT', label: 'Compras online' }
+]
+
 const appearanceLabels: Record<StoreAppearancePreset, string> = {
   MODERN: 'Moderna',
   CLASSIC: 'Clásica',
@@ -78,6 +91,123 @@ function PublishCenterSectionCard({ section }: { section: PublishSection }) {
         ) : null}
       </div>
     </Card>
+  )
+}
+
+function buildPublicStoreUrl(slug: string) {
+  return new URL(routes.publicStore(slug), window.location.origin).toString()
+}
+
+type PublicSiteDashboardProps = {
+  publicUrl: string | null
+  publishReady: boolean
+  enabledCapabilities: Set<StoreCapability>
+}
+
+function PublicSiteDashboard({ publicUrl, publishReady, enabledCapabilities }: PublicSiteDashboardProps) {
+  const [copyFeedback, setCopyFeedback] = useState('')
+
+  async function handleCopyLink() {
+    if (!publicUrl) return
+    await navigator.clipboard.writeText(publicUrl)
+    setCopyFeedback('Enlace copiado')
+  }
+
+  return (
+    <Section title="Tu sitio público">
+      <Card>
+        <div style={{ display: 'grid', gap: theme.spacing.lg }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div style={{ display: 'grid', gap: theme.spacing.xs, minWidth: 0 }}>
+              <div style={{ fontSize: theme.typography.caption.size, color: theme.colors.textMuted, fontWeight: 700 }}>
+                URL pública actual
+              </div>
+              {publicUrl ? (
+                <a
+                  href={publicUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: theme.colors.brand, fontWeight: 700, overflowWrap: 'anywhere' }}
+                >
+                  {publicUrl}
+                </a>
+              ) : (
+                <p style={{ margin: 0, color: theme.colors.textMuted, lineHeight: 1.5 }}>
+                  Todavía no hay un slug público disponible para esta store.
+                </p>
+              )}
+            </div>
+            <Badge variant={publishReady ? 'success' : 'warning'}>
+              {publishReady ? 'Publicado' : 'Faltan pasos para publicar'}
+            </Badge>
+          </div>
+
+          <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+            {publicUrl ? (
+              <a
+                href={publicUrl}
+                target="_blank"
+                rel="noreferrer"
+                style={{ textDecoration: 'none' }}
+              >
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: 44,
+                    padding: '11px 16px',
+                    borderRadius: theme.radius.md,
+                    border: `1px solid ${theme.colors.borderDefault}`,
+                    background: theme.colors.bgSurfaceAlt,
+                    color: theme.colors.textPrimary,
+                    fontSize: theme.typography.label.size,
+                    fontWeight: 600,
+                    letterSpacing: 0,
+                    textAlign: 'center'
+                  }}
+                >
+                  Abrir sitio público
+                </span>
+              </a>
+            ) : null}
+            <Button type="button" variant="secondary" onClick={handleCopyLink} disabled={!publicUrl}>
+              Copiar enlace
+            </Button>
+          </div>
+          <div role="status" aria-live="polite" style={{ minHeight: 20, color: theme.colors.success, fontWeight: 700 }}>
+            {copyFeedback}
+          </div>
+
+          <div style={{ display: 'grid', gap: theme.spacing.sm }}>
+            <h3 style={{ margin: 0, fontSize: theme.typography.h3.size, letterSpacing: 0 }}>Secciones visibles</h3>
+            <div style={{ display: 'grid', gap: theme.spacing.sm, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+              {publicSiteCapabilities.map((item) => {
+                const enabled = enabledCapabilities.has(item.capability)
+                return (
+                  <div
+                    key={item.capability}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: theme.spacing.sm,
+                      padding: theme.spacing.sm,
+                      border: `1px solid ${theme.colors.borderDefault}`,
+                      borderRadius: theme.radius.md,
+                      background: theme.colors.bgSurfaceAlt
+                    }}
+                  >
+                    <span style={{ fontWeight: 700 }}>{item.label}</span>
+                    <Badge variant={enabled ? 'success' : 'neutral'}>{enabled ? 'Visible' : 'Oculto'}</Badge>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </Card>
+    </Section>
   )
 }
 
@@ -135,6 +265,7 @@ export default function AdminStorePublishingCenterScreen() {
   const activeStoreSlug = memberships.stores.find((membership) => membership.status === 'ACTIVE')?.storeSlug
   const previewRoute = readiness?.steps.find((step) => step.ctaRoute?.startsWith('/public/'))?.ctaRoute ?? null
   const publicStoreHref = previewRoute ?? (activeStoreSlug ? routes.publicStore(activeStoreSlug) : null)
+  const publicSiteUrl = activeStoreSlug ? buildPublicStoreUrl(activeStoreSlug) : null
 
   const sections: PublishSection[] = [
     {
@@ -236,6 +367,12 @@ export default function AdminStorePublishingCenterScreen() {
 
       {!loading && !error ? (
         <>
+          <PublicSiteDashboard
+            publicUrl={publicSiteUrl}
+            publishReady={Boolean(readiness?.publishReady)}
+            enabledCapabilities={capabilitySet}
+          />
+
           <Section title="Pasos para publicar">
             <div style={{ display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
               {sections.map((section) => (

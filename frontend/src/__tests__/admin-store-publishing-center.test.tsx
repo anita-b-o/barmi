@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { StoreAppearancePreset, StoreCapability, StoreReadiness } from '@/api/contracts/v1/storeAdmin'
-import { clearStorage, flush, mockFetch, renderAppAt, setAuthSession } from '../test-utils/testUtils'
+import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setAuthSession } from '../test-utils/testUtils'
 
 const authMe = {
   userId: 'u1',
@@ -74,9 +74,10 @@ function mockPublishingCenter(payload: {
   readiness: StoreReadiness
   capabilities: StoreCapability[]
   appearance?: StoreAppearancePreset
+  auth?: typeof authMe
 }) {
   mockFetch({
-    '/api/auth/me': { body: authMe },
+    '/api/auth/me': { body: payload.auth ?? authMe },
     '/api/store/readiness': { body: payload.readiness },
     '/api/store/capabilities': {
       body: {
@@ -125,6 +126,9 @@ describe('admin store publishing center', () => {
     expect(document.body.textContent).toContain('Completá estos pasos para publicar tu presencia digital.')
     expect(document.body.textContent).toContain('50% completado')
     expect(document.body.textContent).toContain('Faltan pasos')
+    expect(document.body.textContent).toContain('Tu sitio público')
+    expect(document.body.textContent).toContain(`${window.location.origin}/public/demo-store`)
+    expect(document.body.textContent).toContain('Faltan pasos para publicar')
     expect(document.body.textContent).toContain('Tienda pública')
     expect(document.body.textContent).toContain('Ver vista previa')
 
@@ -177,6 +181,7 @@ describe('admin store publishing center', () => {
     expect(document.body.textContent).toContain('Portfolio')
     expect(document.body.textContent).toContain('100% completado')
     expect(document.body.textContent).toContain('Lista para publicar')
+    expect(document.body.textContent).toContain('Publicado')
     expect(document.body.textContent).toContain('Abrir sitio público')
     expect(document.body.textContent).not.toContain('Administrar productos')
     expect(document.body.textContent).not.toContain('Configurar envíos')
@@ -198,6 +203,100 @@ describe('admin store publishing center', () => {
     expect(document.body.textContent).toContain('Blog, galería y reservas están pensados para una etapa posterior.')
     expect(document.body.textContent).not.toContain('Neutral')
     expect(document.body.textContent).not.toContain('No cuenta para el score.')
+
+    await cleanup()
+  })
+
+  it('renders public site capabilities as visual status only', async () => {
+    mockPublishingCenter({
+      readiness: ecommerceReadiness,
+      capabilities: ['ABOUT', 'CONTACT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT']
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store/publish')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Secciones visibles')
+    expect(document.body.textContent).toContain('Sobre nosotros')
+    expect(document.body.textContent).toContain('Contacto')
+    expect(document.body.textContent).toContain('Productos')
+    expect(document.body.textContent).toContain('Promociones')
+    expect(document.body.textContent).toContain('Compras online')
+    expect(document.querySelectorAll('button')).not.toHaveLength(0)
+    expect(document.body.textContent).not.toContain('Editar secciones visibles')
+
+    await cleanup()
+  })
+
+  it('opens the public site in a new tab from the dashboard', async () => {
+    mockPublishingCenter({
+      readiness: simpleReadiness,
+      capabilities: ['ABOUT', 'CONTACT']
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store/publish')
+    await flush()
+    await flush()
+
+    const publicSiteLink = Array.from(document.querySelectorAll('a'))
+      .find((link) => link.textContent?.includes('Abrir sitio público'))
+
+    expect(publicSiteLink?.getAttribute('href')).toBe(`${window.location.origin}/public/demo-store`)
+    expect(publicSiteLink?.getAttribute('target')).toBe('_blank')
+    expect(publicSiteLink?.getAttribute('rel')).toBe('noreferrer')
+
+    await cleanup()
+  })
+
+  it('copies the public site link with accessible feedback', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText }
+    })
+    mockPublishingCenter({
+      readiness: simpleReadiness,
+      capabilities: ['ABOUT', 'CONTACT']
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store/publish')
+    await flush()
+    await flush()
+
+    const copyButton = Array.from(document.querySelectorAll('button'))
+      .find((button) => button.textContent === 'Copiar enlace')
+    await clickElement(copyButton)
+    await flush()
+
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/public/demo-store`)
+    expect(document.querySelector('[role="status"]')?.textContent).toContain('Enlace copiado')
+
+    await cleanup()
+  })
+
+  it('renders a reasonable fallback when the active store has no slug', async () => {
+    mockPublishingCenter({
+      readiness: simpleReadiness,
+      capabilities: ['ABOUT', 'CONTACT'],
+      auth: {
+        ...authMe,
+        memberships: {
+          stores: [{ storeId: 'store-1', storeSlug: '', role: 'OWNER', status: 'ACTIVE' }],
+          ecosystems: []
+        }
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store/publish')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Todavía no hay un slug público disponible para esta store.')
+    expect(document.body.textContent).not.toContain(`${window.location.origin}/public/demo-store`)
+    const copyButton = Array.from(document.querySelectorAll('button'))
+      .find((button) => button.textContent === 'Copiar enlace')
+    expect(copyButton?.disabled).toBe(true)
 
     await cleanup()
   })
