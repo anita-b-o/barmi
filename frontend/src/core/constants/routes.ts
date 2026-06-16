@@ -35,6 +35,7 @@ export const routes = {
   adminStoreFunnelAnalytics: '/admin/store/analytics/funnel',
   adminStoreProducts: '/admin/store/products',
   adminStoreModules: '/admin/store/modules',
+  adminStoreAppearance: '/admin/store/appearance',
   adminStoreOnboarding: '/admin/store/onboarding',
   adminStorePromotions: '/admin/store/promotions',
   adminShippingZones: '/admin/shipping/zones',

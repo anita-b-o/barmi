@@ -3,6 +3,7 @@
     "slug": "demo-store",
     "name": "Demo Store",
     "categoryName": "Panaderia",
+    "appearance": "PORTFOLIO",
     "capabilities": ["ABOUT", "PRODUCTS", "PROMOTIONS", "SHIPPING", "CHECKOUT", "CONTACT"]
   },
   "product": {

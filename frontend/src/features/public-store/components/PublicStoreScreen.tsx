@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import type { PublicStoreCatalogSort, PublicStorePromotion } from '../../../api/contracts/v1/public'
+import type { PublicStoreAppearancePreset, PublicStoreCatalogSort, PublicStorePromotion } from '../../../api/contracts/v1/public'
 import { hasPublicStoreCapability } from '@/api/adapters/publicAdapter'
 import { useCart } from '../../store/cart/cartContext'
 import { usePublicStoreCatalog } from '../hooks/usePublicStoreCatalog'
@@ -216,6 +216,10 @@ const publicStoreStyles = {
   totalRow: { display: 'flex', justifyContent: 'space-between', gap: theme.spacing.lg, alignItems: 'center', flexWrap: 'wrap' }
 } satisfies Record<string, CSSProperties>
 
+function appearanceAttribute(preset: PublicStoreAppearancePreset) {
+  return preset.toLowerCase().replace('_', '-')
+}
+
 export default function PublicStoreScreen() {
   const { slug } = useParams()
   const navigate = useNavigate()
@@ -270,6 +274,35 @@ export default function PublicStoreScreen() {
     ].filter((item): item is { label: string; value: string; href: string | null } => item !== null)
     : []
   const showContact = !error && store && contactEnabled && contactItems.length > 0
+  const appearancePreset = store?.appearance ?? 'MODERN'
+  const appearance = appearanceAttribute(appearancePreset)
+  const isClassicAppearance = appearancePreset === 'CLASSIC'
+  const isLocalBusinessAppearance = appearancePreset === 'LOCAL_BUSINESS'
+  const isPortfolioAppearance = appearancePreset === 'PORTFOLIO'
+  const contactHref = contactItems.find((item) => item.href)?.href
+  const heroStyle = {
+    ...(isMobile ? publicStoreStyles.heroMobile : publicStoreStyles.heroDesktop),
+    ...(isClassicAppearance ? { border: `1px solid ${theme.colors.borderStrong}` } : null),
+    ...(isPortfolioAppearance ? { paddingBottom: isMobile ? theme.spacing.lg : theme.spacing.xl } : null)
+  }
+  const surfaceStyle = {
+    ...(isMobile ? publicStoreStyles.surfaceMobile : publicStoreStyles.surfaceDesktop),
+    ...(isClassicAppearance ? { border: `1px solid ${theme.colors.borderStrong}`, padding: isMobile ? theme.spacing.md : theme.spacing.lg } : null)
+  }
+  const filterPanelStyle = {
+    ...publicStoreStyles.filterPanel,
+    ...(isClassicAppearance ? { padding: theme.spacing.md, borderColor: theme.colors.borderStrong } : null),
+    ...(isPortfolioAppearance ? { background: theme.colors.bgSurface, borderColor: theme.colors.borderDefault } : null)
+  }
+  const productGridStyle = {
+    ...publicStoreStyles.productGrid,
+    ...(isPortfolioAppearance ? { gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))' } : null)
+  }
+  const productBodyStyle = {
+    ...publicStoreStyles.productBody,
+    ...(isClassicAppearance ? { padding: theme.spacing.lg, gap: theme.spacing.md } : null),
+    ...(isPortfolioAppearance ? { padding: theme.spacing.lg } : null)
+  }
   const totalPages = productsPage?.totalPages ?? 0
   const displayPage = totalPages > 0 ? Math.min(page + 1, totalPages) : 1
   const displayTotalPages = Math.max(totalPages, 1)
@@ -339,6 +372,54 @@ export default function PublicStoreScreen() {
     path: slug ? routes.publicStore(slug) : '/public',
     data: jsonLd
   })
+
+  const aboutSection = showAbout ? (
+    <EcosystemSurfaceSection style={surfaceStyle}>
+      <div style={publicStoreStyles.sectionStack}>
+        <div style={publicStoreStyles.compactStack}>
+          <div style={publicStoreStyles.titleText}>Sobre esta tienda</div>
+          <div style={publicStoreStyles.mutedCopy}>
+            {store.profile.description}
+          </div>
+        </div>
+      </div>
+    </EcosystemSurfaceSection>
+  ) : null
+
+  const contactSection = showContact ? (
+    <EcosystemSurfaceSection tone={isLocalBusinessAppearance ? 'warm' : undefined} style={surfaceStyle}>
+      <div style={publicStoreStyles.sectionStack}>
+        <div style={publicStoreStyles.compactStack}>
+          <div style={publicStoreStyles.splitRow}>
+            <div style={publicStoreStyles.titleText}>Contacto</div>
+            {isLocalBusinessAppearance && contactHref ? (
+              <a href={contactHref} style={{ textDecoration: 'none' }}>
+                <Button variant="primary">Contactar ahora</Button>
+              </a>
+            ) : null}
+          </div>
+          <div style={publicStoreStyles.contactGrid}>
+            {contactItems.map((item) => (
+              <div
+                key={item.label}
+                style={{
+                  ...publicStoreStyles.contactItem,
+                  ...(isClassicAppearance ? { borderColor: theme.colors.borderStrong, padding: theme.spacing.sm } : null)
+                }}
+              >
+                <div style={publicStoreStyles.fieldLabel}>{item.label}</div>
+                {item.href ? (
+                  <a href={item.href} style={publicStoreStyles.contactLink}>{item.value}</a>
+                ) : (
+                  <div style={publicStoreStyles.anywhereMuted}>{item.value}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </EcosystemSurfaceSection>
+  ) : null
 
   useEffect(() => {
     const nextFilters = readCatalogUrlFilters(searchParams)
@@ -460,7 +541,7 @@ export default function PublicStoreScreen() {
     <PublicStoreLayout showCatalogNav={productsEnabled} showCheckoutNav={checkoutEnabled}>
       <Breadcrumbs items={[{ label: 'Store', href: routes.publicStore(slug) }, { label: 'Catálogo' }]} />
 
-      <div style={publicStoreStyles.pageStack}>
+      <div data-appearance={appearance} style={{ ...publicStoreStyles.pageStack, gap: isClassicAppearance ? theme.spacing.lg : publicStoreStyles.pageStack.gap }}>
         <EcosystemHeroSection
           eyebrow="Store storefront"
           title="Catálogo de la tienda"
@@ -484,6 +565,11 @@ export default function PublicStoreScreen() {
               <Button variant="secondary" onClick={() => navigate(routes.ecosystemHome)}>
                 Volver al ecosystem
               </Button>
+              {isLocalBusinessAppearance && contactHref ? (
+                <a href={contactHref} style={{ textDecoration: 'none' }}>
+                  <Button variant="secondary">Contactar</Button>
+                </a>
+              ) : null}
             </>
           ) : undefined}
           aside={(
@@ -506,6 +592,11 @@ export default function PublicStoreScreen() {
                   Ir al carrito de la tienda{cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}
                 </Button>
               ) : null}
+              {isLocalBusinessAppearance && contactHref ? (
+                <a href={contactHref} style={{ textDecoration: 'none' }}>
+                  <Button variant="secondary">Contactar</Button>
+                </a>
+              ) : null}
               <Button variant="secondary" onClick={() => navigate(routes.ecosystemHome)}>
                 Volver al ecosystem
               </Button>
@@ -514,10 +605,10 @@ export default function PublicStoreScreen() {
               </Button>
             </>
           )}
-          style={isMobile ? publicStoreStyles.heroMobile : publicStoreStyles.heroDesktop}
+          style={heroStyle}
         />
 
-        <EcosystemSurfaceSection tone="warm" style={isMobile ? publicStoreStyles.surfaceMobile : publicStoreStyles.surfaceDesktop}>
+        <EcosystemSurfaceSection tone="warm" style={surfaceStyle}>
           <div style={publicStoreStyles.introBadgeRow}>
             <Badge variant="neutral">Storefront público</Badge>
             {checkoutEnabled ? <Badge variant="neutral">Carrito separado del ecosystem</Badge> : null}
@@ -547,40 +638,8 @@ export default function PublicStoreScreen() {
           </EcosystemSurfaceSection>
         ) : null}
 
-        {showAbout ? (
-          <EcosystemSurfaceSection>
-            <div style={publicStoreStyles.sectionStack}>
-              <div style={publicStoreStyles.compactStack}>
-                <div style={publicStoreStyles.titleText}>Sobre esta tienda</div>
-                <div style={publicStoreStyles.mutedCopy}>
-                  {store.profile.description}
-                </div>
-              </div>
-            </div>
-          </EcosystemSurfaceSection>
-        ) : null}
-
-        {showContact ? (
-          <EcosystemSurfaceSection>
-            <div style={publicStoreStyles.sectionStack}>
-              <div style={publicStoreStyles.compactStack}>
-                <div style={publicStoreStyles.titleText}>Contacto</div>
-                <div style={publicStoreStyles.contactGrid}>
-                  {contactItems.map((item) => (
-                    <div key={item.label} style={publicStoreStyles.contactItem}>
-                      <div style={publicStoreStyles.fieldLabel}>{item.label}</div>
-                      {item.href ? (
-                        <a href={item.href} style={publicStoreStyles.contactLink}>{item.value}</a>
-                      ) : (
-                        <div style={publicStoreStyles.anywhereMuted}>{item.value}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </EcosystemSurfaceSection>
-        ) : null}
+        {isLocalBusinessAppearance ? contactSection : aboutSection}
+        {isLocalBusinessAppearance ? aboutSection : contactSection}
 
         {showPromotions ? (
           <EcosystemSurfaceSection tone="warm">
@@ -620,7 +679,7 @@ export default function PublicStoreScreen() {
         ) : null}
 
         {!error && store && !productsEnabled ? (
-          <EcosystemSurfaceSection>
+          <EcosystemSurfaceSection style={surfaceStyle}>
             <EmptyState
               title="Esta tienda no muestra productos"
               description="El catálogo público no está activo en este storefront."
@@ -655,7 +714,7 @@ export default function PublicStoreScreen() {
               </div>
 
               <div
-                style={publicStoreStyles.filterPanel}
+                style={filterPanelStyle}
               >
                 <div style={publicStoreStyles.filterHeader}>
                   <div>
@@ -768,7 +827,7 @@ export default function PublicStoreScreen() {
                     : 'Esta tienda todavía no publicó productos para compra directa. Podés dejar feedback o volver al mapa para seguir explorando.'}
                 />
               ) : (
-                <div style={publicStoreStyles.productGrid}>
+                <div style={productGridStyle}>
                   {products.map((product) => {
                     const cartQty = cartQtyByProductId[product.id] ?? 0
 
@@ -789,7 +848,7 @@ export default function PublicStoreScreen() {
                         </div>
                       </div>
 
-                      <div style={publicStoreStyles.productBody}>
+                      <div style={productBodyStyle}>
                         <div style={publicStoreStyles.badgeRow}>
                           {product.categoryName ? <Badge variant="info">{product.categoryName}</Badge> : null}
                           <Badge variant={product.isAvailable ? 'success' : 'error'}>

@@ -55,6 +55,12 @@ const operationalAreas = [
     cta: 'Editar partes'
   },
   {
+    title: 'Apariencia',
+    description: 'Elegí una presentación visual simple para que la tienda se sienta propia sin editar diseño.',
+    href: routes.adminStoreAppearance,
+    cta: 'Elegir preset'
+  },
+  {
     title: 'Analytics',
     description: 'Entrá al módulo de analytics con tabs de producto y ventas.',
     href: routes.adminStoreAnalytics,

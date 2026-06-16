@@ -58,6 +58,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/me").authenticated()
                 .requestMatchers("/api/store/admin/**").authenticated()
                 .requestMatchers("/api/store/profile").authenticated()
+                .requestMatchers("/api/store/appearance").authenticated()
                 .requestMatchers("/api/store/members/**").authenticated()
                 .requestMatchers("/api/store/shipping/zones/**").authenticated()
                 .requestMatchers("/api/store/orders/*/fulfillment").authenticated()

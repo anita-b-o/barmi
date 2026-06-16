@@ -53,6 +53,10 @@ public class Store {
     @Column(name = "public_whatsapp", length = 160)
     private String publicWhatsapp;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "appearance_preset", nullable = false, length = 40)
+    private StoreAppearancePreset appearancePreset = StoreAppearancePreset.MODERN;
+
     protected Store() {}
 
     public Store(UUID id, String slug, String name) {
@@ -123,6 +127,10 @@ public class Store {
         this.publicWhatsapp = publicWhatsapp;
     }
 
+    public void updateAppearancePreset(StoreAppearancePreset appearancePreset) {
+        this.appearancePreset = appearancePreset == null ? StoreAppearancePreset.MODERN : appearancePreset;
+    }
+
     public void updateEcosystem(Ecosystem ecosystem) {
         this.ecosystem = ecosystem;
     }
@@ -141,5 +149,6 @@ public class Store {
     public String getPublicEmail() { return publicEmail; }
     public String getPublicPhone() { return publicPhone; }
     public String getPublicWhatsapp() { return publicWhatsapp; }
+    public StoreAppearancePreset getAppearancePreset() { return appearancePreset == null ? StoreAppearancePreset.MODERN : appearancePreset; }
     public boolean hasPublicLocation() { return publicLatitude != null && publicLongitude != null; }
 }

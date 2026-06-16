@@ -4,6 +4,7 @@ CREATE TABLE stores (
   id            UUID PRIMARY KEY,
   slug          TEXT NOT NULL UNIQUE,
   name          TEXT NOT NULL,
+  appearance_preset TEXT NOT NULL DEFAULT 'MODERN' CHECK (appearance_preset IN ('MODERN', 'CLASSIC', 'LOCAL_BUSINESS', 'PORTFOLIO')),
   is_active     BOOLEAN NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

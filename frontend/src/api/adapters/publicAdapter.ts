@@ -3,6 +3,7 @@ import {
   PublicProduct,
   PublicProductsPage,
   PublicStore,
+  PublicStoreAppearancePreset,
   PublicStoreCapability,
   PublicStoreCatalogSort,
   PublicStoreProductDetail,
@@ -30,6 +31,13 @@ const PUBLIC_STORE_CAPABILITIES = new Set<PublicStoreCapability>([
   'SHIPPING',
   'CHECKOUT',
   'CONTACT'
+])
+
+const PUBLIC_STORE_APPEARANCE_PRESETS = new Set<PublicStoreAppearancePreset>([
+  'MODERN',
+  'CLASSIC',
+  'LOCAL_BUSINESS',
+  'PORTFOLIO'
 ])
 
 function assertBoolean(value: unknown, message: string): asserts value is boolean {
@@ -80,6 +88,14 @@ function parsePublicStoreCapabilities(data: unknown, message: string): PublicSto
     }
     return normalized
   })
+}
+
+function parsePublicStoreAppearance(data: unknown): PublicStoreAppearancePreset {
+  if (data === undefined || data === null) return 'MODERN'
+  assertString(data, 'Public store appearance is invalid')
+  const normalized = data.trim().toUpperCase() as PublicStoreAppearancePreset
+  if (!PUBLIC_STORE_APPEARANCE_PRESETS.has(normalized)) return 'MODERN'
+  return normalized
 }
 
 function parsePublicStoreProfile(data: unknown) {
@@ -134,6 +150,7 @@ export function parsePublicStore(data: unknown): PublicStore {
     slug: data.slug,
     id: data.id,
     name: data.name,
+    appearance: parsePublicStoreAppearance(data.appearance),
     profile: parsePublicStoreProfile(data.profile),
     capabilities: parsePublicStoreCapabilities(data.capabilities, 'Public store capabilities'),
     categories: (data.categories ?? []).map((item, index) => parsePublicCategory(item, index)),
@@ -210,6 +227,7 @@ export function parsePublicStoreProductDetail(data: unknown): PublicStoreProduct
       slug: store.slug,
       name: store.name,
       categoryName: store.categoryName ?? null,
+      appearance: parsePublicStoreAppearance(store.appearance),
       capabilities: parsePublicStoreCapabilities(store.capabilities, 'Public store product detail store capabilities')
     },
     product: {

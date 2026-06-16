@@ -1,6 +1,9 @@
 import { requestJsonWithAuth, type AuthRequestContext } from '../client/http'
 import type {
   StoreAdminProduct,
+  StoreAppearance,
+  StoreAppearancePreset,
+  StoreAppearanceUpdateReq,
   StoreCapabilities,
   StoreCapability,
   StoreCapabilityMetadata,
@@ -108,6 +111,18 @@ function parseStoreCapabilityPresetKey(value: unknown, message: string): StoreCa
     value === 'PORTFOLIO' ||
     value === 'BLOG' ||
     value === 'SIMPLE_PAGE'
+  ) {
+    return value
+  }
+  throw new Error(message)
+}
+
+function parseStoreAppearancePreset(value: unknown, message: string): StoreAppearancePreset {
+  if (
+    value === 'MODERN' ||
+    value === 'CLASSIC' ||
+    value === 'LOCAL_BUSINESS' ||
+    value === 'PORTFOLIO'
   ) {
     return value
   }
@@ -228,6 +243,13 @@ export function parseStorePublicProfile(data: unknown): StorePublicProfile {
     publicEmail: data.publicEmail ?? null,
     publicPhone: data.publicPhone ?? null,
     publicWhatsapp: data.publicWhatsapp ?? null
+  }
+}
+
+export function parseStoreAppearance(data: unknown): StoreAppearance {
+  assertRecord(data, 'Invalid store appearance payload')
+  return {
+    preset: parseStoreAppearancePreset(data.preset, 'Store appearance preset is invalid')
   }
 }
 
@@ -648,6 +670,22 @@ export const storeAdminAdapter = {
       auth
     )
     return parseStorePublicProfile(data)
+  },
+  async getStoreAppearance(auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>('/api/store/appearance', {}, {}, auth)
+    return parseStoreAppearance(data)
+  },
+  async updateStoreAppearance(payload: StoreAppearanceUpdateReq, auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>(
+      '/api/store/appearance',
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      },
+      {},
+      auth
+    )
+    return parseStoreAppearance(data)
   },
   async listStoreCapabilityPresets(auth: AuthRequestContext) {
     const data = await requestJsonWithAuth<unknown>('/api/store/capability-presets', {}, {}, auth)

@@ -17,6 +17,7 @@ describe('public contracts parsing', () => {
     expect(store.slug).toBe('demo-store')
     expect(store.id).toBe('11111111-1111-1111-1111-111111111111')
     expect(store.name).toBe('Demo Store')
+    expect(store.appearance).toBe('LOCAL_BUSINESS')
     expect(store.profile.description).toBe('Cafetería de especialidad con atención de barrio.')
     expect(store.profile.whatsapp).toBe('+54 9 221 555 0101')
     expect(store.capabilities).toEqual(['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'])
@@ -29,6 +30,11 @@ describe('public contracts parsing', () => {
   it('uses ecommerce capabilities as public store fallback', () => {
     const store = parsePublicStore({ ...storeSample, capabilities: undefined })
     expect(store.capabilities).toEqual(['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'])
+  })
+
+  it('uses MODERN as public store appearance fallback', () => {
+    expect(parsePublicStore({ ...storeSample, appearance: undefined }).appearance).toBe('MODERN')
+    expect(parsePublicStore({ ...storeSample, appearance: 'UNKNOWN' }).appearance).toBe('MODERN')
   })
 
   it('uses empty public profile as fallback', () => {
@@ -71,6 +77,7 @@ describe('public contracts parsing', () => {
   it('parses public store product detail sample', () => {
     const detail = parsePublicStoreProductDetail(productDetailSample)
     expect(detail.store.slug).toBe('demo-store')
+    expect(detail.store.appearance).toBe('PORTFOLIO')
     expect(detail.product.slug).toBe('pan-de-campo')
     expect(detail.product.name).toBe('Pan de campo')
     expect(detail.product.priceCents).toBe(1200)

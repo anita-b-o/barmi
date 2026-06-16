@@ -67,6 +67,7 @@ public class PublicController {
                             "id", s.getId(),
                             "slug", s.getSlug(),
                             "name", s.getName(),
+                            "appearance", s.getAppearancePreset().name(),
                             "profile", publicProfile(s),
                             "capabilities", storeCapabilityService.getEnabledCapabilityNamesForStore(s.getId()),
                             "categories", publicCategories.stream().map(this::toPublicCategory).toList(),
@@ -235,6 +236,7 @@ public class PublicController {
         payload.put("categoryName", PublicStoreCategory.fromKey(store.getPublicCategoryKey())
                 .map(PublicStoreCategory::getLabel)
                 .orElse(null));
+        payload.put("appearance", store.getAppearancePreset().name());
         return payload;
     }
 

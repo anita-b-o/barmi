@@ -11,6 +11,18 @@ export type StoreCapability =
   | 'CHECKOUT'
   | 'CONTACT'
 
+export type StoreAppearancePreset =
+  | 'MODERN'
+  | 'CLASSIC'
+  | 'LOCAL_BUSINESS'
+  | 'PORTFOLIO'
+
+export type StoreAppearance = {
+  preset: StoreAppearancePreset
+}
+
+export type StoreAppearanceUpdateReq = StoreAppearance
+
 export type StoreCapabilityMetadata = {
   key: StoreCapability
   label: string

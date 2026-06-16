@@ -9,10 +9,17 @@ export type PublicStoreCapability =
   | 'CHECKOUT'
   | 'CONTACT'
 
+export type PublicStoreAppearancePreset =
+  | 'MODERN'
+  | 'CLASSIC'
+  | 'LOCAL_BUSINESS'
+  | 'PORTFOLIO'
+
 export type PublicStore = {
   slug: string
   id: string
   name: string
+  appearance: PublicStoreAppearancePreset
   profile: PublicStoreProfile
   capabilities: PublicStoreCapability[]
   categories: PublicStoreCategory[]
@@ -138,6 +145,7 @@ export type PublicStoreProductDetail = {
     slug: string
     name: string
     categoryName: string | null
+    appearance: PublicStoreAppearancePreset
     capabilities: PublicStoreCapability[]
   }
   product: {

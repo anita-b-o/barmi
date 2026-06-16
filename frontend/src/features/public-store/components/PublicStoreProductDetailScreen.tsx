@@ -60,6 +60,10 @@ const detailStyles = {
   metaValue: { color: theme.colors.textPrimary, fontWeight: 700, overflowWrap: 'anywhere' }
 } satisfies Record<string, CSSProperties>
 
+function appearanceAttribute(preset: string) {
+  return preset.toLowerCase().replace('_', '-')
+}
+
 export default function PublicStoreProductDetailScreen() {
   const { storeSlug, productSlug } = useParams()
   const navigate = useNavigate()
@@ -204,6 +208,7 @@ export default function PublicStoreProductDetailScreen() {
 
   const loadedProduct = detail.product
   const loadedStore = detail.store
+  const appearance = appearanceAttribute(loadedStore.appearance ?? 'MODERN')
   const canAddToCart = checkoutEnabled && loadedProduct.isAvailable && cartProduct && !isCartLookupLoading
 
   return (
@@ -213,7 +218,7 @@ export default function PublicStoreProductDetailScreen() {
         { label: loadedProduct.name }
       ]} />
 
-      <div style={detailStyles.pageStack}>
+      <div data-appearance={appearance} style={detailStyles.pageStack}>
         <EcosystemSurfaceSection>
           <div style={detailStyles.detailGrid}>
             <Card variant="soft" style={detailStyles.mediaCard}>

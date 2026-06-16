@@ -189,6 +189,7 @@ STORE order admin now also exposes `GET /api/store/admin/orders` with pagination
 List and detail share the same derived operational indicators from existing persisted records (`store_orders`, `payment_intents`, `payments`, `outbox_events`, `store_fulfillments`): `paymentConfirmed`, `operationalIssue`, `hasFulfillment`, `manuallyCancelled`, `canCancel`, `canRetryProcessing`.
 The order state machine is unchanged. Operational conflict remains a derived indicator, not a new persisted order status. Admin detail now includes an operational summary plus timeline, can manually cancel an order if it still has no fulfillment, or retry post-payment stock processing after stock was corrected. Retry is idempotent and will not duplicate fulfillments.
 STORE admin now also exposes a minimal promotions surface for coupons and discounts: `GET /api/store/promotions`, `POST /api/store/promotions`, and `PATCH /api/store/promotions/{promotionId}/active`.
+STORE appearance presets are scoped by the current store tenant and only affect presentation. Admins can read/update them with `GET /api/store/appearance` and `PUT /api/store/appearance` using `{ "preset": "MODERN" }`. Supported values are `MODERN`, `CLASSIC`, `LOCAL_BUSINESS` and `PORTFOLIO`; new stores default to `MODERN`.
 
 ## API (ecosystem fulfillment admin)
 

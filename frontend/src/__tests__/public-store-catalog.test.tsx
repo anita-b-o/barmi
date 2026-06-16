@@ -17,6 +17,7 @@ const storeResponse = {
   slug: 'demo-store',
   id: 's1',
   name: 'Demo Store',
+  appearance: 'LOCAL_BUSINESS',
   capabilities: ['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'],
   profile: {
     description: 'Cafetería de especialidad con desayunos y atención de barrio.',
@@ -89,6 +90,8 @@ describe('public store catalog discovery', () => {
     expect(document.body.textContent).toContain('Cafetería de especialidad con desayunos y atención de barrio.')
     expect(document.body.textContent).toContain('Contacto')
     expect(document.body.textContent).toContain('hola@demo.test')
+    expect(document.querySelector('[data-appearance="local-business"]')).toBeTruthy()
+    expect(document.body.textContent).toContain('Contactar')
 
     const searchInput = document.querySelector('input[aria-label="Buscar productos"]') as HTMLInputElement
     await setInputElementValue(searchInput, 'cafe')
@@ -127,6 +130,59 @@ describe('public store catalog discovery', () => {
     expect(document.body.textContent).toContain('221 555 0101')
     expect(document.body.textContent).toContain('+54 9 221 555 0101')
     expect(document.body.textContent).not.toContain('Productos')
+
+    await cleanup()
+  })
+
+  it('uses MODERN fallback when appearance is missing', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          appearance: undefined,
+          promotions: []
+        }
+      },
+      '/api/public/stores/demo-store/products': {
+        body: productsPage([
+          { priceCents: 1000, id: 'p1', slug: 'p1', name: 'Cafe molido', sku: 'SKU-CAFE', stockQuantity: 5, isAvailable: true, categoryId: null, categoryName: null }
+        ])
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    expect(document.querySelector('[data-appearance="modern"]')).toBeTruthy()
+
+    await cleanup()
+  })
+
+  it('applies portfolio appearance without hiding catalog', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          appearance: 'PORTFOLIO',
+          promotions: []
+        }
+      },
+      '/api/public/stores/demo-store/products': {
+        body: productsPage([
+          { priceCents: 1000, id: 'p1', slug: 'p1', name: 'Cafe molido', sku: 'SKU-CAFE', stockQuantity: 5, isAvailable: true, categoryId: null, categoryName: null }
+        ])
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    expect(document.querySelector('[data-appearance="portfolio"]')).toBeTruthy()
+    expect(document.body.textContent).toContain('Sobre esta tienda')
+    expect(document.body.textContent).toContain('Productos')
+    expect(document.body.textContent).toContain('Cafe molido')
 
     await cleanup()
   })

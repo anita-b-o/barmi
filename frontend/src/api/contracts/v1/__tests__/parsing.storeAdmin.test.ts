@@ -32,7 +32,8 @@ import {
   parseStoreCapabilities,
   parseStoreCapabilityPresets,
   parseStoreReadiness,
-  parseStorePublicProfile
+  parseStorePublicProfile,
+  parseStoreAppearance
 } from '../../../adapters/storeAdminAdapter'
 
 describe('store admin contracts parsing', () => {
@@ -178,6 +179,12 @@ describe('store admin contracts parsing', () => {
     expect(res.publicDescription).toBe('Sobre tu negocio')
     expect(res.publicPhone).toBeNull()
     expect(res.publicWhatsapp).toBe('+54 9 221 555 0101')
+  })
+
+  it('parses store appearance payload', () => {
+    expect(parseStoreAppearance({ preset: 'PORTFOLIO' }).preset).toBe('PORTFOLIO')
+    expect(parseStoreAppearance({ preset: 'LOCAL_BUSINESS' }).preset).toBe('LOCAL_BUSINESS')
+    expect(() => parseStoreAppearance({ preset: 'CUSTOM' })).toThrow('Store appearance preset is invalid')
   })
 
   it('parses store capability presets sample', () => {

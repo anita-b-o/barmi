@@ -46,6 +46,7 @@ const AdminStoreCommerceAnalyticsScreen = lazyWithPreload(() => import('@/pages/
 const AdminStoreFunnelAnalyticsScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreFunnelAnalyticsScreen'))
 const AdminStoreProductsScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreProductsScreen'))
 const AdminStoreModulesScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreModulesScreen'))
+const AdminStoreAppearanceScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreAppearanceScreen'))
 const AdminStoreOnboardingScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreOnboardingScreen'))
 const AdminStorePromotionsScreen = lazyWithPreload(() => import('@/pages/admin/AdminStorePromotionsScreen'))
 const AdminStoreShippingZonesScreen = lazyWithPreload(() => import('@/pages/admin/AdminStoreShippingZonesScreen'))
@@ -95,6 +96,7 @@ function collectRoutePreloaders(pathname: string) {
   if (pathname === routes.adminStoreAnalytics) return [AdminStoreProductAnalyticsScreen]
   if (pathname === routes.adminStoreProducts) return [AdminStoreProductsScreen]
   if (pathname === routes.adminStoreModules) return [AdminStoreModulesScreen]
+  if (pathname === routes.adminStoreAppearance) return [AdminStoreAppearanceScreen]
   if (pathname === routes.adminStoreOnboarding) return [AdminStoreOnboardingScreen]
   if (pathname === routes.adminStorePromotions) return [AdminStorePromotionsScreen]
   if (pathname === routes.adminShippingZones) return [AdminStoreShippingZonesScreen]
@@ -291,6 +293,16 @@ function RoutedScreens() {
               <RequireAuth>
                 <RequireStoreMembership>
                   <AdminStoreModulesScreen />
+                </RequireStoreMembership>
+              </RequireAuth>
+            }
+          />
+          <Route
+            path={routes.adminStoreAppearance}
+            element={
+              <RequireAuth>
+                <RequireStoreMembership>
+                  <AdminStoreAppearanceScreen />
                 </RequireStoreMembership>
               </RequireAuth>
             }
