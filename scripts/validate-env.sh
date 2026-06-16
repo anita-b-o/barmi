@@ -4,14 +4,24 @@ set -euo pipefail
 MODE="${1:-staging}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-if [[ -f "$ROOT_DIR/.env" ]]; then
-  while IFS='=' read -r key raw_value; do
-    [[ -z "${key}" || "${key}" == \#* ]] && continue
-    if [[ -z "${!key:-}" ]]; then
-      value="${raw_value%$'\r'}"
-      export "$key=$value"
-    fi
-  done < "$ROOT_DIR/.env"
+load_env_file() {
+  local path="$1"
+  if [[ -f "$path" ]]; then
+    while IFS='=' read -r key raw_value; do
+      [[ -z "${key}" || "${key}" == \#* ]] && continue
+      if [[ -z "${!key:-}" ]]; then
+        value="${raw_value%$'\r'}"
+        export "$key=$value"
+      fi
+    done < "$path"
+  fi
+}
+
+if [[ "$MODE" == "local" ]]; then
+  load_env_file "$ROOT_DIR/.env.local"
+  load_env_file "$ROOT_DIR/.env.local.example"
+else
+  load_env_file "$ROOT_DIR/.env"
 fi
 
 require_var() {

@@ -23,6 +23,7 @@ const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN
 const sentryAutoUpload = process.env.SENTRY_AUTO_UPLOAD === 'true'
 const sentryUploadRequired = process.env.SENTRY_UPLOAD_REQUIRED === 'true'
 const hasSentryUploadEnv = Boolean(sentryOrg && sentryProject && sentryAuthToken)
+const devProxyTarget = process.env.VITE_DEV_PROXY_TARGET ?? 'http://localhost:8080'
 
 if (sentryUploadRequired && !hasSentryUploadEnv) {
   throw new Error('SENTRY_UPLOAD_REQUIRED=true but SENTRY_AUTH_TOKEN/SENTRY_ORG/SENTRY_PROJECT are missing')
@@ -86,10 +87,10 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    allowedHosts: ['demo-store.example.com'],
+    allowedHosts: ['demo-store.example.com', 'demo-store.localhost'],
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: devProxyTarget,
         changeOrigin: false,
       },
     },

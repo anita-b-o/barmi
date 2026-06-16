@@ -1,0 +1,104 @@
+name: barmi-local
+
+services:
+  postgres:
+    image: postgres:15.6
+    environment:
+      POSTGRES_DB: ${DB_NAME:-barmi}
+      POSTGRES_USER: ${DB_USER:-barmi}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-barmi123}
+    ports:
+      - "${LOCAL_DB_PORT:-5434}:5432"
+    volumes:
+      - barmi_local_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-barmi} -d ${DB_NAME:-barmi}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "${LOCAL_REDIS_PORT:-6379}:6379"
+    volumes:
+      - barmi_local_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_VERSION: ${APP_VERSION:-local-dev}
+        APP_COMMIT_SHA: ${APP_COMMIT_SHA:-local}
+        APP_BUILD_TIMESTAMP: ${APP_BUILD_TIMESTAMP:-unknown}
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-barmi}
+      DB_USER: ${DB_USER:-barmi}
+      DB_PASSWORD: ${DB_PASSWORD:-barmi123}
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-JWT_SIGNING_KEY=7f9c2ba4e88f827d616045507605853ed73b8094b9b2e0c3c5c7e5c7c4e1c9a1}
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-change-me}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://demo-store.localhost:5173}
+      STORE_BASE_DOMAIN: ${STORE_BASE_DOMAIN:-localhost}
+      STORE_PUBLIC_SCHEME: ${STORE_PUBLIC_SCHEME:-http}
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-ARS}
+      NOTIFICATION_EMAIL_MODE: ${NOTIFICATION_EMAIL_MODE:-logging}
+      APP_VERSION: ${APP_VERSION:-local-dev}
+      APP_COMMIT_SHA: ${APP_COMMIT_SHA:-local}
+      APP_BUILD_TIMESTAMP: ${APP_BUILD_TIMESTAMP:-unknown}
+    ports:
+      - "${LOCAL_BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    image: node:20-bookworm-slim
+    working_dir: /app
+    command: sh -c "npm ci --no-audit --no-fund && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_DEV_PROXY_TARGET: http://backend:8080
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+      VITE_PUBLIC_STORE_HOST: ${VITE_PUBLIC_STORE_HOST:-demo-store.localhost}
+      VITE_PUBLIC_ECOSYSTEM_SLUG: ${VITE_PUBLIC_ECOSYSTEM_SLUG:-demo-ecosystem}
+      VITE_APP_ENV: ${VITE_APP_ENV:-local}
+      VITE_APP_VERSION: ${APP_VERSION:-local-dev}
+      VITE_APP_COMMIT_SHA: ${APP_COMMIT_SHA:-local}
+      VITE_APP_BUILD_TIMESTAMP: ${APP_BUILD_TIMESTAMP:-unknown}
+      VITE_APP_RELEASE_ID: ${VITE_APP_RELEASE_ID:-local-dev+local}
+      VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+      VITE_OBSERVABILITY_SMOKE_ENABLED: ${VITE_OBSERVABILITY_SMOKE_ENABLED:-false}
+      VITE_OBSERVABILITY_INGEST_URL: ${VITE_OBSERVABILITY_INGEST_URL:-}
+      SENTRY_AUTO_UPLOAD: "false"
+      SENTRY_UPLOAD_REQUIRED: "false"
+    ports:
+      - "${LOCAL_FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - barmi_local_frontend_node_modules:/app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:5173').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  barmi_local_pgdata:
+  barmi_local_redisdata:
+  barmi_local_frontend_node_modules:

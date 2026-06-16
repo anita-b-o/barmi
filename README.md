@@ -22,31 +22,121 @@ Barmi es una base modular para operar dos dominios separados:
 - **Infra:** Docker Compose + Nginx reverse proxy
 - **Tests:** JUnit + Testcontainers (backend), Vitest + Playwright (frontend)
 
-## Quick start (dev)
+## Desarrollo local
 
-### 1) Start infra (Postgres + Redis)
+La forma oficial de levantar Barmi en una máquina de desarrollo es el stack local explícito. Usa `SPRING_PROFILES_ACTIVE=local`, no toca las validaciones de `staging`/`prod` y no requiere editar `docker-compose.yml`.
+
+### Requisitos
+
+- Docker + Docker Compose v2
+- `curl`
+- Node 20 y Java 21 sólo si vas a correr frontend/backend fuera de Docker
+
+### Variables mínimas
+
+El archivo versionado `.env.local.example` trae defaults seguros para desarrollo:
+
+- `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+- `ALLOWED_ORIGINS`
+- `STORE_BASE_DOMAIN=localhost`
+- `VITE_PUBLIC_STORE_HOST=demo-store.localhost`
+- `VITE_PUBLIC_ECOSYSTEM_SLUG=demo-ecosystem`
+
+Para personalizar puertos o credenciales locales:
+
 ```bash
-docker compose up -d postgres redis
+cp .env.local.example .env.local
 ```
 
-### 2) Backend
+No uses `.env.local` para staging/prod.
+
+Si un puerto local está ocupado, podés overridearlo sin editar Compose:
+
 ```bash
+LOCAL_FRONTEND_PORT=5174 ALLOWED_ORIGINS=http://localhost:5174,http://127.0.0.1:5174,http://demo-store.localhost:5174 ./scripts/dev-up.sh
+```
+
+### Levantar backend, Postgres, Redis y frontend
+
+Desde la raíz del repo:
+
+```bash
+./scripts/dev-up.sh
+```
+
+Esto levanta:
+
+- Postgres en `localhost:5434`
+- Redis en `localhost:6379`
+- Backend Spring Boot en `localhost:8080`
+- Frontend Vite en `localhost:5173`
+
+Comandos útiles:
+
+```bash
+./scripts/dev-logs.sh
+./scripts/dev-down.sh
+```
+
+Para borrar volúmenes locales y empezar con una base limpia:
+
+```bash
+./scripts/dev-down.sh -v
+```
+
+### Levantar sólo infraestructura y correr procesos nativos
+
+Si preferís iterar con herramientas locales:
+
+```bash
+docker compose --env-file .env.local.example -f docker-compose.local.yml up -d postgres redis
 cd backend
-./gradlew bootRun
+./gradlew bootRun -Dspring.profiles.active=local
 ```
 
-Backend URL: http://localhost:8080
+En otra terminal:
 
-### 3) Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Frontend URL: http://localhost:5173
+El frontend local preserva el `Host` hacia el backend. Para flujos store-scoped usá:
 
-Variables públicas de frontend:
+```text
+http://demo-store.localhost:5173/public/demo-store
+```
+
+`demo-store.localhost` resuelve a `127.0.0.1` en navegadores modernos y no requiere editar `/etc/hosts`.
+
+### URLs finales
+
+- Backend: `http://localhost:8080`
+- Readiness backend: `http://localhost:8080/actuator/health/readiness`
+- Frontend: `http://localhost:5173`
+- Store demo: `http://demo-store.localhost:5173/public/demo-store`
+- Ecosystem demo: `http://localhost:5173/ecosystem`
+
+### Demo data local / QA manual
+
+Con el stack local arriba:
+
+```bash
+./scripts/load-demo-data.sh
+```
+
+Defaults usados por el script:
+
+- `DB_HOST=localhost`
+- `DB_PORT=5434`
+- `DB_NAME=barmi`
+- `DB_USER=barmi`
+- `DB_PASSWORD=barmi123`
+
+La demo no corre automáticamente en runtime ni forma parte de Flyway. Es un script explícito para desarrollo/QA manual.
+
+### Variables públicas de frontend
 
 - `VITE_API_BASE_URL`
 - `VITE_PUBLIC_STORE_HOST`
@@ -59,7 +149,7 @@ Variables públicas de frontend:
 - `VITE_SENTRY_DSN` opcional para capturar errores reales en Sentry
 - `VITE_OBSERVABILITY_INGEST_URL` opcional para forwardear errores runtime/API a una herramienta externa
 
-Scripts operativos principales:
+### Scripts operativos principales
 
 - `scripts/staging-up.sh`
 - `scripts/smoke-staging.sh`
@@ -67,7 +157,7 @@ Scripts operativos principales:
 - `scripts/backup-postgres.sh`
 - `scripts/restore-postgres.sh`
 
-Guía operativa de beta privada:
+### Guía operativa de beta privada
 
 - `docs/production/BETA_OPERATIONS_GUIDE.md`
 - `docs/production/BETA_INTERNAL_RC_SUMMARY.md`
@@ -76,7 +166,7 @@ Guía operativa de beta privada:
 - `docs/production/BETA_FEEDBACK_TRIAGE.md`
 - `docs/production/BETA_PRIVATE_GO_NO_GO.md`
 
-### 4) Validación mínima del baseline
+### Validación mínima del baseline
 
 Desde la raíz del repo:
 
@@ -103,7 +193,7 @@ npm run validate:frontend
 
 Evitá correr `npm run build`, Vitest, Gradle y rebuilds de Docker en paralelo sobre el mismo runner chico. La suite completa pasa en serie; bajo saturación, la corrida paralela puede exponer timeouts/`act(...)` overlap sin que haya un bug de producto reproducible.
 
-### 5) Demo data local / QA manual
+### Dataset demo local / QA manual
 
 Para cargar una base demo repetible sobre PostgreSQL local:
 
@@ -419,7 +509,7 @@ Recomendación mínima para staging/prod:
 - definir `ALLOWED_ORIGINS` con dominios reales de frontend y evitar defaults `localhost`
 - usar Grafana en `http://localhost:${STAGING_GRAFANA_PORT:-3000}` con el dashboard provisionado `Barmi Operational MVP`
 - usar Prometheus en `http://localhost:${STAGING_PROMETHEUS_PORT:-9090}` para consultas operativas puntuales
-- revisar [docs/production/OBSERVABILITY_RUNBOOK.md](/home/anita/Desktop/barmi/docs/production/OBSERVABILITY_RUNBOOK.md:1)
+- revisar `docs/production/OBSERVABILITY_RUNBOOK.md`
 - no dejar la sesión frontend en `localStorage` para una exposición pública prolongada; hoy sigue siendo la principal deuda de auth del lado cliente
 
 Prometheus/Grafana staging:
@@ -646,18 +736,4 @@ Estos puntos siguen fuera del baseline actual o sólo existen en forma MVP:
 
 ## Local development (backend + dedicated DB)
 
-1) Start local DB + Redis:
-
-```bash
-docker compose -f docker-compose.dev.yml up -d
-```
-
-2) Run the backend using the local profile:
-
-```bash
-cd backend
-./gradlew bootRun -Dspring.profiles.active=local
-```
-
-- Postgres runs on `localhost:5434` (user `barmi`, password `barmi123`).
-- Redis runs on `localhost:6379`.
+Este flujo quedó reemplazado por la sección `Desarrollo local` de este README. Usá `docker-compose.local.yml` y `./scripts/dev-up.sh`; `docker-compose.dev.yml` queda como compatibilidad legacy para levantar sólo infra local.

@@ -1,7 +1,31 @@
 # Frontend DEV
 
+## Stack local oficial
+
+Desde la raíz del repo:
+
+```bash
+./scripts/dev-up.sh
+```
+
+Esto levanta Postgres, Redis, backend con `SPRING_PROFILES_ACTIVE=local` y frontend Vite sin editar `docker-compose.yml`.
+
+URLs:
+
+- Backend: http://localhost:8080
+- Frontend: http://localhost:5173
+- Store demo: http://demo-store.localhost:5173/public/demo-store
+
+Si `5173` está ocupado:
+
+```bash
+LOCAL_FRONTEND_PORT=5174 ALLOWED_ORIGINS=http://localhost:5174,http://127.0.0.1:5174,http://demo-store.localhost:5174 ./scripts/dev-up.sh
+```
+
 ## Host setup
-Add this line to /etc/hosts:
+Para el flujo nuevo no hace falta tocar `/etc/hosts`: `demo-store.localhost` resuelve localmente.
+
+Si usás el host legacy `demo-store.example.com`, agregá esta línea:
 
 127.0.0.1 demo-store.example.com
 
