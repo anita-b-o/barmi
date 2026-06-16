@@ -177,6 +177,7 @@ Notas:
 - stock / disponibilidad MVP en productos STORE con descuento al confirmar pago
 - shipping zones admin
 - partes de tienda admin en `/admin/store/modules`
+- centro de publicación de sitio en `/admin/store/publish`
 - onboarding de publicación en `/admin/store/onboarding`
 
 ### Store Capabilities / módulos

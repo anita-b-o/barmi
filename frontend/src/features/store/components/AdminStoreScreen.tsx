@@ -306,8 +306,8 @@ export default function AdminStoreScreen() {
             <Link to={routes.adminStoreModules} style={{ textDecoration: 'none' }}>
               <Button variant="secondary">Elegir tipo de sitio</Button>
             </Link>
-            <Link to={routes.adminStoreOnboarding} style={{ textDecoration: 'none' }}>
-              <Button variant="secondary">Ver pasos</Button>
+            <Link to={routes.adminStorePublish} style={{ textDecoration: 'none' }}>
+              <Button variant="secondary">Publicar sitio</Button>
             </Link>
           </div>
         )}
@@ -320,6 +320,7 @@ export default function AdminStoreScreen() {
       </Section>
 
       <Section title="Información pública">
+        <div id="public-profile" />
         <Card>
           {profileLoading ? (
             <LoadingState label="Cargando información pública..." />

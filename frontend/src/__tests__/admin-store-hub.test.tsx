@@ -153,6 +153,7 @@ describe('admin store hub', () => {
     expect(document.body.textContent).toContain('50% completado')
     expect(document.body.textContent).toContain('Primer producto')
     expect(document.body.textContent).toContain('Elegir tipo de sitio')
+    expect(document.body.textContent).toContain('Publicar sitio')
     expect(document.body.textContent).toContain('OWNER puede editar')
     expect(document.body.textContent).toContain('Palermo, CABA')
     expect(document.body.textContent).not.toContain('Crear zona')
@@ -166,6 +167,7 @@ describe('admin store hub', () => {
     expect(links).toContain('/admin/store/promotions')
     expect(links).toContain('/admin/shipping/zones')
     expect(links).toContain('/admin/store/modules')
+    expect(links).toContain('/admin/store/publish')
 
     await cleanup()
   })
