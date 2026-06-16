@@ -17,6 +17,8 @@ describe('public contracts parsing', () => {
     expect(store.slug).toBe('demo-store')
     expect(store.id).toBe('11111111-1111-1111-1111-111111111111')
     expect(store.name).toBe('Demo Store')
+    expect(store.profile.description).toBe('Cafetería de especialidad con atención de barrio.')
+    expect(store.profile.whatsapp).toBe('+54 9 221 555 0101')
     expect(store.capabilities).toEqual(['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'])
     expect(store.categories).toHaveLength(1)
     expect(store.categories[0].name).toBe('Bebidas')
@@ -27,6 +29,11 @@ describe('public contracts parsing', () => {
   it('uses ecommerce capabilities as public store fallback', () => {
     const store = parsePublicStore({ ...storeSample, capabilities: undefined })
     expect(store.capabilities).toEqual(['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'])
+  })
+
+  it('uses empty public profile as fallback', () => {
+    const store = parsePublicStore({ ...storeSample, profile: undefined })
+    expect(store.profile).toEqual({ description: null, email: null, phone: null, whatsapp: null })
   })
 
   it('parses public products sample', () => {

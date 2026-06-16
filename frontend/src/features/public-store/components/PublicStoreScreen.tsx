@@ -119,6 +119,16 @@ const publicStoreStyles = {
   contentStack: { display: 'grid', gap: theme.spacing.xl },
   compactStack: { display: 'grid', gap: 6 },
   microStack: { display: 'grid', gap: 4 },
+  contactGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', marginTop: theme.spacing.sm },
+  contactItem: {
+    display: 'grid',
+    gap: 4,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
+    border: `1px solid ${theme.colors.borderDefault}`,
+    background: theme.colors.bgSurfaceAlt
+  },
+  contactLink: { color: theme.colors.actionPrimary, fontWeight: 600, textDecoration: 'none', overflowWrap: 'anywhere' },
   promoGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' },
   promoCard: {
     display: 'grid',
@@ -248,9 +258,18 @@ export default function PublicStoreScreen() {
   const checkoutEnabled = hasPublicStoreCapability(store?.capabilities, 'CHECKOUT')
   const promotionsEnabled = hasPublicStoreCapability(store?.capabilities, 'PROMOTIONS')
   const aboutEnabled = hasPublicStoreCapability(store?.capabilities, 'ABOUT')
+  const contactEnabled = hasPublicStoreCapability(store?.capabilities, 'CONTACT')
   const showCatalog = !error && store && productsEnabled
   const showPromotions = showCatalog && promotionsEnabled && checkoutEnabled && store.promotions.length > 0
-  const showAbout = !error && store && aboutEnabled && Boolean(store.categories[0]?.name)
+  const showAbout = !error && store && aboutEnabled && Boolean(store.profile.description)
+  const contactItems = store
+    ? [
+      store.profile.email ? { label: 'Email', value: store.profile.email, href: `mailto:${store.profile.email}` } : null,
+      store.profile.phone ? { label: 'Teléfono', value: store.profile.phone, href: `tel:${store.profile.phone}` } : null,
+      store.profile.whatsapp ? { label: 'WhatsApp', value: store.profile.whatsapp, href: null } : null
+    ].filter((item): item is { label: string; value: string; href: string | null } => item !== null)
+    : []
+  const showContact = !error && store && contactEnabled && contactItems.length > 0
   const totalPages = productsPage?.totalPages ?? 0
   const displayPage = totalPages > 0 ? Math.min(page + 1, totalPages) : 1
   const displayTotalPages = Math.max(totalPages, 1)
@@ -532,9 +551,31 @@ export default function PublicStoreScreen() {
           <EcosystemSurfaceSection>
             <div style={publicStoreStyles.sectionStack}>
               <div style={publicStoreStyles.compactStack}>
-                <div style={publicStoreStyles.titleText}>Sobre la tienda</div>
+                <div style={publicStoreStyles.titleText}>Sobre esta tienda</div>
                 <div style={publicStoreStyles.mutedCopy}>
-                  {store.name}{primaryCategory ? ` forma parte de ${primaryCategory}.` : ''}
+                  {store.profile.description}
+                </div>
+              </div>
+            </div>
+          </EcosystemSurfaceSection>
+        ) : null}
+
+        {showContact ? (
+          <EcosystemSurfaceSection>
+            <div style={publicStoreStyles.sectionStack}>
+              <div style={publicStoreStyles.compactStack}>
+                <div style={publicStoreStyles.titleText}>Contacto</div>
+                <div style={publicStoreStyles.contactGrid}>
+                  {contactItems.map((item) => (
+                    <div key={item.label} style={publicStoreStyles.contactItem}>
+                      <div style={publicStoreStyles.fieldLabel}>{item.label}</div>
+                      {item.href ? (
+                        <a href={item.href} style={publicStoreStyles.contactLink}>{item.value}</a>
+                      ) : (
+                        <div style={publicStoreStyles.anywhereMuted}>{item.value}</div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

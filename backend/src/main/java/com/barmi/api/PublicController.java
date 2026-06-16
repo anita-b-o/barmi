@@ -67,6 +67,7 @@ public class PublicController {
                             "id", s.getId(),
                             "slug", s.getSlug(),
                             "name", s.getName(),
+                            "profile", publicProfile(s),
                             "capabilities", storeCapabilityService.getEnabledCapabilityNamesForStore(s.getId()),
                             "categories", publicCategories.stream().map(this::toPublicCategory).toList(),
                             "promotions", storePromotionRepository.findVisiblePublicPromotions(s.getId(), Instant.now()).stream()
@@ -234,6 +235,15 @@ public class PublicController {
         payload.put("categoryName", PublicStoreCategory.fromKey(store.getPublicCategoryKey())
                 .map(PublicStoreCategory::getLabel)
                 .orElse(null));
+        return payload;
+    }
+
+    private Map<String, Object> publicProfile(Store store) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("description", store.getPublicDescription());
+        payload.put("email", store.getPublicEmail());
+        payload.put("phone", store.getPublicPhone());
+        payload.put("whatsapp", store.getPublicWhatsapp());
         return payload;
     }
 

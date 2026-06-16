@@ -199,7 +199,25 @@ Readiness de publicación está disponible en:
 
 - `GET /api/store/readiness`
 
-La respuesta incluye `score`, `completedSteps`, `pendingSteps`, `blockers`, `publishReady` y una lista `steps` con label, estado y CTA. Reglas mínimas: una tienda institucional requiere `ABOUT` + `CONTACT`; una tienda ecommerce requiere `PRODUCTS` + `SHIPPING` + `CHECKOUT`. Promociones suman progreso si están habilitadas, pero no bloquean publicar. `BLOG`, `GALLERY` y `RESERVATIONS` quedan modeladas como pasos futuros no bloqueantes.
+Información pública de negocio está disponible en:
+
+- `GET /api/store/profile`
+- `PUT /api/store/profile`
+
+Payload admin:
+
+```json
+{
+  "publicDescription": "Descripción pública del negocio",
+  "publicEmail": "contacto@tutienda.com",
+  "publicPhone": "221 555 0101",
+  "publicWhatsapp": "+54 9 221 555 0101"
+}
+```
+
+Todos los campos son opcionales. La descripción alimenta `ABOUT`; email, teléfono o WhatsApp alimentan `CONTACT`.
+
+La respuesta de readiness incluye `score`, `completedSteps`, `pendingSteps`, `blockers`, `publishReady` y una lista `steps` con label, estado y CTA. Reglas mínimas: una tienda institucional requiere `ABOUT` completo con descripción pública y `CONTACT` completo con al menos un dato público de contacto; una tienda ecommerce requiere `PRODUCTS` + `SHIPPING` + `CHECKOUT`. Promociones suman progreso si están habilitadas, pero no bloquean publicar. `BLOG`, `GALLERY` y `RESERVATIONS` quedan modeladas como pasos futuros no bloqueantes.
 
 Este alcance sólo persiste y administra visibilidad/intención de experiencia. Readiness informa preparación para publicar, pero no bloquea creación de productos, checkout, shipping, promociones ni oculta secciones públicas del storefront.
 
@@ -462,8 +480,23 @@ No es una referencia exhaustiva. Para payloads más detallados, ver `backend/REA
 - `GET /api/store/orders/{orderId}`
 - `POST /api/store/payments/initiate`
 
+`GET /api/public/stores/{slug}` incluye `profile` con datos públicos opcionales:
+
+```json
+{
+  "profile": {
+    "description": "Descripción pública del negocio",
+    "email": "contacto@tutienda.com",
+    "phone": "221 555 0101",
+    "whatsapp": "+54 9 221 555 0101"
+  }
+}
+```
+
 ### STORE admin / operaciones
 
+- `GET /api/store/profile`
+- `PUT /api/store/profile`
 - `GET /api/store/analytics/summary`
 - `GET /api/store/analytics/report?range={today|7d|30d}`
 - `GET /api/store/analytics/products?range=7d`

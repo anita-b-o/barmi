@@ -4,10 +4,8 @@ import com.barmi.app.security.StoreAuthorizationService;
 import com.barmi.domain.store.Store;
 import com.barmi.domain.store.StoreCapability;
 import com.barmi.domain.store.StoreCapabilitySetting;
-import com.barmi.domain.store.StoreMemberStatus;
 import com.barmi.infra.repo.ProductRepository;
 import com.barmi.infra.repo.StoreCapabilitySettingRepository;
-import com.barmi.infra.repo.StoreMemberRepository;
 import com.barmi.infra.repo.StorePromotionRepository;
 import com.barmi.infra.repo.StoreShippingZoneRepository;
 import org.springframework.stereotype.Service;
@@ -29,7 +27,6 @@ public class StoreReadinessService {
     private final ProductRepository productRepository;
     private final StorePromotionRepository storePromotionRepository;
     private final StoreShippingZoneRepository storeShippingZoneRepository;
-    private final StoreMemberRepository storeMemberRepository;
 
     public StoreReadinessService(
             StoreAuthorizationService storeAuthorizationService,
@@ -37,8 +34,7 @@ public class StoreReadinessService {
             StoreCapabilitySettingRepository storeCapabilitySettingRepository,
             ProductRepository productRepository,
             StorePromotionRepository storePromotionRepository,
-            StoreShippingZoneRepository storeShippingZoneRepository,
-            StoreMemberRepository storeMemberRepository
+            StoreShippingZoneRepository storeShippingZoneRepository
     ) {
         this.storeAuthorizationService = storeAuthorizationService;
         this.storeCapabilityService = storeCapabilityService;
@@ -46,7 +42,6 @@ public class StoreReadinessService {
         this.productRepository = productRepository;
         this.storePromotionRepository = storePromotionRepository;
         this.storeShippingZoneRepository = storeShippingZoneRepository;
-        this.storeMemberRepository = storeMemberRepository;
     }
 
     public StoreReadinessDto getCurrentStoreReadiness() {
@@ -130,8 +125,17 @@ public class StoreReadinessService {
     }
 
     private boolean hasStoreProfile(Store store) {
-        return store.getName() != null && !store.getName().isBlank()
-                && store.getSlug() != null && !store.getSlug().isBlank();
+        return hasText(store.getPublicDescription());
+    }
+
+    private boolean hasStoreContact(Store store) {
+        return hasText(store.getPublicEmail())
+                || hasText(store.getPublicPhone())
+                || hasText(store.getPublicWhatsapp());
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private List<StepDefinition> ecommerceDefinitions(Store store, UUID storeId, EnumSet<StoreCapability> enabled) {
@@ -151,7 +155,7 @@ public class StoreReadinessService {
     private List<StepDefinition> siteDefinitions(Store store, UUID storeId, EnumSet<StoreCapability> enabled) {
         List<StepDefinition> definitions = new ArrayList<>();
         definitions.add(new StepDefinition("store_profile", StoreCapability.ABOUT, "Perfil de tu sitio", "Revisar perfil", "/admin/store", true, true, true, true, true, () -> hasStoreProfile(store)));
-        definitions.add(new StepDefinition("contact_info", StoreCapability.CONTACT, "Contacto", "Gestionar contacto", "/admin/members", true, true, true, true, true, () -> storeMemberRepository.existsByStoreIdAndStatus(storeId, StoreMemberStatus.ACTIVE)));
+        definitions.add(new StepDefinition("contact_info", StoreCapability.CONTACT, "Contacto", "Gestionar contacto", "/admin/store", true, true, true, true, true, () -> hasStoreContact(store)));
         definitions.addAll(futureDefinitions(enabled));
         definitions.add(new StepDefinition("site_preview", StoreCapability.ABOUT, "Vista previa de tu sitio", "Ver sitio", "/public/" + store.getSlug(), false, false, true, false, true, () -> true));
         return definitions;

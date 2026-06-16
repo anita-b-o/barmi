@@ -18,6 +18,12 @@ const storeResponse = {
   id: 's1',
   name: 'Demo Store',
   capabilities: ['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'],
+  profile: {
+    description: 'Cafetería de especialidad con desayunos y atención de barrio.',
+    email: 'hola@demo.test',
+    phone: '221 555 0101',
+    whatsapp: '+54 9 221 555 0101'
+  },
   categories: [
     { id: 'cat-1', slug: 'cat-1', name: 'Bebidas', sortOrder: 10 },
     { id: 'cat-2', slug: 'cat-2', name: 'Snacks', sortOrder: 20 }
@@ -79,6 +85,10 @@ describe('public store catalog discovery', () => {
 
     expect(document.body.textContent).toContain('Promociones activas para esta store')
     expect(document.body.textContent).toContain('BIENVENIDA10')
+    expect(document.body.textContent).toContain('Sobre esta tienda')
+    expect(document.body.textContent).toContain('Cafetería de especialidad con desayunos y atención de barrio.')
+    expect(document.body.textContent).toContain('Contacto')
+    expect(document.body.textContent).toContain('hola@demo.test')
 
     const searchInput = document.querySelector('input[aria-label="Buscar productos"]') as HTMLInputElement
     await setInputElementValue(searchInput, 'cafe')
@@ -88,6 +98,64 @@ describe('public store catalog discovery', () => {
     expect(document.body.textContent).toContain('Cafe molido')
     expect(document.body.textContent).not.toContain('Te verde')
     expect(handler.mock.calls.some(([url]) => String(url).includes('q=cafe'))).toBe(true)
+
+    await cleanup()
+  })
+
+  it('shows public profile sections only when ABOUT and CONTACT are enabled', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          capabilities: ['ABOUT', 'CONTACT'],
+          categories: [],
+          promotions: []
+        }
+      },
+      '/api/public/stores/demo-store/products': {
+        body: productsPage([])
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Sobre esta tienda')
+    expect(document.body.textContent).toContain('Cafetería de especialidad con desayunos y atención de barrio.')
+    expect(document.body.textContent).toContain('Contacto')
+    expect(document.body.textContent).toContain('221 555 0101')
+    expect(document.body.textContent).toContain('+54 9 221 555 0101')
+    expect(document.body.textContent).not.toContain('Productos')
+
+    await cleanup()
+  })
+
+  it('hides ABOUT and CONTACT profile sections when capabilities are disabled', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          capabilities: ['PRODUCTS'],
+          categories: [],
+          promotions: []
+        }
+      },
+      '/api/public/stores/demo-store/products': {
+        body: productsPage([
+          { priceCents: 1000, id: 'p1', slug: 'p1', name: 'Cafe molido', sku: 'SKU-CAFE', stockQuantity: 5, isAvailable: true, categoryId: null, categoryName: null }
+        ])
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).not.toContain('Sobre esta tienda')
+    expect(document.body.textContent).not.toContain('Cafetería de especialidad con desayunos y atención de barrio.')
+    expect(document.body.textContent).not.toContain('Contacto')
+    expect(document.body.textContent).not.toContain('hola@demo.test')
 
     await cleanup()
   })

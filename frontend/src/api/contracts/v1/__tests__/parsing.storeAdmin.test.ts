@@ -31,7 +31,8 @@ import {
   parseStoreShippingZones,
   parseStoreCapabilities,
   parseStoreCapabilityPresets,
-  parseStoreReadiness
+  parseStoreReadiness,
+  parseStorePublicProfile
 } from '../../../adapters/storeAdminAdapter'
 
 describe('store admin contracts parsing', () => {
@@ -165,6 +166,18 @@ describe('store admin contracts parsing', () => {
     expect(res.available).toHaveLength(9)
     expect(res.available[0].key).toBe('ABOUT')
     expect(res.available[0].label).toBe('Sobre mí')
+  })
+
+  it('parses store public profile payload', () => {
+    const res = parseStorePublicProfile({
+      publicDescription: 'Sobre tu negocio',
+      publicEmail: 'hola@demo.test',
+      publicPhone: null,
+      publicWhatsapp: '+54 9 221 555 0101'
+    })
+    expect(res.publicDescription).toBe('Sobre tu negocio')
+    expect(res.publicPhone).toBeNull()
+    expect(res.publicWhatsapp).toBe('+54 9 221 555 0101')
   })
 
   it('parses store capability presets sample', () => {

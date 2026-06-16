@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setAuthSession, setInputElementValue, setSelectElementValue } from '../test-utils/testUtils'
+import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setAuthSession, setInputElementValue, setSelectElementValue, setTextAreaElementValue } from '../test-utils/testUtils'
 
 const authMe = {
   userId: 'u1',
@@ -33,6 +33,13 @@ const discoverySettings = {
   ]
 }
 
+const publicProfile = {
+  publicDescription: 'Cafetería de especialidad con atención de barrio.',
+  publicEmail: 'hola@demo.test',
+  publicPhone: '221 555 0101',
+  publicWhatsapp: '+54 9 221 555 0101'
+}
+
 const readinessResponse = {
   score: 50,
   publishReady: false,
@@ -58,7 +65,7 @@ const simpleReadinessResponse = {
   enabledCapabilities: ['ABOUT', 'CONTACT'],
   steps: [
     { id: 'store_profile', capability: 'ABOUT', label: 'Perfil de tu sitio', ctaLabel: 'Revisar perfil', ctaRoute: '/admin/store', required: true, blocksPublishing: true, implemented: true, completed: true },
-    { id: 'contact_info', capability: 'CONTACT', label: 'Contacto', ctaLabel: 'Gestionar contacto', ctaRoute: '/admin/members', required: true, blocksPublishing: true, implemented: true, completed: false },
+    { id: 'contact_info', capability: 'CONTACT', label: 'Contacto', ctaLabel: 'Gestionar contacto', ctaRoute: '/admin/store', required: true, blocksPublishing: true, implemented: true, completed: false },
     { id: 'site_preview', capability: 'ABOUT', label: 'Vista previa de tu sitio', ctaLabel: 'Ver sitio', ctaRoute: '/public/demo-store', required: false, blocksPublishing: false, implemented: true, completed: true }
   ]
 }
@@ -116,6 +123,9 @@ describe('admin store hub', () => {
       '/api/store/admin/discovery': {
         body: discoverySettings
       },
+      '/api/store/profile': {
+        body: publicProfile
+      },
       '/api/store/readiness': {
         body: readinessResponse
       }
@@ -137,6 +147,8 @@ describe('admin store hub', () => {
     expect(document.body.textContent).toContain('Analytics MVP')
     expect(document.body.textContent).toContain('Reporting operativo MVP')
     expect(document.body.textContent).toContain('Discovery público')
+    expect(document.body.textContent).toContain('Información pública')
+    expect(document.body.textContent).toContain('Cafetería de especialidad con atención de barrio.')
     expect(document.body.textContent).toContain('Prepará tu tienda online')
     expect(document.body.textContent).toContain('50% completado')
     expect(document.body.textContent).toContain('Primer producto')
@@ -200,6 +212,9 @@ describe('admin store hub', () => {
       '/api/store/admin/discovery': {
         body: discoverySettings
       },
+      '/api/store/profile': {
+        body: publicProfile
+      },
       '/api/store/readiness': {
         body: simpleReadinessResponse
       }
@@ -214,6 +229,93 @@ describe('admin store hub', () => {
     expect(document.body.textContent).toContain('Contacto')
     expect(document.body.textContent).not.toContain('Crear producto')
     expect(document.body.textContent).not.toContain('Configurar envíos')
+
+    await cleanup()
+  })
+
+  it('renders and saves public information', async () => {
+    const handler = mockFetch({
+      '/api/auth/me': { body: authMe },
+      '/api/store/analytics/summary': {
+        body: {
+          storeId: 'store-1',
+          storeSlug: 'demo-store',
+          totalOrders: 0,
+          ordersByStatus: { PENDING_PAYMENT: 0, PAID: 0, CANCELLED: 0 },
+          confirmedSalesTotalAmount: 0,
+          confirmedSalesCurrency: 'ARS',
+          fulfillmentsByStatus: { PENDING: 0, DISPATCHED: 0, DELIVERED: 0, CANCELLED: 0 },
+          activeProducts: 0,
+          inactiveProducts: 0
+        }
+      },
+      '/api/store/analytics/report?range=7d': {
+        body: {
+          storeId: 'store-1',
+          storeSlug: 'demo-store',
+          rangeKey: '7d',
+          rangeLabel: 'Ultimos 7 dias',
+          from: '2026-03-12T00:00:00.000Z',
+          to: '2026-03-19T00:00:00.000Z',
+          timezone: 'America/Argentina/Buenos_Aires',
+          periodMetrics: {
+            ordersCreated: 0,
+            paymentsConfirmed: 0,
+            manualCancellations: 0,
+            stockConflicts: 0,
+            fulfillmentsCreated: 0,
+            confirmedSalesTotalAmount: 0,
+            confirmedSalesCurrency: 'ARS'
+          },
+          currentSnapshot: {
+            fulfillmentsByStatus: { PENDING: 0, DISPATCHED: 0, DELIVERED: 0, CANCELLED: 0 }
+          }
+        }
+      },
+      '/api/store/admin/discovery': { body: discoverySettings },
+      '/api/store/readiness': { body: simpleReadinessResponse },
+      '/api/store/profile': (url, init) => {
+        if (init?.method === 'PUT') {
+          return {
+            body: {
+              publicDescription: 'Salón de cortes y color.',
+              publicEmail: 'turnos@demo.test',
+              publicPhone: '221 555 9999',
+              publicWhatsapp: '+54 9 221 555 9999'
+            }
+          }
+        }
+        return { body: publicProfile }
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store')
+    await flush()
+    await flush()
+
+    const description = document.querySelector('textarea[aria-label="Descripción de tu negocio"]') as HTMLTextAreaElement
+    const email = document.querySelector('input[aria-label="Email público"]') as HTMLInputElement
+    const phone = document.querySelector('input[aria-label="Teléfono público"]') as HTMLInputElement
+    const whatsapp = document.querySelector('input[aria-label="WhatsApp"]') as HTMLInputElement
+    expect(description.value).toBe(publicProfile.publicDescription)
+
+    await setTextAreaElementValue(description, 'Salón de cortes y color.')
+    await setInputElementValue(email, 'turnos@demo.test')
+    await setInputElementValue(phone, '221 555 9999')
+    await setInputElementValue(whatsapp, '+54 9 221 555 9999')
+    await clickElement(Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Guardar información pública')))
+    await flush()
+    await flush()
+
+    const putCall = handler.mock.calls.find(([url, init]) => String(url).includes('/api/store/profile') && init?.method === 'PUT')
+    expect(putCall).toBeTruthy()
+    expect(JSON.parse(String(putCall?.[1]?.body))).toMatchObject({
+      publicDescription: 'Salón de cortes y color.',
+      publicEmail: 'turnos@demo.test',
+      publicPhone: '221 555 9999',
+      publicWhatsapp: '+54 9 221 555 9999'
+    })
+    expect(document.body.textContent).toContain('Información pública guardada.')
 
     await cleanup()
   })
@@ -272,6 +374,9 @@ describe('admin store hub', () => {
         }
         return { body: discoverySettings }
       },
+      '/api/store/profile': {
+        body: publicProfile
+      },
       '/api/store/readiness': {
         body: readinessResponse
       }
@@ -287,11 +392,11 @@ describe('admin store hub', () => {
     await setInputElementValue(document.querySelector('input[aria-label="Latitud pública"]') as HTMLInputElement, '-34.5621')
     await setInputElementValue(document.querySelector('input[aria-label="Longitud pública"]') as HTMLInputElement, '-58.4567')
 
-    await clickElement(document.querySelector('button[type="submit"]'))
+    await clickElement(Array.from(document.querySelectorAll('button[type="submit"]')).find((button) => button.textContent?.includes('Guardar discovery público')))
     await flush()
     await flush()
 
-    const putCall = handler.mock.calls.find(([, init]) => init?.method === 'PUT')
+    const putCall = handler.mock.calls.find(([url, init]) => String(url) === '/api/store/admin/discovery' && init?.method === 'PUT')
     expect(putCall).toBeTruthy()
     expect(putCall?.[0]).toBe('/api/store/admin/discovery')
     expect(putCall?.[1]?.body).toBe(JSON.stringify({
@@ -360,6 +465,9 @@ describe('admin store hub', () => {
           actorRole: 'ADMIN'
         }
       },
+      '/api/store/profile': {
+        body: publicProfile
+      },
       '/api/store/readiness': {
         body: readinessResponse
       }
@@ -372,7 +480,9 @@ describe('admin store hub', () => {
     expect(document.body.textContent).toContain('ADMIN sólo lectura')
     expect(document.body.textContent).toContain('restringida a `OWNER`')
     expect((document.querySelector('select[aria-label="Ecosystem asociado"]') as HTMLSelectElement).disabled).toBe(true)
-    expect((document.querySelector('button[type="submit"]') as HTMLButtonElement).disabled).toBe(true)
+    const discoverySubmit = Array.from(document.querySelectorAll('button[type="submit"]'))
+      .find((button) => button.textContent?.includes('Guardar discovery público')) as HTMLButtonElement
+    expect(discoverySubmit.disabled).toBe(true)
 
     await cleanup()
   })

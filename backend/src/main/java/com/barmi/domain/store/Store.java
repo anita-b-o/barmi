@@ -41,6 +41,18 @@ public class Store {
     @Column(name = "public_category_key")
     private String publicCategoryKey;
 
+    @Column(name = "public_description", length = 1000)
+    private String publicDescription;
+
+    @Column(name = "public_email", length = 160)
+    private String publicEmail;
+
+    @Column(name = "public_phone", length = 160)
+    private String publicPhone;
+
+    @Column(name = "public_whatsapp", length = 160)
+    private String publicWhatsapp;
+
     protected Store() {}
 
     public Store(UUID id, String slug, String name) {
@@ -104,6 +116,13 @@ public class Store {
                 : PublicStoreCategory.normalizeKey(publicCategoryKey);
     }
 
+    public void updatePublicProfile(String publicDescription, String publicEmail, String publicPhone, String publicWhatsapp) {
+        this.publicDescription = publicDescription;
+        this.publicEmail = publicEmail;
+        this.publicPhone = publicPhone;
+        this.publicWhatsapp = publicWhatsapp;
+    }
+
     public void updateEcosystem(Ecosystem ecosystem) {
         this.ecosystem = ecosystem;
     }
@@ -118,5 +137,9 @@ public class Store {
     public BigDecimal getPublicLatitude() { return publicLatitude; }
     public BigDecimal getPublicLongitude() { return publicLongitude; }
     public String getPublicCategoryKey() { return publicCategoryKey; }
+    public String getPublicDescription() { return publicDescription; }
+    public String getPublicEmail() { return publicEmail; }
+    public String getPublicPhone() { return publicPhone; }
+    public String getPublicWhatsapp() { return publicWhatsapp; }
     public boolean hasPublicLocation() { return publicLatitude != null && publicLongitude != null; }
 }

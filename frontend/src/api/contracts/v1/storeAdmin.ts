@@ -26,6 +26,15 @@ export type StoreCapabilitiesUpdateReq = {
   enabled: StoreCapability[]
 }
 
+export type StorePublicProfile = {
+  publicDescription: string | null
+  publicEmail: string | null
+  publicPhone: string | null
+  publicWhatsapp: string | null
+}
+
+export type StorePublicProfileUpdateReq = StorePublicProfile
+
 export type StoreCapabilityPresetKey =
   | 'ONLINE_STORE'
   | 'SERVICES'

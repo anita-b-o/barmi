@@ -111,6 +111,16 @@ export async function setInputElementValue(input: HTMLInputElement, value: strin
   })
 }
 
+export async function setTextAreaElementValue(textarea: HTMLTextAreaElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set
+  await act(async () => {
+    setter?.call(textarea, value)
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+    textarea.dispatchEvent(new Event('change', { bubbles: true }))
+    await Promise.resolve()
+  })
+}
+
 export async function setSelectElementValue(select: HTMLSelectElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, 'value')?.set
   await act(async () => {

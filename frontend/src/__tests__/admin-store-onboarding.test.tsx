@@ -35,7 +35,7 @@ const simpleResponse = {
   enabledCapabilities: ['ABOUT', 'CONTACT'],
   steps: [
     { id: 'store_profile', capability: 'ABOUT', label: 'Perfil de tu sitio', ctaLabel: 'Revisar perfil', ctaRoute: '/admin/store', required: true, blocksPublishing: true, implemented: true, completed: true },
-    { id: 'contact_info', capability: 'CONTACT', label: 'Contacto', ctaLabel: 'Gestionar contacto', ctaRoute: '/admin/members', required: true, blocksPublishing: true, implemented: true, completed: false },
+    { id: 'contact_info', capability: 'CONTACT', label: 'Contacto', ctaLabel: 'Gestionar contacto', ctaRoute: '/admin/store', required: true, blocksPublishing: true, implemented: true, completed: false },
     { id: 'site_preview', capability: 'ABOUT', label: 'Vista previa de tu sitio', ctaLabel: 'Ver sitio', ctaRoute: '/public/demo-store', required: false, blocksPublishing: false, implemented: true, completed: true }
   ]
 }
@@ -50,7 +50,7 @@ const futureResponse = {
   enabledCapabilities: ['ABOUT', 'CONTACT', 'BLOG', 'GALLERY', 'RESERVATIONS'],
   steps: [
     { id: 'store_profile', capability: 'ABOUT', label: 'Perfil de tu sitio', ctaLabel: 'Revisar perfil', ctaRoute: '/admin/store', required: true, blocksPublishing: true, implemented: true, completed: true },
-    { id: 'contact_info', capability: 'CONTACT', label: 'Contacto', ctaLabel: 'Gestionar contacto', ctaRoute: '/admin/members', required: true, blocksPublishing: true, implemented: true, completed: true },
+    { id: 'contact_info', capability: 'CONTACT', label: 'Contacto', ctaLabel: 'Gestionar contacto', ctaRoute: '/admin/store', required: true, blocksPublishing: true, implemented: true, completed: true },
     { id: 'gallery_coming_soon', capability: 'GALLERY', label: 'Galería próximamente', ctaLabel: 'Próximamente', ctaRoute: null, required: false, blocksPublishing: false, implemented: false, completed: false },
     { id: 'blog_coming_soon', capability: 'BLOG', label: 'Blog próximamente', ctaLabel: 'Próximamente', ctaRoute: null, required: false, blocksPublishing: false, implemented: false, completed: false },
     { id: 'reservations_coming_soon', capability: 'RESERVATIONS', label: 'Reservas próximamente', ctaLabel: 'Próximamente', ctaRoute: null, required: false, blocksPublishing: false, implemented: false, completed: false },

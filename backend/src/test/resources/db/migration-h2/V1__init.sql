@@ -215,6 +215,18 @@ ALTER TABLE stores
   ADD COLUMN public_longitude NUMERIC(9, 6) NULL;
 
 ALTER TABLE stores
+  ADD COLUMN public_description VARCHAR(1000) NULL;
+
+ALTER TABLE stores
+  ADD COLUMN public_email VARCHAR(160) NULL;
+
+ALTER TABLE stores
+  ADD COLUMN public_phone VARCHAR(160) NULL;
+
+ALTER TABLE stores
+  ADD COLUMN public_whatsapp VARCHAR(160) NULL;
+
+ALTER TABLE stores
   ADD COLUMN public_category_key TEXT NULL;
 
 ALTER TABLE stores

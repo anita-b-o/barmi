@@ -2,6 +2,12 @@
   "slug": "demo-store",
   "id": "11111111-1111-1111-1111-111111111111",
   "name": "Demo Store",
+  "profile": {
+    "description": "Cafetería de especialidad con atención de barrio.",
+    "email": "hola@demo.test",
+    "phone": "221 555 0101",
+    "whatsapp": "+54 9 221 555 0101"
+  },
   "capabilities": ["ABOUT", "PRODUCTS", "PROMOTIONS", "SHIPPING", "CHECKOUT", "CONTACT"],
   "categories": [
     {

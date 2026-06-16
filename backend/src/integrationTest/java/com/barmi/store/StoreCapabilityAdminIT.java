@@ -147,11 +147,11 @@ class StoreCapabilityAdminIT extends PostgresIntegrationTestBase {
         ApiTestClient.ApiTestResponse response = api.get("/api/store/readiness", authHeaders(store, ownerEmail));
 
         assertThat(response.status()).isEqualTo(200);
-        assertThat(response.body().get("score")).isEqualTo(50);
         assertThat(response.body().get("publishReady")).isEqualTo(false);
-        assertThat((List<String>) response.body().get("completedSteps")).contains("store_profile", "checkout_enabled", "store_preview");
-        assertThat((List<String>) response.body().get("pendingSteps")).contains("first_product", "shipping_setup", "first_promotion");
-        assertThat((List<String>) response.body().get("blockers")).containsExactlyInAnyOrder("first_product", "shipping_setup");
+        assertThat(response.body().get("score")).isEqualTo(25);
+        assertThat((List<String>) response.body().get("completedSteps")).contains("checkout_enabled", "store_preview");
+        assertThat((List<String>) response.body().get("pendingSteps")).contains("store_profile", "first_product", "shipping_setup", "first_promotion");
+        assertThat((List<String>) response.body().get("blockers")).containsExactlyInAnyOrder("store_profile", "first_product", "shipping_setup");
         assertThat(response.rawBody()).doesNotContain(otherStore.getId().toString());
     }
 

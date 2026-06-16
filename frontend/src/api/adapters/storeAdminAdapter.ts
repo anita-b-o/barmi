@@ -8,6 +8,8 @@ import type {
   StoreCapabilityPresetKey,
   StoreCapabilityPresets,
   StoreCapabilitiesUpdateReq,
+  StorePublicProfile,
+  StorePublicProfileUpdateReq,
   StoreReadiness,
   StoreReadinessStep,
   StoreOperationalReport,
@@ -212,6 +214,20 @@ export function parseStoreCapabilities(data: unknown): StoreCapabilities {
   return {
     enabled: data.enabled.map((item, index) => parseStoreCapability(item, `Store capability enabled at ${index} is invalid`)),
     available: data.available.map((item, index) => parseStoreCapabilityMetadata(item, index))
+  }
+}
+
+export function parseStorePublicProfile(data: unknown): StorePublicProfile {
+  assertRecord(data, 'Invalid store public profile payload')
+  assertNullableString(data.publicDescription, 'Store public profile publicDescription is invalid')
+  assertNullableString(data.publicEmail, 'Store public profile publicEmail is invalid')
+  assertNullableString(data.publicPhone, 'Store public profile publicPhone is invalid')
+  assertNullableString(data.publicWhatsapp, 'Store public profile publicWhatsapp is invalid')
+  return {
+    publicDescription: data.publicDescription ?? null,
+    publicEmail: data.publicEmail ?? null,
+    publicPhone: data.publicPhone ?? null,
+    publicWhatsapp: data.publicWhatsapp ?? null
   }
 }
 
@@ -616,6 +632,22 @@ export const storeAdminAdapter = {
       auth
     )
     return parseStoreCapabilities(data)
+  },
+  async getStorePublicProfile(auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>('/api/store/profile', {}, {}, auth)
+    return parseStorePublicProfile(data)
+  },
+  async updateStorePublicProfile(payload: StorePublicProfileUpdateReq, auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>(
+      '/api/store/profile',
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      },
+      {},
+      auth
+    )
+    return parseStorePublicProfile(data)
   },
   async listStoreCapabilityPresets(auth: AuthRequestContext) {
     const data = await requestJsonWithAuth<unknown>('/api/store/capability-presets', {}, {}, auth)

@@ -13,9 +13,17 @@ export type PublicStore = {
   slug: string
   id: string
   name: string
+  profile: PublicStoreProfile
   capabilities: PublicStoreCapability[]
   categories: PublicStoreCategory[]
   promotions: PublicStorePromotion[]
+}
+
+export type PublicStoreProfile = {
+  description: string | null
+  email: string | null
+  phone: string | null
+  whatsapp: string | null
 }
 
 export type PublicStoreCategory = {

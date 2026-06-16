@@ -82,6 +82,36 @@ function parsePublicStoreCapabilities(data: unknown, message: string): PublicSto
   })
 }
 
+function parsePublicStoreProfile(data: unknown) {
+  if (data === undefined || data === null) {
+    return {
+      description: null,
+      email: null,
+      phone: null,
+      whatsapp: null
+    }
+  }
+  assertRecord(data, 'Public store profile is invalid')
+  if (!(data.description === null || data.description === undefined || typeof data.description === 'string')) {
+    throw new Error('Public store profile description is invalid')
+  }
+  if (!(data.email === null || data.email === undefined || typeof data.email === 'string')) {
+    throw new Error('Public store profile email is invalid')
+  }
+  if (!(data.phone === null || data.phone === undefined || typeof data.phone === 'string')) {
+    throw new Error('Public store profile phone is invalid')
+  }
+  if (!(data.whatsapp === null || data.whatsapp === undefined || typeof data.whatsapp === 'string')) {
+    throw new Error('Public store profile whatsapp is invalid')
+  }
+  return {
+    description: data.description ?? null,
+    email: data.email ?? null,
+    phone: data.phone ?? null,
+    whatsapp: data.whatsapp ?? null
+  }
+}
+
 export function hasPublicStoreCapability(
   capabilities: PublicStoreCapability[] | undefined | null,
   capability: PublicStoreCapability
@@ -104,6 +134,7 @@ export function parsePublicStore(data: unknown): PublicStore {
     slug: data.slug,
     id: data.id,
     name: data.name,
+    profile: parsePublicStoreProfile(data.profile),
     capabilities: parsePublicStoreCapabilities(data.capabilities, 'Public store capabilities'),
     categories: (data.categories ?? []).map((item, index) => parsePublicCategory(item, index)),
     promotions: (data.promotions ?? []).map((item, index) => parsePublicPromotion(item, index))
