@@ -92,12 +92,12 @@ describe('public store catalog discovery', () => {
 
     expect(document.body.textContent).toContain('Promociones activas')
     expect(document.body.textContent).toContain('BIENVENIDA10')
-    expect(document.body.textContent).toContain('Sobre esta tienda')
+    expect(document.body.textContent).toContain('Sobre nosotros')
     expect(document.body.textContent).toContain('Cafetería de especialidad con desayunos y atención de barrio.')
     expect(document.body.textContent).toContain('Contacto')
     expect(document.body.textContent).toContain('hola@demo.test')
     expect(document.querySelector('[data-appearance="local-business"]')).toBeTruthy()
-    expect(document.body.textContent).toContain('Contactar')
+    expect(document.body.textContent).toContain('Escribir por WhatsApp')
 
     const searchInput = document.querySelector('input[aria-label="Buscar productos"]') as HTMLInputElement
     await setInputElementValue(searchInput, 'cafe')
@@ -130,7 +130,7 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Sobre esta tienda')
+    expect(document.body.textContent).toContain('Sobre nosotros')
     expect(document.body.textContent).toContain('Cafetería de especialidad con desayunos y atención de barrio.')
     expect(document.body.textContent).toContain('Contacto')
     expect(document.body.textContent).toContain('221 555 0101')
@@ -273,7 +273,7 @@ describe('public store catalog discovery', () => {
     await flush()
 
     expect(document.querySelector('[data-appearance="portfolio"]')).toBeTruthy()
-    expect(document.body.textContent).toContain('Sobre esta tienda')
+    expect(document.body.textContent).toContain('Sobre nosotros')
     expect(document.body.textContent).toContain('Productos')
     expect(document.body.textContent).toContain('Cafe molido')
 
@@ -301,7 +301,7 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).not.toContain('Sobre esta tienda')
+    expect(document.body.textContent).not.toContain('Sobre nosotros')
     expect(document.body.textContent).not.toContain('Cafetería de especialidad con desayunos y atención de barrio.')
     expect(document.body.textContent).not.toContain('Contacto')
     expect(document.body.textContent).not.toContain('hola@demo.test')
@@ -330,7 +330,7 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Pronto habrá más para ver')
+    expect(document.body.textContent).toContain('Pronto habrá novedades aquí')
     expect(document.body.textContent).not.toContain('Cafe molido')
     expect(document.querySelector('input[aria-label="Buscar productos"]')).toBeNull()
     expect(handler.mock.calls.map(([url]) => String(url)).filter((url) => url.includes('/api/public/stores/demo-store/products'))).toHaveLength(0)
@@ -1018,7 +1018,7 @@ describe('public store catalog discovery', () => {
     await flush()
 
     expect(document.body.textContent).toContain('Sin stock disponible')
-    expect(document.body.textContent).toContain('Se mantiene visible para referencia')
+    expect(document.body.textContent).toContain('Por ahora no se puede agregar al carrito.')
 
     const unavailableButton = Array.from(document.querySelectorAll('button'))
       .find((button) => button.textContent?.includes('Sin stock')) as HTMLButtonElement
@@ -1095,7 +1095,7 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('No hay productos para esos filtros')
+    expect(document.body.textContent).toContain('No encontramos resultados')
 
     await cleanup()
   })
@@ -1117,7 +1117,7 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Esta página no tiene productos')
+    expect(document.body.textContent).toContain('Volvé al inicio de estos resultados')
     expect(document.body.textContent).toContain('Volver a la primera página')
     expect(document.body.textContent).toContain('Página 1 de 1')
     const previousButton = Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Anterior')) as HTMLButtonElement
@@ -1156,8 +1156,8 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('No hay productos para esos filtros')
-    expect(document.body.textContent).not.toContain('Esta página no tiene productos')
+    expect(document.body.textContent).toContain('No encontramos resultados')
+    expect(document.body.textContent).not.toContain('Volvé al inicio de estos resultados')
     expect(document.body.textContent).toContain('Página 1 de 1')
 
     await cleanup()

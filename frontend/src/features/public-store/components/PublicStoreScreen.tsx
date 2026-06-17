@@ -18,9 +18,9 @@ import SelectField from '@/components/primitives/Select'
 import EmptyState from '@/components/feedback/EmptyState'
 import ErrorAlert from '@/components/feedback/ErrorState'
 import LoadingBlock from '@/components/feedback/LoadingState'
-import { theme } from '@/app/theme'
+import { alpha, theme } from '@/app/theme'
 import { useViewportMode } from '@/core/hooks/useViewportMode'
-import { EcosystemHeroBadge, EcosystemHeroSection, EcosystemSurfaceSection } from '@/features/ecosystem'
+import { EcosystemSurfaceSection } from '@/features/ecosystem'
 import { trackBetaEvent } from '@/features/beta'
 import { buildCanonicalUrl, useJsonLd, useSeoMetadata } from '@/core/seo'
 import { normalizeStoreBranding, storeBrandingCssVariables } from '@/features/store/branding'
@@ -92,6 +92,20 @@ function formatPromotionExpiry(promotion: PublicStorePromotion) {
   return new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium' }).format(new Date(promotion.expirationDate))
 }
 
+function whatsappHref(value: string) {
+  const digits = value.replace(/\D/g, '')
+  return digits ? `https://wa.me/${digits}` : null
+}
+
+function productInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+}
+
 function StorefrontImage({ src, alt, style }: { src: string; alt: string; style?: CSSProperties }) {
   const [failed, setFailed] = useState(false)
 
@@ -104,35 +118,72 @@ function StorefrontImage({ src, alt, style }: { src: string; alt: string; style?
   return <img src={src} alt={alt} onError={() => setFailed(true)} style={style} />
 }
 
-function StorefrontBanner({ src, alt }: { src: string; alt: string }) {
-  const [failed, setFailed] = useState(false)
-
-  useEffect(() => {
-    setFailed(false)
-  }, [src])
-
-  if (failed) return null
-
-  return (
-    <div style={publicStoreStyles.banner}>
-      <img
-        src={src}
-        alt={alt}
-        onError={() => setFailed(true)}
-        style={publicStoreStyles.bannerImage}
-      />
-      <div aria-hidden="true" style={publicStoreStyles.bannerOverlay} />
-    </div>
-  )
-}
-
 const publicStoreStyles = {
   pageStack: { display: 'grid', gap: theme.spacing.xl, paddingBottom: theme.spacing.xxxl },
   heroMobile: { padding: theme.spacing.lg },
   heroDesktop: { padding: theme.spacing.xxl },
   surfaceMobile: { padding: theme.spacing.lg },
   surfaceDesktop: { padding: theme.spacing.xl },
-  asideStack: { display: 'grid', gap: 6 },
+  storefrontHero: {
+    position: 'relative',
+    overflow: 'hidden',
+    minHeight: 360,
+    borderRadius: theme.radius.lg,
+    border: `1px solid var(--store-primary, ${theme.colors.actionPrimary})`,
+    background: theme.colors.bgSurfaceAlt
+  },
+  storefrontHeroCompact: {
+    minHeight: 0,
+    background: theme.colors.bgSurface
+  },
+  heroBannerImage: {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    display: 'block'
+  },
+  heroOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background: `linear-gradient(90deg, ${alpha(theme.colors.textPrimary, 0.82)}, ${alpha(theme.colors.textPrimary, 0.42)} 58%, ${alpha(theme.colors.textPrimary, 0.22)})`,
+    pointerEvents: 'none'
+  },
+  heroContent: {
+    position: 'relative',
+    zIndex: 1,
+    display: 'grid',
+    gap: theme.spacing.lg,
+    alignContent: 'end',
+    minHeight: 360
+  },
+  heroContentCompact: { minHeight: 0 },
+  heroMain: { display: 'grid', gap: theme.spacing.md, maxWidth: 820 },
+  heroLogoFrame: {
+    width: 132,
+    height: 132,
+    borderRadius: theme.radius.lg,
+    border: `1px solid ${theme.colors.borderDefault}`,
+    background: theme.colors.bgSurface,
+    display: 'grid',
+    placeItems: 'center',
+    padding: theme.spacing.md,
+    boxShadow: `0 18px 42px ${alpha(theme.colors.textPrimary, 0.18)}`
+  },
+  heroLogo: { maxWidth: 108, maxHeight: 108, objectFit: 'contain' },
+  heroTitle: {
+    margin: 0,
+    fontSize: 'clamp(34px, 5vw, 56px)',
+    lineHeight: 1,
+    letterSpacing: 0,
+    color: theme.colors.textPrimary,
+    overflowWrap: 'anywhere'
+  },
+  heroTitleOnImage: { color: theme.colors.bgSurface },
+  heroDescription: { margin: 0, color: theme.colors.textMuted, fontSize: 17, lineHeight: 1.6, maxWidth: 760 },
+  heroDescriptionOnImage: { color: alpha(theme.colors.bgSurface, 0.88) },
+  heroActionRow: { display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' },
   eyebrow: {
     fontSize: theme.typography.small.size,
     fontWeight: 700,
@@ -157,28 +208,13 @@ const publicStoreStyles = {
   contactGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', marginTop: theme.spacing.sm },
   contactItem: {
     display: 'grid',
-    gap: 4,
+    gap: theme.spacing.sm,
     padding: theme.spacing.md,
     borderRadius: theme.radius.md,
-    border: `1px solid ${theme.colors.borderDefault}`,
-    background: theme.colors.bgSurfaceAlt
+    border: `1px solid var(--store-secondary, ${theme.colors.actionPrimary})`,
+    background: theme.colors.bgSurface
   },
-  contactLink: { color: `var(--store-primary, ${theme.colors.actionPrimary})`, fontWeight: 600, textDecoration: 'none', overflowWrap: 'anywhere' },
-  storeLogo: { maxWidth: 180, maxHeight: 88, objectFit: 'contain' },
-  banner: {
-    position: 'relative',
-    overflow: 'hidden',
-    minHeight: 180,
-    borderRadius: theme.radius.md,
-    border: `1px solid ${theme.colors.borderDefault}`
-  },
-  bannerImage: { width: '100%', height: 180, objectFit: 'cover', display: 'block' },
-  bannerOverlay: {
-    position: 'absolute',
-    inset: 0,
-    background: `linear-gradient(90deg, color-mix(in srgb, ${theme.colors.textPrimary} 36%, transparent), color-mix(in srgb, ${theme.colors.textPrimary} 8%, transparent))`,
-    pointerEvents: 'none'
-  },
+  contactLink: { color: `var(--store-primary, ${theme.colors.actionPrimary})`, fontWeight: 700, textDecoration: 'none', overflowWrap: 'anywhere' },
   promoGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' },
   promoCard: {
     display: 'grid',
@@ -207,8 +243,8 @@ const publicStoreStyles = {
     display: 'grid',
     gap: theme.spacing.lg,
     padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
-    background: theme.colors.bgSurfaceAlt,
+    borderRadius: theme.radius.md,
+    background: theme.colors.bgSurface,
     border: `1px solid ${theme.colors.borderDefault}`
   },
   filterHeader: { display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'center', flexWrap: 'wrap' },
@@ -217,25 +253,26 @@ const publicStoreStyles = {
   categoryStack: { display: 'grid', gap: theme.spacing.sm },
   checkboxLabel: { display: 'flex', alignItems: 'center', gap: theme.spacing.sm, color: theme.colors.textMuted },
   productGrid: { display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' },
-  productCard: { padding: 0, overflow: 'hidden' },
-  productCardActive: { padding: 0, overflow: 'hidden', borderColor: theme.colors.borderAccentSoft },
+  productCard: { padding: 0, overflow: 'hidden', borderRadius: theme.radius.md },
+  productCardActive: { padding: 0, overflow: 'hidden', borderColor: `var(--store-primary, ${theme.colors.actionPrimary})`, borderRadius: theme.radius.md },
   productMediaWrap: {
-    padding: theme.spacing.lg,
+    padding: theme.spacing.md,
     borderBottom: `1px solid ${theme.colors.borderDefault}`,
     background: theme.colors.bgSurfaceAlt
   },
   productMedia: {
-    minHeight: 118,
+    minHeight: 148,
     borderRadius: theme.radius.md,
-    border: `1px solid ${theme.colors.borderAccentSoft}`,
-    background: theme.colors.bgSurfaceAlt,
+    border: `1px solid var(--store-secondary, ${theme.colors.actionPrimary})`,
+    background: theme.colors.bgSurface,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: theme.colors.brand,
+    color: `var(--store-primary, ${theme.colors.actionPrimary})`,
     fontWeight: 700,
     letterSpacing: 0,
-    textTransform: 'uppercase'
+    textTransform: 'uppercase',
+    fontSize: 28
   },
   productBody: { display: 'grid', gap: theme.spacing.lg, padding: theme.spacing.xl },
   productTitle: { fontWeight: 700, fontSize: 18, letterSpacing: 0, overflowWrap: 'anywhere' },
@@ -318,10 +355,10 @@ export default function PublicStoreScreen() {
   const showAbout = !error && store && aboutEnabled && Boolean(store.profile.description)
   const contactItems = store
     ? [
-      store.profile.email ? { label: 'Email', value: store.profile.email, href: `mailto:${store.profile.email}` } : null,
-      store.profile.phone ? { label: 'Teléfono', value: store.profile.phone, href: `tel:${store.profile.phone}` } : null,
-      store.profile.whatsapp ? { label: 'WhatsApp', value: store.profile.whatsapp, href: null } : null
-    ].filter((item): item is { label: string; value: string; href: string | null } => item !== null)
+      store.profile.whatsapp ? { label: 'WhatsApp', value: store.profile.whatsapp, href: whatsappHref(store.profile.whatsapp), actionLabel: 'Escribir por WhatsApp' } : null,
+      store.profile.phone ? { label: 'Teléfono', value: store.profile.phone, href: `tel:${store.profile.phone}`, actionLabel: 'Llamar' } : null,
+      store.profile.email ? { label: 'Email', value: store.profile.email, href: `mailto:${store.profile.email}`, actionLabel: 'Enviar email' } : null
+    ].filter((item): item is { label: string; value: string; href: string | null; actionLabel: string } => item !== null)
     : []
   const showContact = !error && store && contactEnabled && contactItems.length > 0
   const appearancePreset = store?.appearance ?? 'MODERN'
@@ -330,6 +367,9 @@ export default function PublicStoreScreen() {
   const isLocalBusinessAppearance = appearancePreset === 'LOCAL_BUSINESS'
   const isPortfolioAppearance = appearancePreset === 'PORTFOLIO'
   const contactHref = contactItems.find((item) => item.href)?.href
+  const contactActionLabel = contactItems.find((item) => item.href)?.label === 'WhatsApp'
+    ? 'Escribir por WhatsApp'
+    : 'Contactar'
   const branding = normalizeStoreBranding(store?.branding)
   const brandedVariables = storeBrandingCssVariables(store?.branding)
   const heroStyle = {
@@ -432,7 +472,7 @@ export default function PublicStoreScreen() {
     <EcosystemSurfaceSection style={surfaceStyle}>
       <div id="sobre-nosotros" style={publicStoreStyles.sectionStack}>
         <div style={publicStoreStyles.compactStack}>
-          <div style={publicStoreStyles.titleText}>Sobre esta tienda</div>
+          <div style={publicStoreStyles.titleText}>Sobre nosotros</div>
           <div style={publicStoreStyles.mutedCopy}>
             {store.profile.description}
           </div>
@@ -448,8 +488,8 @@ export default function PublicStoreScreen() {
           <div style={publicStoreStyles.splitRow}>
             <div style={publicStoreStyles.titleText}>Contacto</div>
             {isLocalBusinessAppearance && contactHref ? (
-              <a href={contactHref} style={{ textDecoration: 'none' }}>
-                <Button variant="primary">Contactar ahora</Button>
+              <a href={contactHref} style={{ textDecoration: 'none' }} target={contactHref.startsWith('http') ? '_blank' : undefined} rel={contactHref.startsWith('http') ? 'noreferrer' : undefined}>
+                <Button variant="primary">{contactActionLabel}</Button>
               </a>
             ) : null}
           </div>
@@ -464,10 +504,13 @@ export default function PublicStoreScreen() {
               >
                 <div style={publicStoreStyles.fieldLabel}>{item.label}</div>
                 {item.href ? (
-                  <a href={item.href} style={publicStoreStyles.contactLink}>{item.value}</a>
+                  <a href={item.href} style={publicStoreStyles.contactLink} target={item.href.startsWith('http') ? '_blank' : undefined} rel={item.href.startsWith('http') ? 'noreferrer' : undefined}>
+                    {item.actionLabel}
+                  </a>
                 ) : (
                   <div style={publicStoreStyles.anywhereMuted}>{item.value}</div>
                 )}
+                <div style={publicStoreStyles.anywhereMuted}>{item.value}</div>
               </div>
             ))}
           </div>
@@ -604,97 +647,94 @@ export default function PublicStoreScreen() {
       <Breadcrumbs items={[{ label: store?.name ?? 'Inicio', href: routes.publicStore(slug) }, { label: productsEnabled ? 'Productos' : 'Información' }]} />
 
       <div id="inicio" data-appearance={appearance} style={{ ...publicStoreStyles.pageStack, ...brandedVariables, gap: isClassicAppearance ? theme.spacing.lg : publicStoreStyles.pageStack.gap }}>
-        {branding.bannerUrl ? (
-          <StorefrontBanner
-            src={branding.bannerUrl}
-            alt={`Portada de ${store?.name ?? 'la tienda'}`}
-          />
-        ) : null}
+        <section
+          style={{
+            ...publicStoreStyles.storefrontHero,
+            ...(branding.bannerUrl ? null : publicStoreStyles.storefrontHeroCompact),
+            ...heroStyle
+          }}
+        >
+          {branding.bannerUrl ? (
+            <>
+              <StorefrontImage
+                src={branding.bannerUrl}
+                alt={`Portada de ${store?.name ?? 'la tienda'}`}
+                style={publicStoreStyles.heroBannerImage}
+              />
+              <div aria-hidden="true" style={publicStoreStyles.heroOverlay} />
+            </>
+          ) : null}
 
-        <EcosystemHeroSection
-          eyebrow={productsEnabled ? 'Tienda online' : 'Información'}
-          title={store?.name ?? 'Tienda'}
-          description={(aboutEnabled ? store?.profile.description : null) ?? (productsEnabled
-            ? 'Conocé sus productos, disponibilidad y formas de contacto.'
-            : 'Conocé más sobre esta tienda y sus canales de contacto.')}
-          badges={(
-            <>
-              {primaryCategory ? <EcosystemHeroBadge>{primaryCategory}</EcosystemHeroBadge> : null}
-              {productsEnabled ? <EcosystemHeroBadge variant="success">{products.length} producto{products.length === 1 ? '' : 's'}</EcosystemHeroBadge> : null}
-              {checkoutEnabled ? <EcosystemHeroBadge>Carrito: {cartItemsCount} item{cartItemsCount === 1 ? '' : 's'}</EcosystemHeroBadge> : null}
-              {store?.categories.length ? <EcosystemHeroBadge>{store.categories.length} categoría{store.categories.length === 1 ? '' : 's'}</EcosystemHeroBadge> : null}
-            </>
-          )}
-          actions={!isMobile ? (
-            <>
-              {checkoutEnabled ? (
-                <Button variant="primary" onClick={() => navigate(routes.storeCheckout)} disabled={cart.items.length === 0}>
-                  Ir al carrito de la tienda{cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}
-                </Button>
-              ) : null}
-              <Button variant="secondary" onClick={() => navigate(routes.ecosystemStoresMap)}>
-                Ver otras tiendas
-              </Button>
-              {isLocalBusinessAppearance && contactHref ? (
-                <a href={contactHref} style={{ textDecoration: 'none' }}>
-                  <Button variant="secondary">Contactar</Button>
-                </a>
-              ) : null}
-            </>
-          ) : undefined}
-          aside={(
-            <>
+          <div
+            style={{
+              ...publicStoreStyles.heroContent,
+              ...(branding.bannerUrl ? null : publicStoreStyles.heroContentCompact)
+            }}
+          >
+            <div style={publicStoreStyles.heroMain}>
               {branding.logoUrl ? (
-                <StorefrontImage
-                  src={branding.logoUrl}
-                  alt={`Logo de ${store?.name ?? 'la tienda'}`}
-                  style={publicStoreStyles.storeLogo}
-                />
+                <div style={publicStoreStyles.heroLogoFrame}>
+                  <StorefrontImage
+                    src={branding.logoUrl}
+                    alt={`Logo de ${store?.name ?? 'la tienda'}`}
+                    style={publicStoreStyles.heroLogo}
+                  />
+                </div>
               ) : null}
-              <div style={publicStoreStyles.asideStack}>
-                <div style={publicStoreStyles.eyebrow}>
-                  Atención de la tienda
+              <div style={publicStoreStyles.compactStack}>
+                <div
+                  style={{
+                    ...publicStoreStyles.eyebrow,
+                    color: branding.bannerUrl ? alpha(theme.colors.bgSurface, 0.78) : `var(--store-primary, ${theme.colors.actionPrimary})`
+                  }}
+                >
+                  {productsEnabled ? 'Tienda online' : 'Información'}
                 </div>
-                <div style={publicStoreStyles.titleText}>
-                  {checkoutEnabled ? `Carrito de ${store?.name ?? 'esta tienda'}` : store?.name ?? 'Esta tienda'}
-                </div>
-                <div style={publicStoreStyles.mutedCopy}>
-                  {checkoutEnabled
-                    ? 'Los productos que agregues acá quedan listos para finalizar tu compra en esta tienda.'
-                    : 'Encontrá la información principal y los canales de contacto disponibles.'}
-                </div>
+                <h1
+                  style={{
+                    ...publicStoreStyles.heroTitle,
+                    ...(branding.bannerUrl ? publicStoreStyles.heroTitleOnImage : null)
+                  }}
+                >
+                  {store?.name ?? 'Tienda'}
+                </h1>
+                <p
+                  style={{
+                    ...publicStoreStyles.heroDescription,
+                    ...(branding.bannerUrl ? publicStoreStyles.heroDescriptionOnImage : null)
+                  }}
+                >
+                  {(aboutEnabled ? store?.profile.description : null) ?? (productsEnabled
+                    ? 'Conocé sus productos, disponibilidad y formas de contacto.'
+                    : 'Conocé sus canales de contacto y novedades.')}
+                </p>
               </div>
-              {checkoutEnabled ? (
-                <Button variant="primary" onClick={() => navigate(routes.storeCheckout)} disabled={cart.items.length === 0}>
-                  Ir al carrito de la tienda{cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}
-                </Button>
-              ) : null}
-              {isLocalBusinessAppearance && contactHref ? (
-                <a href={contactHref} style={{ textDecoration: 'none' }}>
-                  <Button variant="secondary">Contactar</Button>
-                </a>
-              ) : null}
-              <Button variant="secondary" onClick={() => navigate(routes.ecosystemStoresMap)}>
-                Ver otras tiendas
-              </Button>
-              <Button variant="ghost" onClick={() => navigate(routes.ecosystemStoresMap)}>
-                Ver mapa de tiendas
-              </Button>
-            </>
-          )}
-          style={heroStyle}
-        />
+              <div style={publicStoreStyles.badgeRow}>
+                {primaryCategory ? <Badge variant="neutral">{primaryCategory}</Badge> : null}
+                {productsEnabled ? <Badge variant="success">{products.length} producto{products.length === 1 ? '' : 's'}</Badge> : null}
+                {checkoutEnabled && cartItemsCount > 0 ? <Badge variant="neutral">Carrito: {cartItemsCount} item{cartItemsCount === 1 ? '' : 's'}</Badge> : null}
+              </div>
+              <div style={publicStoreStyles.heroActionRow}>
+                {checkoutEnabled ? (
+                  <Button variant="primary" onClick={() => navigate(routes.storeCheckout)} disabled={cart.items.length === 0}>
+                    Ver carrito{cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}
+                  </Button>
+                ) : null}
+                {contactHref ? (
+                  <a href={contactHref} style={{ textDecoration: 'none' }} target={contactHref.startsWith('http') ? '_blank' : undefined} rel={contactHref.startsWith('http') ? 'noreferrer' : undefined}>
+                    <Button variant={checkoutEnabled ? 'secondary' : 'primary'}>{contactActionLabel}</Button>
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </section>
 
-        <EcosystemSurfaceSection tone="warm" style={surfaceStyle}>
-          <div style={publicStoreStyles.introBadgeRow}>
-            {checkoutEnabled && cart.storeSlug && cart.storeSlug !== slug ? <Badge variant="warning">Tu carrito pertenece a otra tienda</Badge> : null}
-          </div>
-          <div style={publicStoreStyles.compactMutedCopy}>
-            {checkoutEnabled
-              ? 'Estás comprando en esta tienda. Revisá productos, cantidades y disponibilidad antes de avanzar.'
-              : 'Esta tienda todavía no recibe compras por acá, pero podés consultar su información de contacto.'}
-          </div>
-        </EcosystemSurfaceSection>
+        {checkoutEnabled && cart.storeSlug && cart.storeSlug !== slug ? (
+          <EcosystemSurfaceSection tone="warm" style={surfaceStyle}>
+            <Badge variant="warning">Tu carrito pertenece a otra tienda</Badge>
+          </EcosystemSurfaceSection>
+        ) : null}
 
         {isInitialLoading ? (
           <EcosystemSurfaceSection>
@@ -756,8 +796,8 @@ export default function PublicStoreScreen() {
         {!error && store && !productsEnabled ? (
           <EcosystemSurfaceSection style={surfaceStyle}>
             <EmptyState
-              title="Pronto habrá más para ver"
-              description="Por ahora esta tienda comparte su información principal y sus canales de contacto."
+              title="Pronto habrá novedades aquí"
+              description="La tienda está preparando lo próximo. Mientras tanto, podés usar sus canales de contacto."
               actionLabel="Ver otras tiendas"
               onAction={() => navigate(routes.ecosystemStoresMap)}
             />
@@ -887,19 +927,19 @@ export default function PublicStoreScreen() {
 
               {isOutOfRangePage ? (
                 <EmptyState
-                  title="Esta página no tiene productos"
-                  description="Los filtros se mantienen. Podés volver al inicio de estos resultados para seguir explorando."
+                  title="Volvé al inicio de estos resultados"
+                  description="Los filtros siguen activos, pero esta página ya no tiene productos para mostrar."
                   actionLabel="Volver a la primera página"
                   onAction={() => setPage(0)}
                 />
               ) : products.length === 0 ? (
                 <EmptyState
                   title={searchQuery.trim() || availableOnly || sort !== 'default' || categoryId
-                    ? 'No hay productos para esos filtros'
-                    : 'No hay productos disponibles'}
+                    ? 'No encontramos resultados'
+                    : 'Pronto habrá novedades aquí'}
                   description={searchQuery.trim() || availableOnly || sort !== 'default' || categoryId
                     ? 'Probá otra búsqueda o quitá filtros para ver más opciones.'
-                    : 'La tienda todavía está preparando su catálogo. Volvé a consultar más adelante o usá sus canales de contacto.'}
+                    : 'La tienda está preparando su catálogo. Volvé a consultar más adelante o usá sus canales de contacto.'}
                 />
               ) : (
                 <div style={productGridStyle}>
@@ -919,7 +959,7 @@ export default function PublicStoreScreen() {
                           aria-hidden="true"
                           style={publicStoreStyles.productMedia}
                         >
-                          Producto
+                          {productInitials(product.name) || '•'}
                         </div>
                       </div>
 
@@ -951,11 +991,10 @@ export default function PublicStoreScreen() {
                               {product.name}
                             </Link>
                           </div>
-                          <div style={publicStoreStyles.anywhereMuted}>SKU: {product.sku}</div>
                           <div style={publicStoreStyles.mutedCopy}>
                             {product.isAvailable
-                              ? 'Disponible para agregar al carrito.'
-                              : 'Se mantiene visible para referencia, pero no se puede agregar al carrito.'}
+                              ? 'Disponible para comprar.'
+                              : 'Por ahora no se puede agregar al carrito.'}
                           </div>
                         </div>
 

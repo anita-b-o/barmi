@@ -130,7 +130,7 @@ export default function CheckoutScreen() {
                 Finalizar compra
               </h1>
               <p style={checkoutHeroDescriptionStyle}>
-                Revisá tu compra, confirmá el envío y avanzá con el total final claro.
+                Revisá productos, envío y descuentos antes de crear la orden.
               </p>
             </div>
             <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
@@ -145,32 +145,16 @@ export default function CheckoutScreen() {
                 ¿Querés seguir mirando?
               </div>
               <div style={checkoutPanelTitleStyle}>
-                Podés volver a la tienda
+                La tienda queda cerca
               </div>
               <div style={checkoutPanelTextStyle}>
-                Tu compra queda guardada mientras revisás otros productos de esta tienda.
+                Tu carrito se conserva mientras volvés a mirar productos.
               </div>
             </div>
             <Button variant="secondary" onClick={() => navigate(backToStoreHref)}>
               Seguir comprando en tienda
             </Button>
-            <Button variant="ghost" onClick={() => navigate(routes.ecosystemStoresMap)}>
-              Ver mapa de tiendas
-            </Button>
           </div>
-        </div>
-      </Card>
-
-      <Card
-        variant="soft"
-        style={checkoutIntroCardStyle}
-      >
-        <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', marginBottom: theme.spacing.sm }}>
-          <Badge variant="neutral">Carrito de {store?.name ?? 'esta tienda'}</Badge>
-          <Badge variant="neutral">Total calculado al confirmar</Badge>
-        </div>
-        <div style={checkoutIntroTextStyle}>
-          Ajustá el carrito, cotizá envío, aplicá cupón si corresponde y recién después confirmá la orden con el total final a la vista.
         </div>
       </Card>
 
@@ -184,52 +168,6 @@ export default function CheckoutScreen() {
           </div>
         </div>
       )}
-
-      <Card
-        variant="soft"
-        style={checkoutStepsCardStyle}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: theme.spacing.md,
-            alignItems: 'flex-start',
-            flexWrap: 'wrap'
-          }}
-        >
-          <div style={{ display: 'grid', gap: 6 }}>
-            <div style={checkoutPanelTitleStyle}>Compra simple, total transparente</div>
-            <div style={checkoutStepsDescriptionStyle}>
-              Revisá cantidades, confirmá el destino, aplicá tu cupón si corresponde y generá la orden con el total final claro antes de salir al pago.
-            </div>
-          </div>
-          <Badge variant={canSubmit ? 'success' : 'warning'}>
-            {canSubmit ? 'Listo para ordenar' : 'Falta completar datos'}
-          </Badge>
-        </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gap: theme.spacing.sm,
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))'
-          }}
-        >
-          <div style={checkoutStepItemStyle}>
-            <div style={{ fontWeight: 700 }}>Carrito</div>
-            <div style={checkoutStepTextStyle}>Ajustá items y validá stock visible.</div>
-          </div>
-          <div style={checkoutStepItemStyle}>
-            <div style={{ fontWeight: 700 }}>Entrega</div>
-            <div style={checkoutStepTextStyle}>Calculá envío para este código postal.</div>
-          </div>
-          <div style={checkoutStepItemStyle}>
-            <div style={{ fontWeight: 700 }}>Pago</div>
-            <div style={checkoutStepTextStyle}>La orden se crea primero y el pago continúa después.</div>
-          </div>
-        </div>
-      </Card>
 
       <div
         style={{
@@ -338,43 +276,6 @@ const checkoutPanelTitleStyle: CSSProperties = {
 const checkoutPanelTextStyle: CSSProperties = {
   ...checkoutMutedTextStyle,
   lineHeight: 1.6
-}
-
-const checkoutIntroCardStyle: CSSProperties = {
-  marginBottom: theme.spacing.xl,
-  padding: theme.spacing.lg,
-  borderColor: alpha(theme.colors.textPrimary, 0.08),
-  background: theme.colors.bgSurfaceAlt
-}
-
-const checkoutIntroTextStyle: CSSProperties = {
-  ...checkoutMutedTextStyle,
-  lineHeight: 1.5
-}
-
-const checkoutStepsCardStyle: CSSProperties = {
-  marginBottom: theme.spacing.xl,
-  display: 'grid',
-  gap: theme.spacing.md,
-  background: theme.colors.bgSurfaceAlt,
-  borderColor: alpha(theme.colors.textPrimary, 0.08)
-}
-
-const checkoutStepsDescriptionStyle: CSSProperties = {
-  ...checkoutMutedTextStyle,
-  maxWidth: 720
-}
-
-const checkoutStepItemStyle: CSSProperties = {
-  padding: theme.spacing.md,
-  borderRadius: theme.radius.md,
-  background: theme.colors.bgSurface,
-  border: `1px solid ${theme.colors.borderDefault}`
-}
-
-const checkoutStepTextStyle: CSSProperties = {
-  ...checkoutMutedTextStyle,
-  marginTop: 4
 }
 
 function getHeroCardStyle(isMobile: boolean): CSSProperties {

@@ -21,7 +21,7 @@ import { normalizeStoreBranding, storeBrandingCssVariables } from '@/features/st
 const detailStyles = {
   pageStack: { display: 'grid', gap: theme.spacing.xl, paddingBottom: theme.spacing.xxxl },
   detailGrid: { display: 'grid', gap: theme.spacing.xl, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', alignItems: 'start' },
-  mediaCard: { padding: theme.spacing.lg },
+  mediaCard: { padding: theme.spacing.md, borderRadius: theme.radius.md },
   image: {
     width: '100%',
     aspectRatio: '4 / 3',
@@ -37,7 +37,7 @@ const detailStyles = {
     background: theme.colors.bgSurfaceAlt,
     display: 'grid',
     placeItems: 'center',
-    color: theme.colors.textMuted,
+    color: `var(--store-primary, ${theme.colors.actionPrimary})`,
     fontWeight: 700,
     letterSpacing: 0,
     textAlign: 'center',
@@ -234,7 +234,7 @@ export default function PublicStoreProductDetailScreen() {
               {loadedProduct.imageUrl ? (
                 <img src={loadedProduct.imageUrl} alt={loadedProduct.name} style={detailStyles.image} />
               ) : (
-                <div style={detailStyles.placeholder}>Imagen no disponible</div>
+                <div style={detailStyles.placeholder}>Pronto habrá imagen</div>
               )}
             </Card>
 
@@ -242,14 +242,13 @@ export default function PublicStoreProductDetailScreen() {
               <div style={detailStyles.badgeRow}>
                 {loadedProduct.categoryName ? <Badge variant="info" style={{ color: branding.secondaryColor }}>{loadedProduct.categoryName}</Badge> : null}
                 <Badge variant={loadedProduct.isAvailable ? 'success' : 'error'}>
-                  {loadedProduct.isAvailable ? `Disponible ahora · Stock disponible: ${loadedProduct.stockQuantity}` : 'Sin stock disponible'}
+                  {loadedProduct.isAvailable ? 'Disponible ahora' : 'Sin stock disponible'}
                 </Badge>
                 {checkoutEnabled && cartQty > 0 ? <Badge variant="success">En carrito: {cartQty}</Badge> : null}
               </div>
 
               <div style={detailStyles.compactStack}>
                 <div style={detailStyles.title}>{loadedProduct.name}</div>
-                <div style={detailStyles.muted}>{loadedStore.name}</div>
               </div>
 
               <div style={detailStyles.price}>{formatMoneyFromCents(loadedProduct.priceCents)}</div>
@@ -267,12 +266,6 @@ export default function PublicStoreProductDetailScreen() {
                   <div style={detailStyles.metaItem}>
                     <div style={detailStyles.metaLabel}>Categoría</div>
                     <div style={detailStyles.metaValue}>{loadedProduct.categoryName}</div>
-                  </div>
-                ) : null}
-                {loadedProduct.sku ? (
-                  <div style={detailStyles.metaItem}>
-                    <div style={detailStyles.metaLabel}>SKU</div>
-                    <div style={detailStyles.metaValue}>{loadedProduct.sku}</div>
                   </div>
                 ) : null}
               </div>

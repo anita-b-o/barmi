@@ -84,7 +84,7 @@ describe('store checkout flow', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Compra simple, total transparente')
+    expect(document.body.textContent).toContain('Revisá productos, envío y descuentos antes de crear la orden.')
     expect(document.body.textContent).toContain('Promociones activas recordadas')
     expect(document.body.textContent).toContain('BIENVENIDA10 · BIENVENIDA10 · 10% OFF')
 
@@ -475,7 +475,7 @@ describe('store checkout flow', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Compra simple, total transparente')
+    expect(document.body.textContent).toContain('Revisá productos, envío y descuentos antes de crear la orden.')
     expect(document.body.textContent).toContain('Subtotal actual')
     expect(document.body.textContent).toContain('10,00')
 
