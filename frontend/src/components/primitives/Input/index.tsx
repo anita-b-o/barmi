@@ -7,7 +7,7 @@ const baseStyle: React.CSSProperties = {
   width: '100%',
   minHeight: 44,
   padding: '11px 14px',
-  borderRadius: theme.radius.md,
+  borderRadius: `var(--store-input-radius, ${theme.radius.md}px)`,
   border: `1px solid ${theme.colors.borderDefault}`,
   background: theme.colors.bgSurfaceAlt,
   color: theme.colors.textPrimary,
@@ -27,7 +27,7 @@ export default function Input({ style, ...props }: InputProps) {
     ? { background: theme.colors.bgSurface, color: theme.colors.textMuted, cursor: 'not-allowed', opacity: 0.72 }
     : isFocused
       ? {
-        borderColor: theme.colors.actionPrimary,
+        borderColor: `var(--store-action, ${theme.colors.actionPrimary})`,
         boxShadow: `0 0 0 3px ${theme.colors.focusRing}`,
         background: theme.colors.bgSurfaceAlt
       }

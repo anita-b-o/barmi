@@ -14,7 +14,7 @@ const baseStyle: React.CSSProperties = {
   width: '100%',
   minHeight: 44,
   padding: '11px 12px',
-  borderRadius: theme.radius.md,
+  borderRadius: `var(--store-input-radius, ${theme.radius.md}px)`,
   border: `1px solid ${theme.colors.borderDefault}`,
   background: theme.colors.bgSurfaceAlt,
   color: theme.colors.textPrimary,
@@ -33,7 +33,7 @@ export default function Select({ options, style, ...props }: SelectProps) {
   const stateStyle: React.CSSProperties = isDisabled
     ? { background: theme.colors.bgSurface, color: theme.colors.textMuted, cursor: 'not-allowed' }
     : isFocused
-      ? { borderColor: theme.colors.actionPrimary, boxShadow: `0 0 0 3px ${theme.colors.focusRing}` }
+      ? { borderColor: `var(--store-action, ${theme.colors.actionPrimary})`, boxShadow: `0 0 0 3px ${theme.colors.focusRing}` }
       : isHovered
         ? { borderColor: theme.colors.borderStrong }
         : {}

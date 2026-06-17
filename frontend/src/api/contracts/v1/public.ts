@@ -15,11 +15,24 @@ export type PublicStoreAppearancePreset =
   | 'LOCAL_BUSINESS'
   | 'PORTFOLIO'
 
+export type PublicStorePalette =
+  | 'CORAL'
+  | 'OCEAN'
+  | 'FOREST'
+  | 'GRAPHITE'
+
+export type PublicStoreShape =
+  | 'SQUARE'
+  | 'ROUNDED'
+  | 'SOFT'
+
 export type PublicStore = {
   slug: string
   id: string
   name: string
   appearance: PublicStoreAppearancePreset
+  palette?: PublicStorePalette
+  shape?: PublicStoreShape
   profile: PublicStoreProfile
   branding: PublicStoreBranding
   capabilities: PublicStoreCapability[]
@@ -154,6 +167,8 @@ export type PublicStoreProductDetail = {
     name: string
     categoryName: string | null
     appearance: PublicStoreAppearancePreset
+    palette?: PublicStorePalette
+    shape?: PublicStoreShape
     branding: PublicStoreBranding
     capabilities: PublicStoreCapability[]
   }

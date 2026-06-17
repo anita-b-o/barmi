@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react'
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import type { PublicStoreAppearancePreset, PublicStoreCatalogSort, PublicStorePromotion } from '../../../api/contracts/v1/public'
+import type { PublicStoreCatalogSort, PublicStorePromotion } from '../../../api/contracts/v1/public'
 import { hasPublicStoreCapability } from '@/api/adapters/publicAdapter'
 import { useCart } from '../../store/cart/cartContext'
 import { usePublicStoreCatalog } from '../hooks/usePublicStoreCatalog'
@@ -21,7 +21,8 @@ import { alpha, theme } from '@/app/theme'
 import { useViewportMode } from '@/core/hooks/useViewportMode'
 import { trackBetaEvent } from '@/features/beta'
 import { buildCanonicalUrl, useJsonLd, useSeoMetadata } from '@/core/seo'
-import { normalizeStoreBranding, storeBrandingCssVariables } from '@/features/store/branding'
+import { normalizeStoreBranding } from '@/features/store/branding'
+import { StorefrontRenderer, resolveStorefrontAppearance } from '../appearance'
 
 const SORT_OPTIONS: Array<{ value: PublicStoreCatalogSort; label: string }> = [
   { value: 'default', label: 'Orden actual' },
@@ -104,60 +105,6 @@ function productInitials(name: string) {
     .join('')
 }
 
-function storefrontEyebrow(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
-  if (mode === 'commerce') return 'Tienda online'
-  if (mode === 'services') return 'Estudio profesional'
-  if (mode === 'portfolio') return 'Portfolio creativo'
-  return 'Sitio público'
-}
-
-function storefrontFallbackDescription(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
-  if (mode === 'commerce') return 'Productos seleccionados, disponibilidad y contacto directo.'
-  if (mode === 'services') return 'Información del estudio y canales de consulta profesional.'
-  if (mode === 'portfolio') return 'Trabajos, mirada y contacto para nuevos proyectos.'
-  return 'Información principal y canales de contacto.'
-}
-
-function offerSummaryTitle(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
-  if (mode === 'commerce') return 'Qué encontrás acá'
-  if (mode === 'services') return 'Servicios y consultas'
-  if (mode === 'portfolio') return 'Enfoque del portfolio'
-  return 'Información disponible'
-}
-
-function aboutTitle(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
-  if (mode === 'commerce') return 'Sobre la tienda'
-  if (mode === 'services') return 'El estudio'
-  if (mode === 'portfolio') return 'La mirada'
-  return 'Sobre nosotros'
-}
-
-function contactIntro(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
-  if (mode === 'commerce') return 'Canales disponibles para consultar antes de comprar.'
-  if (mode === 'services') return 'Canales directos para coordinar una consulta profesional.'
-  if (mode === 'portfolio') return 'Canales directos para conversar sobre una sesión o proyecto.'
-  return 'Canales directos del negocio.'
-}
-
-function noCatalogFallbackCopy(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
-  if (mode === 'services') {
-    return {
-      title: 'Consultas profesionales',
-      description: 'El primer paso es una conversación. Elegí el canal que te resulte más cómodo.'
-    }
-  }
-  if (mode === 'portfolio') {
-    return {
-      title: 'Proyectos y sesiones',
-      description: 'El portfolio se presenta desde su historia y sus canales de contacto.'
-    }
-  }
-  return {
-    title: 'Pronto habrá novedades aquí',
-    description: 'La tienda está preparando lo próximo. Mientras tanto, podés usar sus canales de contacto.'
-  }
-}
-
 function StorefrontImage({ src, alt, style }: { src: string; alt: string; style?: CSSProperties }) {
   const [failed, setFailed] = useState(false)
 
@@ -168,16 +115,6 @@ function StorefrontImage({ src, alt, style }: { src: string; alt: string; style?
   if (failed) return null
 
   return <img src={src} alt={alt} onError={() => setFailed(true)} style={style} />
-}
-
-function descriptionHighlights(description: string | null | undefined) {
-  if (!description) return []
-
-  return description
-    .split(/[.,;]/)
-    .map((part) => part.trim())
-    .filter((part) => part.length >= 12)
-    .slice(0, 4)
 }
 
 const publicStoreStyles = {
@@ -277,7 +214,7 @@ const publicStoreStyles = {
   highlightList: { display: 'grid', gap: theme.spacing.sm, margin: 0, padding: 0, listStyle: 'none' },
   highlightItem: {
     paddingLeft: theme.spacing.md,
-    borderLeft: `3px solid var(--store-secondary, ${theme.colors.actionPrimary})`,
+    borderLeft: `3px solid var(--store-border-accent, var(--store-secondary, ${theme.colors.actionPrimary}))`,
     color: theme.colors.textMuted,
     lineHeight: 1.5
   },
@@ -290,17 +227,17 @@ const publicStoreStyles = {
     paddingTop: theme.spacing.sm,
     borderTopWidth: 2,
     borderTopStyle: 'solid',
-    borderTopColor: `var(--store-secondary, ${theme.colors.actionPrimary})`
+    borderTopColor: `var(--store-border-accent, var(--store-secondary, ${theme.colors.actionPrimary}))`
   },
-  contactLink: { color: `var(--store-primary, ${theme.colors.actionPrimary})`, fontWeight: 700, textDecoration: 'none', overflowWrap: 'anywhere' },
+  contactLink: { color: `var(--store-action, var(--store-primary, ${theme.colors.actionPrimary}))`, fontWeight: 700, textDecoration: 'none', overflowWrap: 'anywhere' },
   promoGrid: { display: 'grid', gap: theme.spacing.sm, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' },
   promoCard: {
     display: 'grid',
     gap: theme.spacing.sm,
     padding: theme.spacing.md,
-    borderRadius: theme.radius.md,
+    borderRadius: `var(--store-card-radius, ${theme.radius.md}px)`,
     background: theme.colors.bgSurfaceAlt,
-    border: `1px solid ${theme.colors.borderDefault}`
+    border: `1px solid var(--store-border-accent, ${theme.colors.borderDefault})`
   },
   splitRow: {
     display: 'flex',
@@ -335,8 +272,8 @@ const publicStoreStyles = {
   categoryStack: { display: 'grid', gap: theme.spacing.sm },
   checkboxLabel: { display: 'flex', alignItems: 'center', gap: theme.spacing.sm, color: theme.colors.textMuted },
   productGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))' },
-  productCard: { padding: 0, overflow: 'hidden', borderRadius: theme.radius.md },
-  productCardActive: { padding: 0, overflow: 'hidden', borderColor: `var(--store-primary, ${theme.colors.actionPrimary})`, borderRadius: theme.radius.md },
+  productCard: { padding: 0, overflow: 'hidden', borderRadius: `var(--store-card-radius, ${theme.radius.md}px)` },
+  productCardActive: { padding: 0, overflow: 'hidden', borderColor: `var(--store-action, var(--store-primary, ${theme.colors.actionPrimary}))`, borderRadius: `var(--store-card-radius, ${theme.radius.md}px)` },
   productMediaWrap: {
     padding: theme.spacing.sm,
     borderBottom: `1px solid ${theme.colors.borderDefault}`,
@@ -345,12 +282,12 @@ const publicStoreStyles = {
   productMedia: {
     minHeight: 112,
     borderRadius: theme.radius.md,
-    border: `1px solid var(--store-secondary, ${theme.colors.actionPrimary})`,
+    border: `1px solid var(--store-border-accent, var(--store-secondary, ${theme.colors.actionPrimary}))`,
     background: theme.colors.bgSurface,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    color: `var(--store-primary, ${theme.colors.actionPrimary})`,
+    color: `var(--store-action, var(--store-primary, ${theme.colors.actionPrimary}))`,
     fontWeight: 700,
     letterSpacing: 0,
     textTransform: 'uppercase',
@@ -373,9 +310,9 @@ const publicStoreStyles = {
     gap: theme.spacing.md,
     flexWrap: 'wrap',
     padding: theme.spacing.md,
-    borderRadius: theme.radius.md,
-    border: `1px solid ${theme.colors.borderDefault}`,
-    background: theme.colors.bgSurfaceAlt
+    borderRadius: `var(--store-card-radius, ${theme.radius.md}px)`,
+    border: `1px solid var(--store-border-accent, ${theme.colors.borderDefault})`,
+    background: `var(--store-surface-tint, ${theme.colors.bgSurfaceAlt})`
   },
   cartItemContent: { minWidth: 0, flex: '1 1 220px' },
   cartItemName: { fontWeight: 600, overflowWrap: 'anywhere' },
@@ -384,10 +321,6 @@ const publicStoreStyles = {
   quantityWrap: { marginLeft: 'auto' },
   totalRow: { display: 'flex', justifyContent: 'space-between', gap: theme.spacing.lg, alignItems: 'center', flexWrap: 'wrap' }
 } satisfies Record<string, CSSProperties>
-
-function appearanceAttribute(preset: PublicStoreAppearancePreset) {
-  return preset.toLowerCase().replace('_', '-')
-}
 
 export default function PublicStoreScreen() {
   const { slug } = useParams()
@@ -443,50 +376,37 @@ export default function PublicStoreScreen() {
     ].filter((item): item is { label: string; value: string; href: string | null; actionLabel: string } => item !== null)
     : []
   const showContact = !error && store && contactEnabled && contactItems.length > 0
-  const appearancePreset = store?.appearance ?? 'MODERN'
-  const appearance = appearanceAttribute(appearancePreset)
-  const isClassicAppearance = appearancePreset === 'CLASSIC'
-  const isLocalBusinessAppearance = appearancePreset === 'LOCAL_BUSINESS'
-  const isPortfolioAppearance = appearancePreset === 'PORTFOLIO'
-  const storefrontMode = productsEnabled
-    ? 'commerce'
-    : isPortfolioAppearance
-      ? 'portfolio'
-      : isClassicAppearance
-        ? 'services'
-        : 'profile'
-  const contactHref = contactItems.find((item) => item.href)?.href
-  const contactActionLabel = contactItems.find((item) => item.href)?.label === 'WhatsApp'
-    ? 'Escribir por WhatsApp'
-    : 'Contactar'
+  const hasCatalogFilters = Boolean(deferredSearchQuery.trim() || availableOnly || sort !== 'default' || categoryId)
+  const resolvedAppearance = resolveStorefrontAppearance({
+    appearance: store?.appearance,
+    palette: store?.palette,
+    shape: store?.shape,
+    branding: store?.branding,
+    capabilities: store?.capabilities,
+    profile: store?.profile,
+    isMobile,
+    catalog: {
+      productsTotal: productsPage?.totalElements ?? null,
+      categoriesCount: store?.categories.length ?? 0,
+      promotionsCount: store?.promotions.length ?? 0,
+      hasCatalogFilters
+    },
+    cart: {
+      itemsCount: cart.items.length
+    },
+    contacts: {
+      count: contactItems.length
+    }
+  })
+  const isClassicAppearance = resolvedAppearance.isClassicAppearance
+  const isLocalBusinessAppearance = resolvedAppearance.isLocalBusinessAppearance
+  const storefrontMode = resolvedAppearance.storefrontMode
   const branding = normalizeStoreBranding(store?.branding)
-  const brandedVariables = storeBrandingCssVariables(store?.branding)
-  const heroStyle = {
-    ...(isMobile ? publicStoreStyles.heroMobile : publicStoreStyles.heroDesktop),
-    ...brandedVariables,
-    ...(!branding.bannerUrl && !productsEnabled ? { padding: isMobile ? `${theme.spacing.lg} 0` : `${theme.spacing.xl} 0` } : null),
-    ...(isPortfolioAppearance ? { paddingBottom: isMobile ? theme.spacing.md : theme.spacing.lg } : null)
-  }
-  const surfaceStyle = {
-    ...(isMobile ? publicStoreStyles.surfaceMobile : publicStoreStyles.surfaceDesktop),
-    ...(isClassicAppearance ? { padding: isMobile ? `${theme.spacing.lg} 0` : `${theme.spacing.xl} 0` } : null)
-  }
-  const filterPanelStyle = {
-    ...publicStoreStyles.filterPanel,
-    borderTopColor: branding.secondaryColor,
-    borderBottomColor: branding.secondaryColor,
-    ...(isClassicAppearance ? { padding: `${theme.spacing.md} 0`, borderTopColor: theme.colors.borderStrong, borderBottomColor: theme.colors.borderStrong } : null),
-    ...(isPortfolioAppearance ? { borderTopColor: theme.colors.borderDefault, borderBottomColor: theme.colors.borderDefault } : null)
-  }
-  const productGridStyle = {
-    ...publicStoreStyles.productGrid,
-    ...(isPortfolioAppearance ? { gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))' } : null)
-  }
-  const productBodyStyle = {
-    ...publicStoreStyles.productBody,
-    ...(isClassicAppearance ? { padding: theme.spacing.lg, gap: theme.spacing.md } : null),
-    ...(isPortfolioAppearance ? { padding: theme.spacing.lg } : null)
-  }
+  const heroStyle = resolvedAppearance.styles.heroStyle
+  const surfaceStyle = resolvedAppearance.styles.surfaceStyle
+  const filterPanelStyle = resolvedAppearance.styles.filterPanelStyle
+  const productGridStyle = resolvedAppearance.styles.productGridStyle
+  const productBodyStyle = resolvedAppearance.styles.productBodyStyle
   const totalPages = productsPage?.totalPages ?? 0
   const displayPage = totalPages > 0 ? Math.min(page + 1, totalPages) : 1
   const displayTotalPages = Math.max(totalPages, 1)
@@ -504,43 +424,13 @@ export default function PublicStoreScreen() {
   const isCurrentStoreCart = cart.storeSlug === slug || cart.storeSlug === null
   const storeName = store?.name ?? 'Tienda'
   const primaryCategory = store?.categories[0]?.name
-  const noCatalogFallback = noCatalogFallbackCopy(storefrontMode)
-  const profileHighlights = descriptionHighlights(aboutEnabled ? store?.profile.description : null)
-  const hasCatalogFilters = Boolean(deferredSearchQuery.trim() || availableOnly || sort !== 'default' || categoryId)
-  const trustSignals = store
-    ? [
-      productsEnabled ? {
-        label: 'Catálogo',
-        value: productsPage && !hasCatalogFilters
-          ? `${productsPage.totalElements} producto${productsPage.totalElements === 1 ? '' : 's'} publicado${productsPage.totalElements === 1 ? '' : 's'}`
-          : 'Productos con precio y disponibilidad'
-      } : null,
-      productsEnabled && store.categories.length > 0 ? {
-        label: 'Categorías',
-        value: `${store.categories.length} categoría${store.categories.length === 1 ? '' : 's'} para explorar`
-      } : null,
-      productsEnabled && checkoutEnabled ? {
-        label: 'Compra',
-        value: 'Pedido online con validación de stock al finalizar'
-      } : null,
-      productsEnabled && hasPublicStoreCapability(store.capabilities, 'SHIPPING') ? {
-        label: 'Entrega',
-        value: 'Opciones de envío disponibles en checkout'
-      } : null,
-      showPromotions ? {
-        label: 'Promociones',
-        value: `${store.promotions.length} código${store.promotions.length === 1 ? '' : 's'} activo${store.promotions.length === 1 ? '' : 's'}`
-      } : null,
-      !productsEnabled && profileHighlights.length > 0 ? {
-        label: storefrontMode === 'portfolio' ? 'Perfil' : 'Especialidad',
-        value: profileHighlights[0]
-      } : null,
-      showContact ? {
-        label: 'Contacto',
-        value: `${contactItems.length} canal${contactItems.length === 1 ? '' : 'es'} disponible${contactItems.length === 1 ? '' : 's'}`
-      } : null
-    ].filter((item): item is { label: string; value: string } => item !== null)
-    : []
+  const noCatalogFallback = resolvedAppearance.labels.noCatalogFallback
+  const profileHighlights = resolvedAppearance.sections.profileHighlights
+  const trustSignals = resolvedAppearance.sections.trustSignals
+  const contactHref = contactItems.find((item) => item.href)?.href
+  const contactActionLabel = contactItems.find((item) => item.href)?.label === 'WhatsApp'
+    ? 'Escribir por WhatsApp'
+    : 'Contactar'
   useSeoMetadata({
     title: `${storeName} | Barmi`,
     description: primaryCategory
@@ -597,7 +487,7 @@ export default function PublicStoreScreen() {
   const aboutSection = showAbout ? (
     <section id="sobre-nosotros" style={{ ...publicStoreStyles.openSectionNarrow, ...surfaceStyle }}>
         <div style={publicStoreStyles.compactStack}>
-          <div style={publicStoreStyles.titleText}>{aboutTitle(storefrontMode)}</div>
+          <div style={publicStoreStyles.titleText}>{resolvedAppearance.labels.aboutTitle}</div>
           <div style={publicStoreStyles.mutedCopy}>
             {store.profile.description}
           </div>
@@ -618,7 +508,7 @@ export default function PublicStoreScreen() {
           <div style={publicStoreStyles.splitRow}>
             <div style={publicStoreStyles.compactStack}>
               <div style={publicStoreStyles.titleText}>Contacto</div>
-              <div style={publicStoreStyles.compactMutedCopy}>{contactIntro(storefrontMode)}</div>
+              <div style={publicStoreStyles.compactMutedCopy}>{resolvedAppearance.labels.contactIntro}</div>
             </div>
             {isLocalBusinessAppearance && contactHref ? (
               <a href={contactHref} style={{ textDecoration: 'none' }} target={contactHref.startsWith('http') ? '_blank' : undefined} rel={contactHref.startsWith('http') ? 'noreferrer' : undefined}>
@@ -652,8 +542,11 @@ export default function PublicStoreScreen() {
   ) : null
   const profileSections = (
     <>
-      {isLocalBusinessAppearance ? contactSection : aboutSection}
-      {isLocalBusinessAppearance ? aboutSection : contactSection}
+      {resolvedAppearance.layout.profileSectionOrder.map((sectionId) => (
+        <Fragment key={sectionId}>
+          {sectionId === 'about' ? aboutSection : contactSection}
+        </Fragment>
+      ))}
     </>
   )
   const nonCommerceLeadSection = !productsEnabled && (storefrontMode === 'services' || storefrontMode === 'portfolio') ? (
@@ -666,7 +559,7 @@ export default function PublicStoreScreen() {
           <div style={publicStoreStyles.valueGrid}>
             {profileHighlights.map((highlight) => (
               <div key={highlight} style={publicStoreStyles.valueTile}>
-                <div style={publicStoreStyles.valueTileLabel}>{offerSummaryTitle(storefrontMode)}</div>
+                <div style={publicStoreStyles.valueTileLabel}>{resolvedAppearance.labels.offerSummaryTitle}</div>
                 <div style={publicStoreStyles.cartItemName}>{highlight}</div>
               </div>
             ))}
@@ -674,13 +567,12 @@ export default function PublicStoreScreen() {
         ) : null}
     </section>
   ) : null
-
   const trustSection = !error && store && trustSignals.length > 0 ? (
     <section aria-label="Señales de confianza" style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
       <div style={publicStoreStyles.splitTopRow}>
         <div style={publicStoreStyles.compactStack}>
           <div style={publicStoreStyles.eyebrow}>Información útil</div>
-          <div style={publicStoreStyles.titleText}>{offerSummaryTitle(storefrontMode)}</div>
+          <div style={publicStoreStyles.titleText}>{resolvedAppearance.labels.offerSummaryTitle}</div>
         </div>
         {contactHref ? (
           <a href={contactHref} style={{ textDecoration: 'none' }} target={contactHref.startsWith('http') ? '_blank' : undefined} rel={contactHref.startsWith('http') ? 'noreferrer' : undefined}>
@@ -698,7 +590,6 @@ export default function PublicStoreScreen() {
       </div>
     </section>
   ) : null
-
   useEffect(() => {
     const nextFilters = readCatalogUrlFilters(searchParams)
     const changed = !catalogUrlFiltersEqual({
@@ -821,15 +712,24 @@ export default function PublicStoreScreen() {
       showCheckoutNav={checkoutEnabled}
       storeName={store?.name}
       storeDescription={aboutEnabled ? store?.profile.description : null}
+      appearance={store?.appearance}
+      palette={store?.palette}
+      shape={store?.shape}
       branding={store?.branding}
       capabilities={store?.capabilities}
     >
-      <div id="inicio" data-appearance={appearance} style={{ ...publicStoreStyles.pageStack, ...brandedVariables, gap: isClassicAppearance ? theme.spacing.lg : publicStoreStyles.pageStack.gap }}>
+      <StorefrontRenderer
+        id="inicio"
+        appearance={resolvedAppearance}
+        style={{ ...publicStoreStyles.pageStack, gap: isClassicAppearance ? theme.spacing.lg : publicStoreStyles.pageStack.gap }}
+      >
         <section
           style={{
             ...publicStoreStyles.storefrontHero,
             ...(branding.bannerUrl ? null : publicStoreStyles.storefrontHeroCompact),
-            ...heroStyle
+            ...heroStyle,
+            borderRadius: `var(--store-card-radius, ${theme.radius.md}px)`,
+            background: branding.bannerUrl ? publicStoreStyles.storefrontHero.background : `var(--store-surface-tint, ${theme.colors.bgSurfaceAlt})`
           }}
         >
           {branding.bannerUrl ? (
@@ -863,10 +763,10 @@ export default function PublicStoreScreen() {
                 <div
                   style={{
                     ...publicStoreStyles.eyebrow,
-                    color: branding.bannerUrl ? alpha(theme.colors.bgSurface, 0.78) : `var(--store-primary, ${theme.colors.actionPrimary})`
+                    color: branding.bannerUrl ? alpha(theme.colors.bgSurface, 0.78) : `var(--store-brand, var(--store-primary, ${theme.colors.actionPrimary}))`
                   }}
                 >
-                  {storefrontEyebrow(storefrontMode)}
+                  {resolvedAppearance.labels.storefrontEyebrow}
                 </div>
                 <h1
                   style={{
@@ -882,7 +782,7 @@ export default function PublicStoreScreen() {
                     ...(branding.bannerUrl ? publicStoreStyles.heroDescriptionOnImage : null)
                   }}
                 >
-                  {(aboutEnabled ? store?.profile.description : null) ?? storefrontFallbackDescription(storefrontMode)}
+                  {(aboutEnabled ? store?.profile.description : null) ?? resolvedAppearance.labels.storefrontFallbackDescription}
                 </p>
               </div>
               <div style={publicStoreStyles.badgeRow}>
@@ -1081,7 +981,7 @@ export default function PublicStoreScreen() {
 
                       <div style={productBodyStyle}>
                         <div style={publicStoreStyles.badgeRow}>
-                          {product.categoryName ? <Badge variant="info" style={{ color: branding.secondaryColor }}>{product.categoryName}</Badge> : null}
+                          {product.categoryName ? <Badge variant="info">{product.categoryName}</Badge> : null}
                           <Badge variant={product.isAvailable ? 'success' : 'error'}>
                             {product.isAvailable ? 'Disponible' : 'Sin stock'}
                           </Badge>
@@ -1198,7 +1098,7 @@ export default function PublicStoreScreen() {
                     style={publicStoreStyles.promoCard}
                   >
                     <div style={publicStoreStyles.splitTopRow}>
-                      <Badge variant="info" style={{ color: branding.secondaryColor }}>{promotion.code}</Badge>
+                      <Badge variant="info">{promotion.code}</Badge>
                       {formatPromotionExpiry(promotion) ? <Badge variant="neutral">Vence {formatPromotionExpiry(promotion)}</Badge> : null}
                     </div>
                     <div style={publicStoreStyles.cartItemName}>{promotion.shortLabel}</div>
@@ -1294,7 +1194,7 @@ export default function PublicStoreScreen() {
         ) : null}
 
         {productsEnabled ? profileSections : null}
-      </div>
+      </StorefrontRenderer>
     </PublicStoreLayout>
   )
 }

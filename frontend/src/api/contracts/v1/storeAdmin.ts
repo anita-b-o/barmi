@@ -17,8 +17,21 @@ export type StoreAppearancePreset =
   | 'LOCAL_BUSINESS'
   | 'PORTFOLIO'
 
+export type StoreAppearancePalette =
+  | 'CORAL'
+  | 'OCEAN'
+  | 'FOREST'
+  | 'GRAPHITE'
+
+export type StoreAppearanceShape =
+  | 'SQUARE'
+  | 'ROUNDED'
+  | 'SOFT'
+
 export type StoreAppearance = {
   preset: StoreAppearancePreset
+  palette?: StoreAppearancePalette
+  shape?: StoreAppearanceShape
 }
 
 export type StoreAppearanceUpdateReq = StoreAppearance

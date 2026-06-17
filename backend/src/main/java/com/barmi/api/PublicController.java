@@ -63,19 +63,21 @@ public class PublicController {
         return storeRepository.findBySlug(slug)
                 .map(s -> {
                     List<StoreCategory> publicCategories = storeCategoryRepository.findByStoreIdAndActiveTrueOrderBySortOrderAscNameAsc(s.getId());
-                    return ResponseEntity.ok(Map.<String, Object>of(
-                            "id", s.getId(),
-                            "slug", s.getSlug(),
-                            "name", s.getName(),
-                            "appearance", s.getAppearancePreset().name(),
-                            "profile", publicProfile(s),
-                            "branding", publicBranding(s),
-                            "capabilities", storeCapabilityService.getEnabledCapabilityNamesForStore(s.getId()),
-                            "categories", publicCategories.stream().map(this::toPublicCategory).toList(),
-                            "promotions", storePromotionRepository.findVisiblePublicPromotions(s.getId(), Instant.now()).stream()
-                                    .map(this::toPublicPromotion)
-                                    .toList()
-                    ));
+                    Map<String, Object> payload = new LinkedHashMap<>();
+                    payload.put("id", s.getId());
+                    payload.put("slug", s.getSlug());
+                    payload.put("name", s.getName());
+                    payload.put("appearance", s.getAppearancePreset().name());
+                    payload.put("palette", s.getAppearancePalette().name());
+                    payload.put("shape", s.getAppearanceShape().name());
+                    payload.put("profile", publicProfile(s));
+                    payload.put("branding", publicBranding(s));
+                    payload.put("capabilities", storeCapabilityService.getEnabledCapabilityNamesForStore(s.getId()));
+                    payload.put("categories", publicCategories.stream().map(this::toPublicCategory).toList());
+                    payload.put("promotions", storePromotionRepository.findVisiblePublicPromotions(s.getId(), Instant.now()).stream()
+                            .map(this::toPublicPromotion)
+                            .toList());
+                    return ResponseEntity.ok(payload);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -238,6 +240,8 @@ public class PublicController {
                 .map(PublicStoreCategory::getLabel)
                 .orElse(null));
         payload.put("appearance", store.getAppearancePreset().name());
+        payload.put("palette", store.getAppearancePalette().name());
+        payload.put("shape", store.getAppearanceShape().name());
         payload.put("branding", publicBranding(store));
         payload.put("capabilities", storeCapabilityService.getEnabledCapabilityNamesForStore(store.getId()));
         return payload;

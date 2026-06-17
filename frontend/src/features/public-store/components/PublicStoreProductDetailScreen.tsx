@@ -16,28 +16,28 @@ import Card from '@/components/primitives/Card'
 import EmptyState from '@/components/feedback/EmptyState'
 import LoadingBlock from '@/components/feedback/LoadingState'
 import { trackBetaEvent } from '@/features/beta'
-import { normalizeStoreBranding, storeBrandingCssVariables } from '@/features/store/branding'
+import { StorefrontRenderer, resolveStorefrontAppearance } from '../appearance'
 
 const detailStyles = {
   pageStack: { display: 'grid', gap: theme.spacing.lg, paddingBottom: theme.spacing.xxl },
   detailGrid: { display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', alignItems: 'start' },
-  mediaCard: { padding: theme.spacing.sm, borderRadius: theme.radius.md },
+  mediaCard: { padding: theme.spacing.sm, borderRadius: `var(--store-card-radius, ${theme.radius.md}px)` },
   image: {
     width: '100%',
     aspectRatio: '4 / 3',
     objectFit: 'cover',
-    borderRadius: theme.radius.md,
-    border: `1px solid ${theme.colors.borderDefault}`,
-    background: theme.colors.bgSurfaceAlt
+    borderRadius: `var(--store-card-radius, ${theme.radius.md}px)`,
+    border: `1px solid var(--store-border-accent, ${theme.colors.borderDefault})`,
+    background: `var(--store-surface-tint, ${theme.colors.bgSurfaceAlt})`
   },
   placeholder: {
     minHeight: 220,
-    borderRadius: theme.radius.md,
-    border: `1px solid ${theme.colors.borderDefault}`,
-    background: theme.colors.bgSurfaceAlt,
+    borderRadius: `var(--store-card-radius, ${theme.radius.md}px)`,
+    border: `1px solid var(--store-border-accent, ${theme.colors.borderDefault})`,
+    background: `var(--store-surface-tint, ${theme.colors.bgSurfaceAlt})`,
     display: 'grid',
     placeItems: 'center',
-    color: `var(--store-primary, ${theme.colors.actionPrimary})`,
+    color: `var(--store-action, var(--store-primary, ${theme.colors.actionPrimary}))`,
     fontWeight: 700,
     letterSpacing: 0,
     textAlign: 'center',
@@ -53,17 +53,13 @@ const detailStyles = {
   metaGrid: { display: 'grid', gap: theme.spacing.sm, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' },
   metaItem: {
     padding: theme.spacing.sm,
-    borderRadius: theme.radius.md,
-    border: `1px solid ${theme.colors.borderDefault}`,
-    background: theme.colors.bgSurfaceAlt
+    borderRadius: `var(--store-card-radius, ${theme.radius.md}px)`,
+    border: `1px solid var(--store-border-accent, ${theme.colors.borderDefault})`,
+    background: `var(--store-surface-tint, ${theme.colors.bgSurfaceAlt})`
   },
   metaLabel: { color: theme.colors.textMuted, fontSize: theme.typography.small.size, fontWeight: 600, marginBottom: 4 },
   metaValue: { color: theme.colors.textPrimary, fontWeight: 700, overflowWrap: 'anywhere' }
 } satisfies Record<string, CSSProperties>
-
-function appearanceAttribute(preset: string) {
-  return preset.toLowerCase().replace('_', '-')
-}
 
 export default function PublicStoreProductDetailScreen() {
   const { storeSlug, productSlug } = useParams()
@@ -209,8 +205,13 @@ export default function PublicStoreProductDetailScreen() {
 
   const loadedProduct = detail.product
   const loadedStore = detail.store
-  const appearance = appearanceAttribute(loadedStore.appearance ?? 'MODERN')
-  const branding = normalizeStoreBranding(loadedStore.branding)
+  const resolvedAppearance = resolveStorefrontAppearance({
+    appearance: loadedStore.appearance,
+    palette: loadedStore.palette,
+    shape: loadedStore.shape,
+    branding: loadedStore.branding,
+    capabilities: loadedStore.capabilities
+  })
   const canAddToCart = checkoutEnabled && loadedProduct.isAvailable && cartProduct && !isCartLookupLoading
 
   return (
@@ -219,6 +220,9 @@ export default function PublicStoreProductDetailScreen() {
       showCheckoutNav={checkoutEnabled}
       storeName={loadedStore.name}
       storeDescription={loadedStore.categoryName}
+      appearance={loadedStore.appearance}
+      palette={loadedStore.palette}
+      shape={loadedStore.shape}
       branding={loadedStore.branding}
       capabilities={loadedStore.capabilities}
     >
@@ -227,7 +231,7 @@ export default function PublicStoreProductDetailScreen() {
         { label: loadedProduct.name }
       ]} />
 
-      <div data-appearance={appearance} style={{ ...detailStyles.pageStack, ...storeBrandingCssVariables(loadedStore.branding) }}>
+      <StorefrontRenderer appearance={resolvedAppearance} style={detailStyles.pageStack}>
         <EcosystemSurfaceSection>
           <div style={detailStyles.detailGrid}>
             <Card variant="soft" style={detailStyles.mediaCard}>
@@ -240,7 +244,7 @@ export default function PublicStoreProductDetailScreen() {
 
             <div style={detailStyles.contentStack}>
               <div style={detailStyles.badgeRow}>
-                {loadedProduct.categoryName ? <Badge variant="info" style={{ color: branding.secondaryColor }}>{loadedProduct.categoryName}</Badge> : null}
+                {loadedProduct.categoryName ? <Badge variant="info">{loadedProduct.categoryName}</Badge> : null}
                 <Badge variant={loadedProduct.isAvailable ? 'success' : 'error'}>
                   {loadedProduct.isAvailable ? 'Disponible ahora' : 'Sin stock disponible'}
                 </Badge>
@@ -303,7 +307,7 @@ export default function PublicStoreProductDetailScreen() {
             </div>
           </div>
         </EcosystemSurfaceSection>
-      </div>
+      </StorefrontRenderer>
     </PublicStoreLayout>
   )
 }

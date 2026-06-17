@@ -2,7 +2,9 @@ package com.barmi.store;
 
 import com.barmi.PostgresIntegrationTestBase;
 import com.barmi.domain.store.Store;
+import com.barmi.domain.store.StoreAppearancePalette;
 import com.barmi.domain.store.StoreAppearancePreset;
+import com.barmi.domain.store.StoreAppearanceShape;
 import com.barmi.domain.store.StoreMember;
 import com.barmi.domain.store.StoreMemberRole;
 import com.barmi.domain.store.StoreMemberStatus;
@@ -77,11 +79,15 @@ class StoreAppearanceAdminIT extends PostgresIntegrationTestBase {
     void newStoresDefaultToModern() throws Exception {
         Store saved = storeRepository.findById(store.getId()).orElseThrow();
         assertThat(saved.getAppearancePreset()).isEqualTo(StoreAppearancePreset.MODERN);
+        assertThat(saved.getAppearancePalette()).isEqualTo(StoreAppearancePalette.CORAL);
+        assertThat(saved.getAppearanceShape()).isEqualTo(StoreAppearanceShape.ROUNDED);
 
         ApiTestClient.ApiTestResponse response = api.get("/api/store/appearance", authHeaders(store, ownerEmail));
 
         assertThat(response.status()).isEqualTo(200);
         assertThat(response.body().get("preset")).isEqualTo("MODERN");
+        assertThat(response.body().get("palette")).isEqualTo("CORAL");
+        assertThat(response.body().get("shape")).isEqualTo("ROUNDED");
     }
 
     @Test
@@ -92,20 +98,26 @@ class StoreAppearanceAdminIT extends PostgresIntegrationTestBase {
 
         ApiTestClient.ApiTestResponse update = api.putJson(
                 "/api/store/appearance",
-                Map.of("preset", "LOCAL_BUSINESS"),
+                Map.of("preset", "LOCAL_BUSINESS", "palette", "FOREST", "shape", "SOFT"),
                 authHeaders(store, adminEmail)
         );
 
         assertThat(update.status()).isEqualTo(200);
         assertThat(update.body().get("preset")).isEqualTo("LOCAL_BUSINESS");
-        assertThat(storeRepository.findById(store.getId()).orElseThrow().getAppearancePreset())
-                .isEqualTo(StoreAppearancePreset.LOCAL_BUSINESS);
-        assertThat(storeRepository.findById(otherStore.getId()).orElseThrow().getAppearancePreset())
-                .isEqualTo(StoreAppearancePreset.MODERN);
+        assertThat(update.body().get("palette")).isEqualTo("FOREST");
+        assertThat(update.body().get("shape")).isEqualTo("SOFT");
+        Store updatedStore = storeRepository.findById(store.getId()).orElseThrow();
+        assertThat(updatedStore.getAppearancePreset()).isEqualTo(StoreAppearancePreset.LOCAL_BUSINESS);
+        assertThat(updatedStore.getAppearancePalette()).isEqualTo(StoreAppearancePalette.FOREST);
+        assertThat(updatedStore.getAppearanceShape()).isEqualTo(StoreAppearanceShape.SOFT);
+        Store untouchedStore = storeRepository.findById(otherStore.getId()).orElseThrow();
+        assertThat(untouchedStore.getAppearancePreset()).isEqualTo(StoreAppearancePreset.MODERN);
+        assertThat(untouchedStore.getAppearancePalette()).isEqualTo(StoreAppearancePalette.CORAL);
+        assertThat(untouchedStore.getAppearanceShape()).isEqualTo(StoreAppearanceShape.ROUNDED);
     }
 
     @Test
-    void staffAndInvalidPresetsAreRejected() throws Exception {
+    void staffAndInvalidAppearanceValuesAreRejected() throws Exception {
         ApiTestClient.ApiTestResponse staffGet = api.get("/api/store/appearance", authHeaders(store, staffEmail));
         ApiTestClient.ApiTestResponse staffPut = api.putJson(
                 "/api/store/appearance",
@@ -117,6 +129,16 @@ class StoreAppearanceAdminIT extends PostgresIntegrationTestBase {
                 Map.of("preset", "WIX_BUILDER"),
                 authHeaders(store, ownerEmail)
         );
+        ApiTestClient.ApiTestResponse invalidPalette = api.putJson(
+                "/api/store/appearance",
+                Map.of("preset", "CLASSIC", "palette", "MAGENTA", "shape", "ROUNDED"),
+                authHeaders(store, ownerEmail)
+        );
+        ApiTestClient.ApiTestResponse invalidShape = api.putJson(
+                "/api/store/appearance",
+                Map.of("preset", "CLASSIC", "palette", "CORAL", "shape", "BUBBLE"),
+                authHeaders(store, ownerEmail)
+        );
 
         assertThat(staffGet.status()).isEqualTo(403);
         assertThat(staffPut.status()).isEqualTo(403);
@@ -124,13 +146,17 @@ class StoreAppearanceAdminIT extends PostgresIntegrationTestBase {
         assertThat(errorCode(staffPut)).isEqualTo("forbidden");
         assertThat(invalid.status()).isEqualTo(400);
         assertThat(errorCode(invalid)).isEqualTo("invalid_appearance_preset");
+        assertThat(invalidPalette.status()).isEqualTo(400);
+        assertThat(errorCode(invalidPalette)).isEqualTo("invalid_appearance_palette");
+        assertThat(invalidShape.status()).isEqualTo(400);
+        assertThat(errorCode(invalidShape)).isEqualTo("invalid_appearance_shape");
     }
 
     @Test
     void publicStorePayloadIncludesCurrentStoreAppearanceOnly() throws Exception {
         api.putJson(
                 "/api/store/appearance",
-                Map.of("preset", "PORTFOLIO"),
+                Map.of("preset", "PORTFOLIO", "palette", "OCEAN", "shape", "SQUARE"),
                 authHeaders(store, ownerEmail)
         );
 
@@ -138,9 +164,13 @@ class StoreAppearanceAdminIT extends PostgresIntegrationTestBase {
 
         assertThat(publicStore.status()).isEqualTo(200);
         assertThat(publicStore.body().get("appearance")).isEqualTo("PORTFOLIO");
+        assertThat(publicStore.body().get("palette")).isEqualTo("OCEAN");
+        assertThat(publicStore.body().get("shape")).isEqualTo("SQUARE");
         assertThat(publicStore.rawBody()).doesNotContain(otherStore.getId().toString());
-        assertThat(storeRepository.findById(otherStore.getId()).orElseThrow().getAppearancePreset())
-                .isEqualTo(StoreAppearancePreset.MODERN);
+        Store untouchedStore = storeRepository.findById(otherStore.getId()).orElseThrow();
+        assertThat(untouchedStore.getAppearancePreset()).isEqualTo(StoreAppearancePreset.MODERN);
+        assertThat(untouchedStore.getAppearancePalette()).isEqualTo(StoreAppearancePalette.CORAL);
+        assertThat(untouchedStore.getAppearanceShape()).isEqualTo(StoreAppearanceShape.ROUNDED);
     }
 
     private void createUserAndMembership(Store targetStore, String email, StoreMemberRole role) {

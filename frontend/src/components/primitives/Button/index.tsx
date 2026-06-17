@@ -11,7 +11,7 @@ const baseStyle: React.CSSProperties = {
   fontFamily: theme.typography.fontFamily,
   fontSize: theme.typography.label.size,
   fontWeight: 600,
-  borderRadius: theme.radius.md,
+  borderRadius: `var(--store-button-radius, ${theme.radius.md}px)`,
   padding: '11px 16px',
   border: '1px solid transparent',
   cursor: 'pointer',
@@ -30,9 +30,9 @@ const baseStyle: React.CSSProperties = {
 
 const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
   primary: {
-    background: `var(--store-primary, ${theme.colors.actionPrimary})`,
-    color: `var(--store-primary-contrast, ${theme.mode === 'dark' ? theme.colors.textPrimary : theme.colors.bgSurfaceAlt})`,
-    borderColor: `var(--store-primary, ${theme.colors.actionPrimary})`
+    background: `var(--store-action, var(--store-primary, ${theme.colors.actionPrimary}))`,
+    color: `var(--store-action-contrast, var(--store-primary-contrast, ${theme.mode === 'dark' ? theme.colors.textPrimary : theme.colors.bgSurfaceAlt}))`,
+    borderColor: `var(--store-action, var(--store-primary, ${theme.colors.actionPrimary}))`
   },
   secondary: {
     background: theme.colors.bgSurfaceAlt,
@@ -66,7 +66,7 @@ export default function Button({ variant = 'secondary', style, ...props }: Butto
   const hoverStyle: React.CSSProperties = props.disabled
     ? {}
     : {
-      primary: { background: `var(--store-secondary, ${theme.colors.actionHover})`, borderColor: `var(--store-secondary, ${theme.colors.actionHover})`, boxShadow: theme.shadows.surface },
+      primary: { background: `var(--store-action-hover, var(--store-secondary, ${theme.colors.actionHover}))`, borderColor: `var(--store-action-hover, var(--store-secondary, ${theme.colors.actionHover}))`, boxShadow: theme.shadows.surface },
       secondary: { background: theme.colors.bgHover, borderColor: theme.colors.borderHover, color: theme.colors.textPrimary },
       ghost: { background: theme.colors.bgAccentSoft, color: theme.colors.brand }
     }[variant]
@@ -78,7 +78,7 @@ export default function Button({ variant = 'secondary', style, ...props }: Butto
   const activeStyle: React.CSSProperties = isPressed && !props.disabled
     ? {
       transform: 'translateY(1px)',
-      background: variant === 'primary' ? `var(--store-secondary, ${theme.colors.actionHover})` : undefined,
+      background: variant === 'primary' ? `var(--store-action-hover, var(--store-secondary, ${theme.colors.actionHover}))` : undefined,
       boxShadow: 'none'
     }
     : {}

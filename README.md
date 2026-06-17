@@ -347,7 +347,7 @@ Payload:
 }
 ```
 
-Valores: `MODERN`, `CLASSIC`, `LOCAL_BUSINESS` y `PORTFOLIO`. El default es `MODERN`. El storefront público expone el valor como `data-appearance` en kebab-case y sigue usando los mismos tokens del design system.
+Valores: `MODERN`, `CLASSIC`, `LOCAL_BUSINESS` y `PORTFOLIO`. El default es `MODERN`. En Fase 1, el storefront resuelve palette y shape cerrados mediante `StorefrontThemeResolver`; la persistencia mínima son columnas en `stores` (`appearance_palette`, `appearance_shape`) con defaults `CORAL` y `ROUNDED`. No hay JSONB, tabla ni entidad nueva; los tokens visuales se exponen como CSS variables junto a `data-appearance`, `data-storefront-palette` y `data-storefront-shape`.
 
 Store Branding permite configurar identidad visual básica por tienda sin CSS custom ni sistema de themes. Está disponible en:
 

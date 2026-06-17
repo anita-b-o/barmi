@@ -59,6 +59,14 @@ public class Store {
     @Column(name = "appearance_preset", nullable = false, length = 40)
     private StoreAppearancePreset appearancePreset = StoreAppearancePreset.MODERN;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "appearance_palette", nullable = false, length = 40)
+    private StoreAppearancePalette appearancePalette = StoreAppearancePalette.CORAL;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "appearance_shape", nullable = false, length = 40)
+    private StoreAppearanceShape appearanceShape = StoreAppearanceShape.ROUNDED;
+
     @Column(name = "logo_url", length = 500)
     private String logoUrl;
 
@@ -145,6 +153,12 @@ public class Store {
         this.appearancePreset = appearancePreset == null ? StoreAppearancePreset.MODERN : appearancePreset;
     }
 
+    public void updateAppearance(StoreAppearancePreset appearancePreset, StoreAppearancePalette appearancePalette, StoreAppearanceShape appearanceShape) {
+        this.appearancePreset = appearancePreset == null ? StoreAppearancePreset.MODERN : appearancePreset;
+        this.appearancePalette = appearancePalette == null ? StoreAppearancePalette.CORAL : appearancePalette;
+        this.appearanceShape = appearanceShape == null ? StoreAppearanceShape.ROUNDED : appearanceShape;
+    }
+
     public void updateBranding(String logoUrl, String bannerUrl, String primaryColor, String secondaryColor) {
         this.logoUrl = logoUrl;
         this.bannerUrl = bannerUrl;
@@ -171,6 +185,8 @@ public class Store {
     public String getPublicPhone() { return publicPhone; }
     public String getPublicWhatsapp() { return publicWhatsapp; }
     public StoreAppearancePreset getAppearancePreset() { return appearancePreset == null ? StoreAppearancePreset.MODERN : appearancePreset; }
+    public StoreAppearancePalette getAppearancePalette() { return appearancePalette == null ? StoreAppearancePalette.CORAL : appearancePalette; }
+    public StoreAppearanceShape getAppearanceShape() { return appearanceShape == null ? StoreAppearanceShape.ROUNDED : appearanceShape; }
     public String getLogoUrl() { return logoUrl; }
     public String getBannerUrl() { return bannerUrl; }
     public String getPrimaryColor() { return primaryColor == null || primaryColor.isBlank() ? DEFAULT_PRIMARY_COLOR : primaryColor; }

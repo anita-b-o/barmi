@@ -23,7 +23,7 @@ export default function Card({ variant = 'surface', style, ...props }: CardProps
       style={{
         background,
         border: `1px solid ${borderColor}`,
-        borderRadius: theme.radius.lg,
+        borderRadius: `var(--store-card-radius, ${theme.radius.lg}px)`,
         padding: theme.spacing.xl,
         boxShadow: theme.shadows.surface,
         transition: 'border-color 160ms ease, box-shadow 160ms ease, background 160ms ease, transform 160ms ease',

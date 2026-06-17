@@ -2,7 +2,9 @@ package com.barmi.app.store;
 
 import com.barmi.app.security.StoreAuthorizationService;
 import com.barmi.domain.store.Store;
+import com.barmi.domain.store.StoreAppearancePalette;
 import com.barmi.domain.store.StoreAppearancePreset;
+import com.barmi.domain.store.StoreAppearanceShape;
 import com.barmi.infra.repo.StoreRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -33,7 +35,9 @@ public class StoreAppearanceService {
         storeAuthorizationService.requireAdmin();
         Store store = storeAuthorizationService.requireCurrentStore();
         StoreAppearancePreset preset = parsePreset(request == null ? null : request.preset());
-        store.updateAppearancePreset(preset);
+        StoreAppearancePalette palette = parsePalette(request == null ? null : request.palette());
+        StoreAppearanceShape shape = parseShape(request == null ? null : request.shape());
+        store.updateAppearance(preset, palette, shape);
         return toDto(storeRepository.save(store));
     }
 
@@ -48,11 +52,37 @@ public class StoreAppearanceService {
         }
     }
 
-    public static StoreAppearanceDto toDto(Store store) {
-        return new StoreAppearanceDto(store.getAppearancePreset().name());
+    private StoreAppearancePalette parsePalette(String value) {
+        if (value == null || value.isBlank()) {
+            return StoreAppearancePalette.CORAL;
+        }
+        try {
+            return StoreAppearancePalette.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_appearance_palette");
+        }
     }
 
-    public record StoreAppearanceUpdateRequest(String preset) {}
+    private StoreAppearanceShape parseShape(String value) {
+        if (value == null || value.isBlank()) {
+            return StoreAppearanceShape.ROUNDED;
+        }
+        try {
+            return StoreAppearanceShape.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "invalid_appearance_shape");
+        }
+    }
 
-    public record StoreAppearanceDto(String preset) {}
+    public static StoreAppearanceDto toDto(Store store) {
+        return new StoreAppearanceDto(
+                store.getAppearancePreset().name(),
+                store.getAppearancePalette().name(),
+                store.getAppearanceShape().name()
+        );
+    }
+
+    public record StoreAppearanceUpdateRequest(String preset, String palette, String shape) {}
+
+    public record StoreAppearanceDto(String preset, String palette, String shape) {}
 }

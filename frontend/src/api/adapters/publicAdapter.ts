@@ -7,7 +7,9 @@ import {
   PublicStoreBranding,
   PublicStoreCapability,
   PublicStoreCatalogSort,
+  PublicStorePalette,
   PublicStoreProductDetail,
+  PublicStoreShape,
   PublicStoreCategory,
   PublicStorePromotion
 } from '../contracts/v1/public'
@@ -39,6 +41,19 @@ const PUBLIC_STORE_APPEARANCE_PRESETS = new Set<PublicStoreAppearancePreset>([
   'CLASSIC',
   'LOCAL_BUSINESS',
   'PORTFOLIO'
+])
+
+const PUBLIC_STORE_PALETTES = new Set<PublicStorePalette>([
+  'CORAL',
+  'OCEAN',
+  'FOREST',
+  'GRAPHITE'
+])
+
+const PUBLIC_STORE_SHAPES = new Set<PublicStoreShape>([
+  'SQUARE',
+  'ROUNDED',
+  'SOFT'
 ])
 
 const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/
@@ -105,6 +120,20 @@ function parsePublicStoreAppearance(data: unknown): PublicStoreAppearancePreset 
   const normalized = data.trim().toUpperCase() as PublicStoreAppearancePreset
   if (!PUBLIC_STORE_APPEARANCE_PRESETS.has(normalized)) return 'MODERN'
   return normalized
+}
+
+function parsePublicStorePalette(data: unknown): PublicStorePalette | undefined {
+  if (data === undefined || data === null) return undefined
+  if (typeof data !== 'string') return undefined
+  const normalized = data.trim().toUpperCase() as PublicStorePalette
+  return PUBLIC_STORE_PALETTES.has(normalized) ? normalized : undefined
+}
+
+function parsePublicStoreShape(data: unknown): PublicStoreShape | undefined {
+  if (data === undefined || data === null) return undefined
+  if (typeof data !== 'string') return undefined
+  const normalized = data.trim().toUpperCase() as PublicStoreShape
+  return PUBLIC_STORE_SHAPES.has(normalized) ? normalized : undefined
 }
 
 function parsePublicStoreProfile(data: unknown) {
@@ -184,6 +213,8 @@ export function parsePublicStore(data: unknown): PublicStore {
     id: data.id,
     name: data.name,
     appearance: parsePublicStoreAppearance(data.appearance),
+    palette: parsePublicStorePalette(data.palette),
+    shape: parsePublicStoreShape(data.shape),
     profile: parsePublicStoreProfile(data.profile),
     branding: parsePublicStoreBranding(data.branding),
     capabilities: parsePublicStoreCapabilities(data.capabilities, 'Public store capabilities'),
@@ -262,6 +293,8 @@ export function parsePublicStoreProductDetail(data: unknown): PublicStoreProduct
       name: store.name,
       categoryName: store.categoryName ?? null,
       appearance: parsePublicStoreAppearance(store.appearance),
+      palette: parsePublicStorePalette(store.palette),
+      shape: parsePublicStoreShape(store.shape),
       branding: parsePublicStoreBranding(store.branding),
       capabilities: parsePublicStoreCapabilities(store.capabilities, 'Public store product detail store capabilities')
     },

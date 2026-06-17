@@ -5,6 +5,8 @@ CREATE TABLE stores (
   slug          TEXT NOT NULL UNIQUE,
   name          TEXT NOT NULL,
   appearance_preset TEXT NOT NULL DEFAULT 'MODERN' CHECK (appearance_preset IN ('MODERN', 'CLASSIC', 'LOCAL_BUSINESS', 'PORTFOLIO')),
+  appearance_palette TEXT NOT NULL DEFAULT 'CORAL' CHECK (appearance_palette IN ('CORAL', 'OCEAN', 'FOREST', 'GRAPHITE')),
+  appearance_shape TEXT NOT NULL DEFAULT 'ROUNDED' CHECK (appearance_shape IN ('SQUARE', 'ROUNDED', 'SOFT')),
   logo_url      VARCHAR(500),
   banner_url    VARCHAR(500),
   primary_color VARCHAR(7) NOT NULL DEFAULT '#F65F55' CHECK (REGEXP_LIKE(primary_color, '^#[0-9A-Fa-f]{6}$')),

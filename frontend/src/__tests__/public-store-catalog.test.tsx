@@ -283,8 +283,8 @@ describe('public store catalog discovery', () => {
     expect(document.querySelector('img[src="https://cdn.demo.test/logo.png"]')).toBeTruthy()
     expect(document.querySelector('img[alt="Portada de Demo Store"]')).toBeTruthy()
     const brandedRoot = document.querySelector('#inicio') as HTMLElement
-    expect(brandedRoot.style.getPropertyValue('--store-primary')).toBe('#0F766E')
-    expect(brandedRoot.style.getPropertyValue('--store-secondary')).toBe('#155E75')
+    expect(brandedRoot.style.getPropertyValue('--store-primary')).toBe('#F65F55')
+    expect(brandedRoot.style.getPropertyValue('--store-secondary')).toBe('#E5544A')
 
     await cleanup()
   })
@@ -343,6 +343,64 @@ describe('public store catalog discovery', () => {
     const brandedRoot = document.querySelector('#inicio') as HTMLElement
     expect(brandedRoot.style.getPropertyValue('--store-primary')).toBe('#F65F55')
     expect(brandedRoot.style.getPropertyValue('--store-secondary')).toBe('#E5544A')
+
+    await cleanup()
+  })
+
+  it('renders storefront with selected closed palette', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          palette: 'OCEAN',
+          promotions: []
+        }
+      },
+      '/api/public/stores/demo-store/products': {
+        body: productsPage([
+          { priceCents: 1000, id: 'p1', slug: 'p1', name: 'Cafe molido', sku: 'SKU-CAFE', stockQuantity: 5, isAvailable: true, categoryId: null, categoryName: null }
+        ])
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    const storefrontRoot = document.querySelector('#inicio') as HTMLElement
+    expect(storefrontRoot.dataset.storefrontPalette).toBe('ocean')
+    expect(storefrontRoot.style.getPropertyValue('--store-action')).toBe('#0E7490')
+    expect(storefrontRoot.style.getPropertyValue('--store-surface-tint')).toBe('#ECFEFF')
+    expect(storefrontRoot.style.getPropertyValue('--store-border-accent')).toBe('#67E8F9')
+
+    await cleanup()
+  })
+
+  it('renders storefront with selected shape', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          shape: 'SQUARE',
+          promotions: []
+        }
+      },
+      '/api/public/stores/demo-store/products': {
+        body: productsPage([
+          { priceCents: 1000, id: 'p1', slug: 'p1', name: 'Cafe molido', sku: 'SKU-CAFE', stockQuantity: 5, isAvailable: true, categoryId: null, categoryName: null }
+        ])
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    const storefrontRoot = document.querySelector('#inicio') as HTMLElement
+    expect(storefrontRoot.dataset.storefrontShape).toBe('square')
+    expect(storefrontRoot.style.getPropertyValue('--store-button-radius')).toBe('2px')
+    expect(storefrontRoot.style.getPropertyValue('--store-card-radius')).toBe('4px')
+    expect(storefrontRoot.style.getPropertyValue('--store-badge-radius')).toBe('2px')
 
     await cleanup()
   })

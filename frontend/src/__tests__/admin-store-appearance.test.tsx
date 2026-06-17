@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setAuthSession } from '../test-utils/testUtils'
+import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setAuthSession, setSelectElementValue } from '../test-utils/testUtils'
 
 const authMe = {
   userId: 'u1',
@@ -42,7 +42,11 @@ describe('admin store appearance', () => {
       expect(document.body.textContent).toContain('Clásica')
       expect(document.body.textContent).toContain('Negocio local')
       expect(document.body.textContent).toContain('Portfolio')
-      expect(document.body.textContent).toContain('Elegí la forma general en que se ordena tu sitio.')
+      expect(document.body.textContent).toContain('Elegí la forma general, la paleta cerrada y el nivel de redondez.')
+      expect(document.querySelector('select[aria-label="Palette"]')).toBeTruthy()
+      expect(document.querySelector('select[aria-label="Shape"]')).toBeTruthy()
+      expect(document.querySelector('[data-storefront-palette="coral"]')).toBeTruthy()
+      expect(document.querySelector('[data-storefront-shape="rounded"]')).toBeTruthy()
       const backLink = Array.from(document.querySelectorAll('a')).find((anchor) => anchor.textContent?.includes('Volver a publicar'))
       expect(backLink?.getAttribute('href')).toBe('/admin/store/publish')
       expect((document.querySelector('input[aria-label="Moderna"]') as HTMLInputElement).checked).toBe(true)
@@ -56,7 +60,7 @@ describe('admin store appearance', () => {
       '/api/auth/me': { body: authMe },
       '/api/store/appearance': (url, init) => {
         if ((init?.method ?? 'GET') === 'PUT') {
-          return { body: { preset: 'LOCAL_BUSINESS' } }
+          return { body: { preset: 'LOCAL_BUSINESS', palette: 'OCEAN', shape: 'SOFT' } }
         }
         return { body: { preset: 'MODERN' } }
       }
@@ -67,6 +71,8 @@ describe('admin store appearance', () => {
     await flush()
 
     await clickElement(document.querySelector('input[aria-label="Negocio local"]'))
+    await setSelectElementValue(document.querySelector('select[aria-label="Palette"]') as HTMLSelectElement, 'OCEAN')
+    await setSelectElementValue(document.querySelector('select[aria-label="Shape"]') as HTMLSelectElement, 'SOFT')
     const saveButton = Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Guardar apariencia'))
     await clickElement(saveButton)
     await flush()
@@ -74,9 +80,11 @@ describe('admin store appearance', () => {
 
     const putCall = handler.mock.calls.find(([, init]) => init?.method === 'PUT')
     expect(putCall).toBeTruthy()
-    expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({ preset: 'LOCAL_BUSINESS' })
+    expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({ preset: 'LOCAL_BUSINESS', palette: 'OCEAN', shape: 'SOFT' })
     expect(document.querySelector('[role="status"]')?.textContent).toContain('Apariencia guardada.')
     expect((document.querySelector('input[aria-label="Negocio local"]') as HTMLInputElement).checked).toBe(true)
+    expect((document.querySelector('select[aria-label="Palette"]') as HTMLSelectElement).value).toBe('OCEAN')
+    expect((document.querySelector('select[aria-label="Shape"]') as HTMLSelectElement).value).toBe('SOFT')
 
     await cleanup()
   })

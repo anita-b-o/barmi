@@ -2,7 +2,9 @@ import { requestJsonWithAuth, type AuthRequestContext } from '../client/http'
 import type {
   StoreAdminProduct,
   StoreAppearance,
+  StoreAppearancePalette,
   StoreAppearancePreset,
+  StoreAppearanceShape,
   StoreAppearanceUpdateReq,
   StoreAssetUpload,
   StoreBranding,
@@ -132,6 +134,33 @@ function parseStoreAppearancePreset(value: unknown, message: string): StoreAppea
   throw new Error(message)
 }
 
+function parseStoreAppearancePalette(value: unknown): StoreAppearancePalette | undefined {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.trim().toUpperCase()
+  if (
+    normalized === 'CORAL' ||
+    normalized === 'OCEAN' ||
+    normalized === 'FOREST' ||
+    normalized === 'GRAPHITE'
+  ) {
+    return normalized
+  }
+  return undefined
+}
+
+function parseStoreAppearanceShape(value: unknown): StoreAppearanceShape | undefined {
+  if (typeof value !== 'string') return undefined
+  const normalized = value.trim().toUpperCase()
+  if (
+    normalized === 'SQUARE' ||
+    normalized === 'ROUNDED' ||
+    normalized === 'SOFT'
+  ) {
+    return normalized
+  }
+  return undefined
+}
+
 function parseHexColor(value: unknown, message: string): string {
   assertString(value, message)
   if (!/^#[0-9A-Fa-f]{6}$/.test(value)) throw new Error(message)
@@ -258,7 +287,9 @@ export function parseStorePublicProfile(data: unknown): StorePublicProfile {
 export function parseStoreAppearance(data: unknown): StoreAppearance {
   assertRecord(data, 'Invalid store appearance payload')
   return {
-    preset: parseStoreAppearancePreset(data.preset, 'Store appearance preset is invalid')
+    preset: parseStoreAppearancePreset(data.preset, 'Store appearance preset is invalid'),
+    palette: parseStoreAppearancePalette(data.palette),
+    shape: parseStoreAppearanceShape(data.shape)
   }
 }
 

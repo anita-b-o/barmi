@@ -13,7 +13,7 @@ const variants: Record<BadgeVariant, { background: string; color: string }> = {
   warning: { background: theme.colors.statusWarningSoft, color: theme.colors.warning },
   danger: { background: theme.colors.statusErrorSoft, color: theme.colors.error },
   error: { background: theme.colors.statusErrorSoft, color: theme.colors.error },
-  info: { background: theme.colors.statusInfoSoft, color: `var(--store-secondary, ${theme.colors.info})` }
+  info: { background: theme.colors.statusInfoSoft, color: `var(--store-accent, var(--store-secondary, ${theme.colors.info}))` }
 }
 
 export default function Badge({ variant = 'neutral', style, ...props }: BadgeProps) {
@@ -25,7 +25,7 @@ export default function Badge({ variant = 'neutral', style, ...props }: BadgePro
         alignItems: 'center',
         justifyContent: 'center',
         padding: '5px 10px',
-        borderRadius: theme.radius.pill,
+        borderRadius: `var(--store-badge-radius, ${theme.radius.pill}px)`,
         fontSize: theme.typography.caption.size,
         fontWeight: 600,
         lineHeight: 1.2,

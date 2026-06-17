@@ -1,7 +1,7 @@
-import { FormEvent, useEffect, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { storeAdminAdapter } from '@/api/adapters/storeAdminAdapter'
-import type { StoreAppearancePreset } from '@/api/contracts/v1/storeAdmin'
+import type { StoreAppearancePalette, StoreAppearancePreset, StoreAppearanceShape } from '@/api/contracts/v1/storeAdmin'
 import { theme } from '@/app/theme'
 import { useAuth } from '@/core/auth/authContext'
 import { routes } from '@/core/constants/routes'
@@ -15,6 +15,8 @@ import LoadingState from '@/components/feedback/LoadingState'
 import Section from '@/components/ui/Section'
 import { Breadcrumbs, ContextHeader } from '@/components/navigation'
 import PageHeader from '@/components/navigation/SectionHeader'
+import SelectField from '@/components/primitives/Select'
+import { StorefrontRenderer, resolveStorefrontAppearance } from '@/features/public-store/appearance'
 
 type AppearanceOption = {
   preset: StoreAppearancePreset
@@ -50,6 +52,19 @@ const APPEARANCE_OPTIONS: AppearanceOption[] = [
   }
 ]
 
+const PALETTE_OPTIONS: Array<{ value: StoreAppearancePalette; label: string }> = [
+  { value: 'CORAL', label: 'Coral' },
+  { value: 'OCEAN', label: 'Ocean' },
+  { value: 'FOREST', label: 'Forest' },
+  { value: 'GRAPHITE', label: 'Graphite' }
+]
+
+const SHAPE_OPTIONS: Array<{ value: StoreAppearanceShape; label: string }> = [
+  { value: 'SQUARE', label: 'Square' },
+  { value: 'ROUNDED', label: 'Rounded' },
+  { value: 'SOFT', label: 'Soft' }
+]
+
 function toErrorMessage(error: unknown) {
   if (error instanceof Error) return error.message
   return 'No se pudo completar la acción.'
@@ -60,6 +75,10 @@ export default function AdminStoreAppearanceScreen() {
   const activeStores = memberships.stores.filter((membership) => membership.status === 'ACTIVE')
   const [selectedPreset, setSelectedPreset] = useState<StoreAppearancePreset>('MODERN')
   const [savedPreset, setSavedPreset] = useState<StoreAppearancePreset>('MODERN')
+  const [selectedPalette, setSelectedPalette] = useState<StoreAppearancePalette>('CORAL')
+  const [savedPalette, setSavedPalette] = useState<StoreAppearancePalette>('CORAL')
+  const [selectedShape, setSelectedShape] = useState<StoreAppearanceShape>('ROUNDED')
+  const [savedShape, setSavedShape] = useState<StoreAppearanceShape>('ROUNDED')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -73,8 +92,17 @@ export default function AdminStoreAppearanceScreen() {
         setError(null)
         const data = await storeAdminAdapter.getStoreAppearance(authRequest)
         if (cancelled) return
+        const resolved = resolveStorefrontAppearance({
+          appearance: data.preset,
+          palette: data.palette,
+          shape: data.shape
+        })
         setSelectedPreset(data.preset)
         setSavedPreset(data.preset)
+        setSelectedPalette(resolved.palette)
+        setSavedPalette(resolved.palette)
+        setSelectedShape(resolved.shape)
+        setSavedShape(resolved.shape)
       } catch (err) {
         if (!cancelled) setError(toErrorMessage(err))
       } finally {
@@ -94,9 +122,22 @@ export default function AdminStoreAppearanceScreen() {
       setSaving(true)
       setError(null)
       setSuccess(null)
-      const data = await storeAdminAdapter.updateStoreAppearance({ preset: selectedPreset }, authRequest)
+      const data = await storeAdminAdapter.updateStoreAppearance({
+        preset: selectedPreset,
+        palette: selectedPalette,
+        shape: selectedShape
+      }, authRequest)
+      const resolved = resolveStorefrontAppearance({
+        appearance: data.preset,
+        palette: data.palette ?? selectedPalette,
+        shape: data.shape ?? selectedShape
+      })
       setSelectedPreset(data.preset)
       setSavedPreset(data.preset)
+      setSelectedPalette(resolved.palette)
+      setSavedPalette(resolved.palette)
+      setSelectedShape(resolved.shape)
+      setSavedShape(resolved.shape)
       setSuccess('Apariencia guardada.')
     } catch (err) {
       setError(toErrorMessage(err))
@@ -104,6 +145,26 @@ export default function AdminStoreAppearanceScreen() {
       setSaving(false)
     }
   }
+  const previewAppearance = useMemo(() => resolveStorefrontAppearance({
+    appearance: selectedPreset,
+    palette: selectedPalette,
+    shape: selectedShape,
+    branding: null,
+    capabilities: ['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'CONTACT'],
+    profile: {
+      description: 'Vista simple para comparar color y forma antes de guardar.'
+    },
+    catalog: {
+      productsTotal: 3,
+      categoriesCount: 2,
+      promotionsCount: 1,
+      hasCatalogFilters: false
+    },
+    contacts: {
+      count: 2
+    }
+  }), [selectedPalette, selectedPreset, selectedShape])
+  const hasChanges = selectedPreset !== savedPreset || selectedPalette !== savedPalette || selectedShape !== savedShape
 
   return (
     <AdminLayout>
@@ -164,7 +225,7 @@ export default function AdminStoreAppearanceScreen() {
               {success ? <div role="status" style={{ color: theme.colors.success, fontWeight: 700 }}>{success}</div> : null}
 
               <div style={{ color: theme.colors.textMuted, lineHeight: 1.6 }}>
-                Elegí la forma general en que se ordena tu sitio. No cambia tus productos, datos de contacto ni lo que tus clientes pueden hacer.
+                Elegí la forma general, la paleta cerrada y el nivel de redondez. No cambia tus productos, datos de contacto ni lo que tus clientes pueden hacer.
               </div>
 
               <div style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' }}>
@@ -218,11 +279,75 @@ export default function AdminStoreAppearanceScreen() {
                 })}
               </div>
 
+              <div style={{ display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: theme.spacing.xs }}>Palette</div>
+                  <SelectField
+                    aria-label="Palette"
+                    value={selectedPalette}
+                    options={PALETTE_OPTIONS}
+                    onChange={(event) => {
+                      setSelectedPalette(event.target.value as StoreAppearancePalette)
+                      setSuccess(null)
+                    }}
+                  />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: theme.spacing.xs }}>Shape</div>
+                  <SelectField
+                    aria-label="Shape"
+                    value={selectedShape}
+                    options={SHAPE_OPTIONS}
+                    onChange={(event) => {
+                      setSelectedShape(event.target.value as StoreAppearanceShape)
+                      setSuccess(null)
+                    }}
+                  />
+                </div>
+              </div>
+
+              <StorefrontRenderer
+                appearance={previewAppearance}
+                style={{
+                  display: 'grid',
+                  gap: theme.spacing.md,
+                  padding: theme.spacing.lg,
+                  borderRadius: 'var(--store-card-radius)',
+                  border: `1px solid var(--store-border-accent, ${theme.colors.borderDefault})`,
+                  background: `var(--store-surface-tint, ${theme.colors.bgSurfaceAlt})`
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'grid', gap: 4 }}>
+                    <div style={{ color: 'var(--store-brand)', fontWeight: 700, fontSize: theme.typography.small.size, textTransform: 'uppercase' }}>
+                      {previewAppearance.labels.storefrontEyebrow}
+                    </div>
+                    <div style={{ color: theme.colors.textPrimary, fontWeight: 800, fontSize: theme.typography.title.size }}>Vista de tienda</div>
+                  </div>
+                  <Badge variant="info">{selectedPalette}</Badge>
+                </div>
+                <div style={{ display: 'grid', gap: theme.spacing.sm, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))' }}>
+                  <Card style={{ padding: theme.spacing.md }}>
+                    <div style={{ fontWeight: 700 }}>Producto destacado</div>
+                    <div style={{ color: theme.colors.textMuted }}>Card, badges y bordes.</div>
+                  </Card>
+                  <Card style={{ padding: theme.spacing.md }}>
+                    <div style={{ fontWeight: 700 }}>Contacto</div>
+                    <div style={{ color: 'var(--store-action)', fontWeight: 700 }}>Acción primaria</div>
+                  </Card>
+                </div>
+                <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
+                  <Button type="button" variant="primary">Comprar</Button>
+                  <Button type="button" variant="secondary">Contactar</Button>
+                  <Badge variant="neutral">{selectedShape}</Badge>
+                </div>
+              </StorefrontRenderer>
+
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, flexWrap: 'wrap', alignItems: 'center' }}>
                 <Link to={routes.adminStorePublish} style={{ color: theme.colors.textMuted, textDecoration: 'none' }}>
                   Volver a publicar
                 </Link>
-                <Button type="submit" variant="primary" disabled={saving || selectedPreset === savedPreset}>
+                <Button type="submit" variant="primary" disabled={saving || !hasChanges}>
                   {saving ? 'Guardando...' : 'Guardar apariencia'}
                 </Button>
               </div>
