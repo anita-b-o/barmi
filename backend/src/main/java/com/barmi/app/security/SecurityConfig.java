@@ -53,6 +53,7 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/**").authenticated()
                 .requestMatchers("/api/webhooks/**").permitAll()
                 .requestMatchers("/api/admin/dev/observability/**").permitAll()
+                .requestMatchers("/api/admin/dev/seeds/**").permitAll()
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
                 .requestMatchers("/api/auth/me").authenticated()

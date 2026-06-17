@@ -74,23 +74,59 @@ The Vite dev server proxies /api to http://localhost:8080 and preserves the Host
 Desde la raíz del repo:
 
 ```bash
+curl -s http://localhost:8080/api/admin/dev/seeds | jq
+curl -s -X POST http://localhost:8080/api/admin/dev/seeds/all | jq
+```
+
+Esto deja una base demo coherente para QA/manual review con escenarios oficiales idempotentes:
+
+- `ecommerce`: Casa Roja, preset online store, appearance local business, 20 productos, 3 categorias, 2 promociones, 3 zonas de envio, pedidos paid, fulfillments y readiness 100%.
+- `services`: Estudio Fernandez, preset services, perfil/contacto completos, sin productos, checkout ni envios.
+- `portfolio`: Ana Fotografia, appearance portfolio, descripcion extensa y contacto, sin ecommerce.
+- `new-store`: Mi nueva tienda, casi vacia, readiness 0% para First Run Experience.
+- `ecosystem`: Ecosystem demo, 10 stores variadas, categorias, productos, promociones y pedidos para discovery/catalog/analytics.
+- `all`: ejecuta todos los escenarios.
+
+Endpoints disponibles solo con perfiles `local`/`dev` y perfiles de test:
+
+```bash
+curl -s http://localhost:8080/api/admin/dev/seeds | jq
+curl -s -X POST http://localhost:8080/api/admin/dev/seeds/ecommerce | jq
+curl -s -X POST http://localhost:8080/api/admin/dev/seeds/services | jq
+curl -s -X POST http://localhost:8080/api/admin/dev/seeds/portfolio | jq
+curl -s -X POST http://localhost:8080/api/admin/dev/seeds/new-store | jq
+curl -s -X POST http://localhost:8080/api/admin/dev/seeds/ecosystem | jq
+curl -s -X POST http://localhost:8080/api/admin/dev/seeds/all | jq
+```
+
+La respuesta incluye contadores de lo creado en esa corrida:
+
+```json
+{
+  "success": true,
+  "createdStores": 14,
+  "createdProducts": 80,
+  "createdOrders": 35,
+  "createdPromotions": 14,
+  "createdEcosystems": 1
+}
+```
+
+Para regenerar demo data, ejecutá otra vez el mismo `POST`: reutiliza slugs conocidos, actualiza datos y no duplica registros.
+
+El script SQL historico sigue disponible para QA manual de bajo nivel:
+
+```bash
 ./scripts/load-demo-data.sh
 ```
 
-Esto deja una base demo coherente para QA/manual review con:
-
-- `demo-store` como storefront principal
-- `demo-ecosystem` como ecosystem público principal
-- categorías, promos, shipping zones y productos reales para ambos dominios
-- admin demo `admin@example.com / secret`
-
-Si usás otra conexión local de Postgres:
+Si usás otra conexión local de Postgres para el script SQL:
 
 ```bash
 DB_HOST=localhost DB_PORT=5434 DB_NAME=barmi DB_USER=barmi DB_PASSWORD=barmi123 ./scripts/load-demo-data.sh
 ```
 
-La carga no requiere una DB vacía, pero los slugs/IDs demo quedan reservados para este dataset.
+La carga SQL no requiere una DB vacía, pero los slugs/IDs demo quedan reservados para ese dataset.
 
 ## Optional curl check
 You can validate Host resolution with:

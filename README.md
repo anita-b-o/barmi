@@ -123,10 +123,36 @@ http://demo-store.localhost:5173/public/demo-store
 Con el stack local arriba:
 
 ```bash
+curl -s http://localhost:8080/api/admin/dev/seeds | jq
+curl -s -X POST http://localhost:8080/api/admin/dev/seeds/all | jq
+```
+
+Los escenarios oficiales son:
+
+- `ecommerce`: Casa Roja, tienda online lista para publicar con productos, categorias, promociones, envios, pedidos paid, fulfillments y analytics derivados.
+- `services`: Estudio Fernandez, sitio de servicios con perfil y contacto, sin ecommerce.
+- `portfolio`: Ana Fotografia, portfolio con descripcion extensa y contacto.
+- `new-store`: Mi nueva tienda, casi vacia para activar First Run Experience.
+- `ecosystem`: Ecosystem demo con 10 stores, categorias, productos, promociones y pedidos.
+- `all`: ejecuta todos los escenarios de forma idempotente.
+
+Los endpoints de seeds existen solamente en perfiles `local`/`dev` y perfiles de test. No corren automaticamente, no forman parte de Flyway y no estan disponibles en staging/prod.
+
+Para regenerar datos demo, volve a ejecutar el mismo `POST`; el seed reutiliza slugs conocidos, actualiza datos y no duplica registros:
+
+```bash
+curl -s -X POST http://localhost:8080/api/admin/dev/seeds/ecommerce | jq
+curl -s -X POST http://localhost:8080/api/admin/dev/seeds/ecosystem | jq
+curl -s -X POST http://localhost:8080/api/admin/dev/seeds/all | jq
+```
+
+El script SQL historico sigue disponible para QA manual de bajo nivel:
+
+```bash
 ./scripts/load-demo-data.sh
 ```
 
-Defaults usados por el script:
+Defaults usados por el script SQL:
 
 - `DB_HOST=localhost`
 - `DB_PORT=5434`

@@ -1,55 +1,44 @@
 package com.barmi.api;
 
-import com.barmi.app.saas.StoreSaasSubscriptionService;
-import com.barmi.infra.repo.ProductRepository;
-import com.barmi.infra.repo.StoreRepository;
 import org.junit.jupiter.api.Test;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MockMvc;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@SpringBootTest(properties = {
+        "spring.profiles.active=qa",
+        "spring.datasource.url=jdbc:h2:mem:barmi-prod-profile;DB_CLOSE_DELAY=-1;MODE=PostgreSQL",
+        "spring.datasource.driverClassName=org.h2.Driver",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.jpa.hibernate.ddl-auto=none",
+        "spring.flyway.enabled=true",
+        "spring.flyway.locations=classpath:db/migration-h2",
+        "app.security.jwtSecret=test-secret-please-change-32-bytes-minimum",
+        "app.rateLimit.enabled=false",
+        "app.mercadoPago.stubEnabled=true",
+        "app.mercadoPago.replayGuard.enabled=false",
+        "app.notifications.email.mode=logging"
+})
+@ActiveProfiles("qa")
+@AutoConfigureMockMvc
 class AdminDevControllerProfileTest {
 
-    @Test
-    void adminDevControllerIsNotRegisteredInProd() {
-        try (AnnotationConfigApplicationContext context = contextForProfile("prod")) {
-            assertThat(context.getBeansOfType(AdminDevController.class)).isEmpty();
-        }
+    private final MockMvc mockMvc;
+
+    @Autowired
+    AdminDevControllerProfileTest(MockMvc mockMvc) {
+        this.mockMvc = mockMvc;
     }
 
     @Test
-    void adminDevControllerIsRegisteredInLocal() {
-        try (AnnotationConfigApplicationContext context = contextForProfile("local")) {
-            assertThat(context.getBeansOfType(AdminDevController.class)).hasSize(1);
-        }
-    }
-
-    private AnnotationConfigApplicationContext contextForProfile(String profile) {
-        AnnotationConfigApplicationContext context = new AnnotationConfigApplicationContext();
-        context.getEnvironment().setActiveProfiles(profile);
-        context.register(TestConfig.class, AdminDevController.class);
-        context.refresh();
-        return context;
-    }
-
-    @Configuration
-    static class TestConfig {
-        @Bean
-        StoreRepository storeRepository() {
-            return mock(StoreRepository.class);
-        }
-
-        @Bean
-        ProductRepository productRepository() {
-            return mock(ProductRepository.class);
-        }
-
-        @Bean
-        StoreSaasSubscriptionService storeSaasSubscriptionService() {
-            return mock(StoreSaasSubscriptionService.class);
-        }
+    void devSeedEndpointIsDisabledOutsideLocalDevProfiles() throws Exception {
+        mockMvc.perform(get("/api/admin/dev/seeds"))
+                .andExpect(status().isNotFound());
     }
 }

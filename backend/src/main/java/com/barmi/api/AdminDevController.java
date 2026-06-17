@@ -1,6 +1,7 @@
 package com.barmi.api;
 
 import com.barmi.app.saas.StoreSaasSubscriptionService;
+import com.barmi.app.devdata.DemoSeedService;
 import com.barmi.domain.catalog.Product;
 import com.barmi.domain.store.Store;
 import com.barmi.infra.repo.ProductRepository;
@@ -19,22 +20,25 @@ import java.util.UUID;
  * In production you will replace with real admin endpoints and auth/roles.
  */
 @RestController
-@Profile({"local", "test", "integrationtest"})
+@Profile({"local", "dev", "test", "integrationtest"})
 @RequestMapping("/api/admin/dev")
 public class AdminDevController {
 
     private final StoreRepository storeRepository;
     private final ProductRepository productRepository;
     private final StoreSaasSubscriptionService storeSaasSubscriptionService;
+    private final DemoSeedService demoSeedService;
 
     public AdminDevController(
             StoreRepository storeRepository,
             ProductRepository productRepository,
-            StoreSaasSubscriptionService storeSaasSubscriptionService
+            StoreSaasSubscriptionService storeSaasSubscriptionService,
+            DemoSeedService demoSeedService
     ) {
         this.storeRepository = storeRepository;
         this.productRepository = productRepository;
         this.storeSaasSubscriptionService = storeSaasSubscriptionService;
+        this.demoSeedService = demoSeedService;
     }
 
     public record SeedStoreReq(@NotBlank String slug, @NotBlank String name) {}
@@ -54,5 +58,15 @@ public class AdminDevController {
         Product p = new Product(UUID.randomUUID(), s.getId(), req.sku(), req.name(), req.priceCents());
         productRepository.save(p);
         return ResponseEntity.ok(Map.of("id", p.getId(), "storeId", p.getStoreId()));
+    }
+
+    @GetMapping("/seeds")
+    public ResponseEntity<?> listSeeds() {
+        return ResponseEntity.ok(demoSeedService.listScenarios());
+    }
+
+    @PostMapping("/seeds/{scenario}")
+    public ResponseEntity<?> seedScenario(@PathVariable String scenario) {
+        return ResponseEntity.ok(demoSeedService.seed(scenario).toResponse());
     }
 }

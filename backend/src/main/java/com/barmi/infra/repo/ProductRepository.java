@@ -81,6 +81,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             """)
     List<PublicSitemapProductView> findPublicSitemapProducts(@Param("ecosystemSlug") String ecosystemSlug);
     boolean existsByStoreIdAndSku(UUID storeId, String sku);
+    java.util.Optional<Product> findByStoreIdAndSku(UUID storeId, String sku);
     boolean existsByStoreIdAndSkuAndIdNot(UUID storeId, String sku, UUID id);
     boolean existsByStoreIdAndPublicSlug(UUID storeId, String publicSlug);
     long countByStoreIdAndActiveTrue(UUID storeId);

@@ -13,6 +13,7 @@ import java.util.UUID;
 public interface StoreShippingZoneRepository extends JpaRepository<StoreShippingZone, UUID> {
 
     Optional<StoreShippingZone> findByStoreIdAndTypeAndPostalCode(UUID storeId, ShippingZoneType type, String postalCode);
+    Optional<StoreShippingZone> findByStoreIdAndTypeAndRangeStartAndRangeEnd(UUID storeId, ShippingZoneType type, Integer rangeStart, Integer rangeEnd);
 
     boolean existsByStoreId(UUID storeId);
 

@@ -12,6 +12,7 @@ public interface StoreCategoryRepository extends JpaRepository<StoreCategory, UU
     List<StoreCategory> findByStoreIdOrderBySortOrderAscNameAsc(UUID storeId);
     List<StoreCategory> findByStoreIdAndActiveTrueOrderBySortOrderAscNameAsc(UUID storeId);
     Optional<StoreCategory> findByIdAndStoreId(UUID id, UUID storeId);
+    Optional<StoreCategory> findByStoreIdAndNameIgnoreCase(UUID storeId, String name);
     boolean existsByStoreIdAndNameIgnoreCase(UUID storeId, String name);
     boolean existsByStoreIdAndNameIgnoreCaseAndIdNot(UUID storeId, String name, UUID id);
     List<StoreCategory> findByStoreIdAndIdIn(UUID storeId, Collection<UUID> ids);

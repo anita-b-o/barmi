@@ -15,6 +15,7 @@ import java.util.UUID;
 public interface EcosystemExternalProductRepository extends JpaRepository<EcosystemExternalProduct, UUID> {
 
     Optional<EcosystemExternalProduct> findByIdAndEcosystem_Id(UUID id, UUID ecosystemId);
+    Optional<EcosystemExternalProduct> findByEcosystem_IdAndNameIgnoreCase(UUID ecosystemId, String name);
 
     @Query("select p from EcosystemExternalProduct p where p.ecosystem.id = :ecosystemId and (:activeOnly = false or p.active = true) and (:queryPattern = '' or lower(p.name) like :queryPattern) order by p.createdAt desc")
     List<EcosystemExternalProduct> findByEcosystemWithFilters(
