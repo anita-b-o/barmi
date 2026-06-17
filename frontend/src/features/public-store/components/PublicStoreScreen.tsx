@@ -106,6 +106,46 @@ function productInitials(name: string) {
     .join('')
 }
 
+function storefrontEyebrow(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
+  if (mode === 'commerce') return 'Tienda online'
+  if (mode === 'services') return 'Estudio profesional'
+  if (mode === 'portfolio') return 'Portfolio creativo'
+  return 'Sitio público'
+}
+
+function storefrontFallbackDescription(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
+  if (mode === 'commerce') return 'Productos seleccionados, disponibilidad y contacto directo.'
+  if (mode === 'services') return 'Información del estudio y canales de consulta profesional.'
+  if (mode === 'portfolio') return 'Trabajos, mirada y contacto para nuevos proyectos.'
+  return 'Información principal y canales de contacto.'
+}
+
+function aboutTitle(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
+  if (mode === 'commerce') return 'Sobre la tienda'
+  if (mode === 'services') return 'El estudio'
+  if (mode === 'portfolio') return 'La mirada'
+  return 'Sobre nosotros'
+}
+
+function noCatalogFallbackCopy(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
+  if (mode === 'services') {
+    return {
+      title: 'Consultas profesionales',
+      description: 'El primer paso es una conversación. Elegí el canal que te resulte más cómodo.'
+    }
+  }
+  if (mode === 'portfolio') {
+    return {
+      title: 'Proyectos y sesiones',
+      description: 'El portfolio se presenta desde su historia y sus canales de contacto.'
+    }
+  }
+  return {
+    title: 'Pronto habrá novedades aquí',
+    description: 'La tienda está preparando lo próximo. Mientras tanto, podés usar sus canales de contacto.'
+  }
+}
+
 function StorefrontImage({ src, alt, style }: { src: string; alt: string; style?: CSSProperties }) {
   const [failed, setFailed] = useState(false)
 
@@ -366,6 +406,13 @@ export default function PublicStoreScreen() {
   const isClassicAppearance = appearancePreset === 'CLASSIC'
   const isLocalBusinessAppearance = appearancePreset === 'LOCAL_BUSINESS'
   const isPortfolioAppearance = appearancePreset === 'PORTFOLIO'
+  const storefrontMode = productsEnabled
+    ? 'commerce'
+    : isPortfolioAppearance
+      ? 'portfolio'
+      : isClassicAppearance
+        ? 'services'
+        : 'profile'
   const contactHref = contactItems.find((item) => item.href)?.href
   const contactActionLabel = contactItems.find((item) => item.href)?.label === 'WhatsApp'
     ? 'Escribir por WhatsApp'
@@ -376,7 +423,8 @@ export default function PublicStoreScreen() {
     ...(isMobile ? publicStoreStyles.heroMobile : publicStoreStyles.heroDesktop),
     ...brandedVariables,
     borderColor: branding.primaryColor,
-    ...(isClassicAppearance ? { border: `1px solid ${theme.colors.borderStrong}` } : null),
+    ...(isClassicAppearance ? { borderColor: theme.colors.borderStrong } : null),
+    ...(!branding.bannerUrl && !productsEnabled ? { padding: isMobile ? theme.spacing.lg : theme.spacing.xl } : null),
     ...(isPortfolioAppearance ? { paddingBottom: isMobile ? theme.spacing.lg : theme.spacing.xl } : null)
   }
   const surfaceStyle = {
@@ -415,6 +463,7 @@ export default function PublicStoreScreen() {
   const isCurrentStoreCart = cart.storeSlug === slug || cart.storeSlug === null
   const storeName = store?.name ?? 'Tienda'
   const primaryCategory = store?.categories[0]?.name
+  const noCatalogFallback = noCatalogFallbackCopy(storefrontMode)
   useSeoMetadata({
     title: `${storeName} | Barmi`,
     description: primaryCategory
@@ -472,7 +521,7 @@ export default function PublicStoreScreen() {
     <EcosystemSurfaceSection style={surfaceStyle}>
       <div id="sobre-nosotros" style={publicStoreStyles.sectionStack}>
         <div style={publicStoreStyles.compactStack}>
-          <div style={publicStoreStyles.titleText}>Sobre nosotros</div>
+          <div style={publicStoreStyles.titleText}>{aboutTitle(storefrontMode)}</div>
           <div style={publicStoreStyles.mutedCopy}>
             {store.profile.description}
           </div>
@@ -514,6 +563,22 @@ export default function PublicStoreScreen() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+    </EcosystemSurfaceSection>
+  ) : null
+  const profileSections = (
+    <>
+      {isLocalBusinessAppearance ? contactSection : aboutSection}
+      {isLocalBusinessAppearance ? aboutSection : contactSection}
+    </>
+  )
+  const nonCommerceLeadSection = !productsEnabled && (storefrontMode === 'services' || storefrontMode === 'portfolio') ? (
+    <EcosystemSurfaceSection style={surfaceStyle}>
+      <div style={publicStoreStyles.sectionStack}>
+        <div style={publicStoreStyles.compactStack}>
+          <div style={publicStoreStyles.titleText}>{noCatalogFallback.title}</div>
+          <div style={publicStoreStyles.mutedCopy}>{noCatalogFallback.description}</div>
         </div>
       </div>
     </EcosystemSurfaceSection>
@@ -688,7 +753,7 @@ export default function PublicStoreScreen() {
                     color: branding.bannerUrl ? alpha(theme.colors.bgSurface, 0.78) : `var(--store-primary, ${theme.colors.actionPrimary})`
                   }}
                 >
-                  {productsEnabled ? 'Tienda online' : 'Información'}
+                  {storefrontEyebrow(storefrontMode)}
                 </div>
                 <h1
                   style={{
@@ -704,14 +769,12 @@ export default function PublicStoreScreen() {
                     ...(branding.bannerUrl ? publicStoreStyles.heroDescriptionOnImage : null)
                   }}
                 >
-                  {(aboutEnabled ? store?.profile.description : null) ?? (productsEnabled
-                    ? 'Conocé sus productos, disponibilidad y formas de contacto.'
-                    : 'Conocé sus canales de contacto y novedades.')}
+                  {(aboutEnabled ? store?.profile.description : null) ?? storefrontFallbackDescription(storefrontMode)}
                 </p>
               </div>
               <div style={publicStoreStyles.badgeRow}>
-                {primaryCategory ? <Badge variant="neutral">{primaryCategory}</Badge> : null}
-                {productsEnabled ? <Badge variant="success">{products.length} producto{products.length === 1 ? '' : 's'}</Badge> : null}
+                {primaryCategory && productsEnabled ? <Badge variant="neutral">{primaryCategory}</Badge> : null}
+                {productsEnabled && checkoutEnabled ? <Badge variant="success">Compra online</Badge> : null}
                 {checkoutEnabled && cartItemsCount > 0 ? <Badge variant="neutral">Carrito: {cartItemsCount} item{cartItemsCount === 1 ? '' : 's'}</Badge> : null}
               </div>
               <div style={publicStoreStyles.heroActionRow}>
@@ -753,8 +816,8 @@ export default function PublicStoreScreen() {
           </EcosystemSurfaceSection>
         ) : null}
 
-        {isLocalBusinessAppearance ? contactSection : aboutSection}
-        {isLocalBusinessAppearance ? aboutSection : contactSection}
+        {!productsEnabled ? nonCommerceLeadSection : null}
+        {!productsEnabled ? profileSections : null}
 
         {showPromotions ? (
           <EcosystemSurfaceSection tone="warm">
@@ -793,11 +856,11 @@ export default function PublicStoreScreen() {
           </EcosystemSurfaceSection>
         ) : null}
 
-        {!error && store && !productsEnabled ? (
+        {!error && store && !productsEnabled && !showAbout && !showContact ? (
           <EcosystemSurfaceSection style={surfaceStyle}>
             <EmptyState
-              title="Pronto habrá novedades aquí"
-              description="La tienda está preparando lo próximo. Mientras tanto, podés usar sus canales de contacto."
+              title={noCatalogFallback.title}
+              description={noCatalogFallback.description}
               actionLabel="Ver otras tiendas"
               onAction={() => navigate(routes.ecosystemStoresMap)}
             />
@@ -815,7 +878,7 @@ export default function PublicStoreScreen() {
                     Productos
                   </div>
                   <div style={publicStoreStyles.compactMutedCopy}>
-                    Mirá disponibilidad, precios y categorías antes de agregar productos al carrito.
+                    Elegí productos de la tienda y armá tu pedido.
                   </div>
                 </div>
                 <div style={publicStoreStyles.wrapEndRow}>
@@ -833,12 +896,12 @@ export default function PublicStoreScreen() {
               >
                 <div style={publicStoreStyles.filterHeader}>
                   <div>
-                    <div style={publicStoreStyles.cartItemName}>Explorar catálogo</div>
+                    <div style={publicStoreStyles.cartItemName}>Encontrá lo que buscás</div>
                     <div style={publicStoreStyles.cartMeta}>
-                      {products.length} resultado{products.length === 1 ? '' : 's'} visibles con la configuración actual.
+                      {products.length} resultado{products.length === 1 ? '' : 's'} visible{products.length === 1 ? '' : 's'}.
                     </div>
                   </div>
-                  <Badge variant="neutral">{availableOnly ? 'Solo disponibles' : 'Todo el catálogo visible'}</Badge>
+                  {availableOnly ? <Badge variant="neutral">Solo disponibles</Badge> : null}
                 </div>
 
                 <div style={publicStoreStyles.filterControls}>
@@ -850,7 +913,7 @@ export default function PublicStoreScreen() {
                         setSearchQuery(event.target.value)
                         setPage(0)
                       }}
-                      placeholder="Ej. combo, café, SKU-123"
+                      placeholder="Ej. taza, manta, vela"
                       aria-label="Buscar productos"
                     />
                   </div>
@@ -921,7 +984,7 @@ export default function PublicStoreScreen() {
                 </label>
 
                 <div style={publicStoreStyles.compactMutedCopy}>
-                  Si no encontrás algo, probá con otra búsqueda o limpiá los filtros.
+                  Probá por nombre o categoría.
                 </div>
               </div>
 
@@ -967,7 +1030,7 @@ export default function PublicStoreScreen() {
                         <div style={publicStoreStyles.badgeRow}>
                           {product.categoryName ? <Badge variant="info" style={{ color: branding.secondaryColor }}>{product.categoryName}</Badge> : null}
                           <Badge variant={product.isAvailable ? 'success' : 'error'}>
-                            {product.isAvailable ? `Disponible ahora · Stock disponible: ${product.stockQuantity}` : 'Sin stock disponible'}
+                            {product.isAvailable ? 'Disponible' : 'Sin stock'}
                           </Badge>
                           {cartQty > 0 ? <Badge variant="success">En carrito: {cartQty}</Badge> : null}
                         </div>
@@ -993,7 +1056,7 @@ export default function PublicStoreScreen() {
                           </div>
                           <div style={publicStoreStyles.mutedCopy}>
                             {product.isAvailable
-                              ? 'Disponible para comprar.'
+                              ? 'Listo para sumar al pedido.'
                               : 'Por ahora no se puede agregar al carrito.'}
                           </div>
                         </div>
@@ -1150,6 +1213,8 @@ export default function PublicStoreScreen() {
           </div>
         </EcosystemSurfaceSection>
         ) : null}
+
+        {productsEnabled ? profileSections : null}
       </div>
     </PublicStoreLayout>
   )

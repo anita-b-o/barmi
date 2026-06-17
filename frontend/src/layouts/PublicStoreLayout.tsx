@@ -67,7 +67,7 @@ export default function PublicStoreLayout({
   const aboutEnabled = hasPublicStoreCapability(capabilities, 'ABOUT')
   const contactEnabled = hasPublicStoreCapability(capabilities, 'CONTACT')
   const title = storeName?.trim() || 'Tienda'
-  const subtitle = storeDescription?.trim() || 'Información y atención de la tienda.'
+  const subtitle = storeDescription?.trim() || undefined
   const headerMeta = cartItems > 0
     ? <Badge variant="success">{cartItems} item{cartItems === 1 ? '' : 's'} en carrito</Badge>
     : undefined
@@ -86,7 +86,7 @@ export default function PublicStoreLayout({
   return (
     <PlatformLayout
       context="store"
-      eyebrow={productsEnabled ? 'Tienda online' : 'Tienda'}
+      eyebrow={productsEnabled ? 'Tienda online' : 'Sitio público'}
       title={title}
       titleNode={branding?.logoUrl ? <StoreLogoImage src={branding.logoUrl} alt={title} /> : undefined}
       subtitle={location.pathname.startsWith('/store/')

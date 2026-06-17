@@ -54,8 +54,8 @@ describe('public store availability', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Stock disponible: 3')
-    expect(document.body.textContent).toContain('Sin stock disponible')
+    expect(document.body.textContent).toContain('Disponible')
+    expect(document.body.textContent).toContain('Sin stock')
 
     const buttons = Array.from(document.querySelectorAll('button'))
     const addButton = buttons.find((button) => button.textContent === 'Agregar')

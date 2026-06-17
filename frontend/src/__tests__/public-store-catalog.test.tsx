@@ -92,7 +92,7 @@ describe('public store catalog discovery', () => {
 
     expect(document.body.textContent).toContain('Promociones activas')
     expect(document.body.textContent).toContain('BIENVENIDA10')
-    expect(document.body.textContent).toContain('Sobre nosotros')
+    expect(document.body.textContent).toContain('Sobre la tienda')
     expect(document.body.textContent).toContain('Cafetería de especialidad con desayunos y atención de barrio.')
     expect(document.body.textContent).toContain('Contacto')
     expect(document.body.textContent).toContain('hola@demo.test')
@@ -136,6 +136,82 @@ describe('public store catalog discovery', () => {
     expect(document.body.textContent).toContain('221 555 0101')
     expect(document.body.textContent).toContain('+54 9 221 555 0101')
     expect(document.body.textContent).not.toContain('Productos')
+
+    await cleanup()
+  })
+
+  it('presents the services seed as a professional studio without catalog empty-state language', async () => {
+    mockFetch({
+      '/api/public/stores/estudio-fernandez': {
+        body: {
+          ...storeResponse,
+          slug: 'estudio-fernandez',
+          id: 'services-store',
+          name: 'Estudio Fernandez',
+          appearance: 'CLASSIC',
+          capabilities: ['ABOUT', 'CONTACT'],
+          profile: {
+            description: 'Estudio Fernandez acompana a pymes y profesionales con asesoramiento contable, impositivo y gestion administrativa.',
+            email: 'contacto@estudiofernandez.demo',
+            phone: '+54 351 555-0100',
+            whatsapp: '+54 9 351 555-0100'
+          },
+          categories: [],
+          promotions: []
+        }
+      },
+      '/api/public/stores/estudio-fernandez/products': {
+        body: productsPage([])
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/public/estudio-fernandez')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Estudio profesional')
+    expect(document.body.textContent).toContain('El estudio')
+    expect(document.body.textContent).toContain('Consultas profesionales')
+    expect(document.body.textContent).not.toContain('Pronto habrá novedades aquí')
+    expect(document.querySelector('input[aria-label="Buscar productos"]')).toBeNull()
+
+    await cleanup()
+  })
+
+  it('presents the portfolio seed as a creative portfolio without pretending to have a catalog', async () => {
+    mockFetch({
+      '/api/public/stores/ana-fotografia': {
+        body: {
+          ...storeResponse,
+          slug: 'ana-fotografia',
+          id: 'portfolio-store',
+          name: 'Ana Fotografia',
+          appearance: 'PORTFOLIO',
+          capabilities: ['ABOUT', 'CONTACT'],
+          profile: {
+            description: 'Ana Fotografia desarrolla sesiones editoriales, retratos familiares y cobertura de eventos con una mirada calida, documental y cuidada.',
+            email: 'hola@anafotografia.demo',
+            phone: '+54 341 555-0180',
+            whatsapp: '+54 9 341 555-0180'
+          },
+          categories: [],
+          promotions: []
+        }
+      },
+      '/api/public/stores/ana-fotografia/products': {
+        body: productsPage([])
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/public/ana-fotografia')
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Portfolio creativo')
+    expect(document.body.textContent).toContain('La mirada')
+    expect(document.body.textContent).toContain('Proyectos y sesiones')
+    expect(document.body.textContent).not.toContain('Pronto habrá novedades aquí')
+    expect(document.querySelector('input[aria-label="Buscar productos"]')).toBeNull()
 
     await cleanup()
   })
@@ -273,7 +349,7 @@ describe('public store catalog discovery', () => {
     await flush()
 
     expect(document.querySelector('[data-appearance="portfolio"]')).toBeTruthy()
-    expect(document.body.textContent).toContain('Sobre nosotros')
+    expect(document.body.textContent).toContain('Sobre la tienda')
     expect(document.body.textContent).toContain('Productos')
     expect(document.body.textContent).toContain('Cafe molido')
 
@@ -330,7 +406,8 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Pronto habrá novedades aquí')
+    expect(document.body.textContent).toContain('Sobre nosotros')
+    expect(document.body.textContent).not.toContain('Pronto habrá novedades aquí')
     expect(document.body.textContent).not.toContain('Cafe molido')
     expect(document.querySelector('input[aria-label="Buscar productos"]')).toBeNull()
     expect(handler.mock.calls.map(([url]) => String(url)).filter((url) => url.includes('/api/public/stores/demo-store/products'))).toHaveLength(0)
@@ -1017,7 +1094,7 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Sin stock disponible')
+    expect(document.body.textContent).toContain('Sin stock')
     expect(document.body.textContent).toContain('Por ahora no se puede agregar al carrito.')
 
     const unavailableButton = Array.from(document.querySelectorAll('button'))
@@ -1029,7 +1106,7 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Disponible ahora')
+    expect(document.body.textContent).toContain('Disponible')
     expect(document.body.textContent).not.toContain('Sin stockSKU: SKU-OFF')
 
     await cleanup()
