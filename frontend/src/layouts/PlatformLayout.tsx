@@ -17,6 +17,7 @@ type PlatformLayoutProps = {
   feedbackStoreId?: string
   feedbackStoreSlug?: string
   feedbackEcosystemSlug?: string
+  compactHeader?: boolean
 }
 
 export default function PlatformLayout({
@@ -33,7 +34,8 @@ export default function PlatformLayout({
   contentPaddingTop = `clamp(${theme.spacing.lg}px, 2.2vw, ${theme.spacing.xl}px)`,
   feedbackStoreId,
   feedbackStoreSlug,
-  feedbackEcosystemSlug
+  feedbackEcosystemSlug,
+  compactHeader = false
 }: PlatformLayoutProps) {
   const palette = getContextPalette(context)
 
@@ -50,7 +52,9 @@ export default function PlatformLayout({
       ) : (
         <div
           style={{
-            padding: `clamp(6px, 1vw, ${theme.spacing.sm}px) clamp(${theme.spacing.lg}px, 3vw, ${theme.spacing.xl}px)`,
+            padding: compactHeader
+              ? `clamp(4px, 0.8vw, 8px) clamp(${theme.spacing.md}px, 3vw, ${theme.spacing.xl}px)`
+              : `clamp(6px, 1vw, ${theme.spacing.sm}px) clamp(${theme.spacing.lg}px, 3vw, ${theme.spacing.xl}px)`,
             borderBottom: `1px solid ${theme.colors.borderDefault}`,
             background: theme.colors.bgSurfaceAlt,
             backdropFilter: 'none',
@@ -59,7 +63,7 @@ export default function PlatformLayout({
             zIndex: 10
           }}
         >
-          <div style={{ maxWidth: 1180, margin: '0 auto', display: 'grid', gap: theme.spacing.sm }}>
+          <div style={{ maxWidth: 1180, margin: '0 auto', display: 'grid', gap: compactHeader ? 4 : theme.spacing.sm }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'center', flexWrap: 'wrap' }}>
               <div style={{ minWidth: 0, flex: '1 1 320px', display: 'flex', gap: theme.spacing.sm, alignItems: 'center', flexWrap: 'wrap' }}>
                 <div
@@ -68,19 +72,19 @@ export default function PlatformLayout({
                     flex: '0 1 auto',
                     display: 'grid',
                     gap: 2,
-                    padding: `6px ${theme.spacing.md}px`,
-                    borderRadius: theme.radius.lg,
-                    background: theme.colors.bgSurfaceAlt,
-                    border: `1px solid ${theme.colors.borderDefault}`
+                    padding: compactHeader ? 0 : `6px ${theme.spacing.md}px`,
+                    borderRadius: compactHeader ? 0 : theme.radius.lg,
+                    background: compactHeader ? 'transparent' : theme.colors.bgSurfaceAlt,
+                    border: compactHeader ? '0' : `1px solid ${theme.colors.borderDefault}`
                   }}
                 >
                   {eyebrow ? <div style={{ color: palette.accent, fontWeight: 700, fontSize: theme.typography.small.size, letterSpacing: 0, textTransform: 'uppercase' }}>{eyebrow}</div> : null}
                   {titleNode ?? (
-                    <div style={{ fontWeight: 700, fontSize: 'clamp(20px, 3vw, 22px)', color: theme.colors.textPrimary, letterSpacing: 0 }}>{title}</div>
+                    <div style={{ fontWeight: 700, fontSize: compactHeader ? 'clamp(18px, 2vw, 20px)' : 'clamp(20px, 3vw, 22px)', color: theme.colors.textPrimary, letterSpacing: 0 }}>{title}</div>
                   )}
                 </div>
 
-                {(subtitle || headerMeta) ? (
+                {(!compactHeader && (subtitle || headerMeta)) ? (
                   <div
                     style={{
                       minWidth: 0,
@@ -107,7 +111,7 @@ export default function PlatformLayout({
                     alignItems: 'center',
                     flexWrap: 'wrap',
                     justifyContent: 'flex-end',
-                    flex: '1 1 240px'
+                    flex: compactHeader ? '0 1 auto' : '1 1 240px'
                   }}
                 >
                   {headerActions}
@@ -119,10 +123,10 @@ export default function PlatformLayout({
               <div
                 style={{
                   display: 'flex',
-                  gap: 12,
+                  gap: compactHeader ? 8 : 12,
                   alignItems: 'center',
                   flexWrap: 'nowrap',
-                  padding: '0 2px',
+                  padding: compactHeader ? 0 : '0 2px',
                   overflowX: 'auto',
                   maxWidth: '100%',
                   WebkitOverflowScrolling: 'touch',

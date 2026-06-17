@@ -92,12 +92,23 @@ describe('public store catalog discovery', () => {
 
     expect(document.body.textContent).toContain('Promociones activas')
     expect(document.body.textContent).toContain('BIENVENIDA10')
+    expect(document.body.textContent).toContain('Información útil')
+    expect(document.body.textContent).toContain('Qué encontrás acá')
+    expect(document.body.textContent).toContain('2 productos publicados')
+    expect(document.body.textContent).toContain('2 categorías para explorar')
+    expect(document.body.textContent).toContain('Pedido online con validación de stock al finalizar')
     expect(document.body.textContent).toContain('Sobre la tienda')
     expect(document.body.textContent).toContain('Cafetería de especialidad con desayunos y atención de barrio.')
     expect(document.body.textContent).toContain('Contacto')
     expect(document.body.textContent).toContain('hola@demo.test')
     expect(document.querySelector('[data-appearance="local-business"]')).toBeTruthy()
     expect(document.body.textContent).toContain('Escribir por WhatsApp')
+    const catalogSection = document.querySelector('#productos') as HTMLElement
+    const promotionSection = Array.from(document.querySelectorAll('section')).find((section) => section.textContent?.includes('Promociones activas')) as HTMLElement
+    expect(catalogSection).toBeTruthy()
+    expect(promotionSection).toBeTruthy()
+    expect(catalogSection.compareDocumentPosition(promotionSection) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(document.body.textContent).not.toContain('Carrito de Demo Store')
 
     const searchInput = document.querySelector('input[aria-label="Buscar productos"]') as HTMLInputElement
     await setInputElementValue(searchInput, 'cafe')
@@ -170,8 +181,12 @@ describe('public store catalog discovery', () => {
     await flush()
 
     expect(document.body.textContent).toContain('Estudio profesional')
+    expect(document.body.textContent).toContain('Información útil')
+    expect(document.body.textContent).toContain('Servicios y consultas')
+    expect(document.body.textContent).toContain('3 canales disponibles')
     expect(document.body.textContent).toContain('El estudio')
     expect(document.body.textContent).toContain('Consultas profesionales')
+    expect(document.body.textContent).toContain('asesoramiento contable')
     expect(document.body.textContent).not.toContain('Pronto habrá novedades aquí')
     expect(document.querySelector('input[aria-label="Buscar productos"]')).toBeNull()
 
@@ -208,8 +223,12 @@ describe('public store catalog discovery', () => {
     await flush()
 
     expect(document.body.textContent).toContain('Portfolio creativo')
+    expect(document.body.textContent).toContain('Información útil')
+    expect(document.body.textContent).toContain('Enfoque del portfolio')
+    expect(document.body.textContent).toContain('3 canales disponibles')
     expect(document.body.textContent).toContain('La mirada')
     expect(document.body.textContent).toContain('Proyectos y sesiones')
+    expect(document.body.textContent).toContain('retratos familiares')
     expect(document.body.textContent).not.toContain('Pronto habrá novedades aquí')
     expect(document.querySelector('input[aria-label="Buscar productos"]')).toBeNull()
 

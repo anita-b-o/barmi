@@ -14,7 +14,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
   if (items.length === 0) return null
 
   return (
-    <nav aria-label="Breadcrumb" style={{ marginBottom: theme.spacing.lg }}>
+    <nav aria-label="Breadcrumb" style={{ marginBottom: theme.spacing.sm }}>
       <ol
         style={{
           display: 'inline-flex',
@@ -22,7 +22,7 @@ export default function Breadcrumbs({ items }: BreadcrumbsProps) {
           gap: 8,
           listStyle: 'none',
           margin: 0,
-          padding: '8px 12px',
+          padding: '6px 10px',
           borderRadius: theme.radius.pill,
           background: alpha(theme.colors.bgSurfaceAlt, 0.92),
           border: `1px solid ${theme.colors.borderDefault}`,

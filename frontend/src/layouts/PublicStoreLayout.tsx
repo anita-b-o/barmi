@@ -34,7 +34,7 @@ function StoreLogoImage({ src, alt }: { src: string; alt: string }) {
       src={src}
       alt={alt}
       onError={() => setFailed(true)}
-      style={{ maxWidth: 152, maxHeight: 48, objectFit: 'contain' }}
+      style={{ maxWidth: 136, maxHeight: 36, objectFit: 'contain' }}
     />
   )
 }
@@ -75,7 +75,7 @@ export default function PublicStoreLayout({
     color: isActive ? `var(--store-primary, ${theme.colors.actionPrimary})` : theme.colors.textPrimary,
     textDecoration: 'none',
     fontWeight: isActive ? 700 : 600,
-    padding: '10px 6px',
+    padding: '6px 4px',
     borderRadius: theme.radius.pill,
     background: 'transparent',
     borderBottom: `2px solid ${isActive ? `var(--store-primary, ${theme.colors.actionPrimary})` : 'transparent'}`,
@@ -103,6 +103,7 @@ export default function PublicStoreLayout({
         </>
       )}
       feedbackStoreSlug={storeSlug}
+      compactHeader
       navigation={(
         <div style={{ display: 'contents', ...storeBrandingCssVariables(branding) }}>
           <NavLink to={publicStorePath} end style={navLinkStyle}>Inicio</NavLink>

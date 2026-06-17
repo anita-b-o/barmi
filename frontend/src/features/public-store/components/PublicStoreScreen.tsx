@@ -9,7 +9,6 @@ import { routes } from '@/core/constants/routes'
 import { formatMoneyFromCents } from '@/core/utils/format'
 import { QuantitySelector } from '@/components/commerce'
 import PublicStoreLayout from '@/layouts/PublicStoreLayout'
-import { Breadcrumbs } from '@/components/navigation'
 import Card from '@/components/primitives/Card'
 import Button from '@/components/primitives/Button'
 import Badge from '@/components/primitives/Badge'
@@ -119,11 +118,25 @@ function storefrontFallbackDescription(mode: 'commerce' | 'services' | 'portfoli
   return 'Información principal y canales de contacto.'
 }
 
+function offerSummaryTitle(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
+  if (mode === 'commerce') return 'Qué encontrás acá'
+  if (mode === 'services') return 'Servicios y consultas'
+  if (mode === 'portfolio') return 'Enfoque del portfolio'
+  return 'Información disponible'
+}
+
 function aboutTitle(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
   if (mode === 'commerce') return 'Sobre la tienda'
   if (mode === 'services') return 'El estudio'
   if (mode === 'portfolio') return 'La mirada'
   return 'Sobre nosotros'
+}
+
+function contactIntro(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
+  if (mode === 'commerce') return 'Canales disponibles para consultar antes de comprar.'
+  if (mode === 'services') return 'Canales directos para coordinar una consulta profesional.'
+  if (mode === 'portfolio') return 'Canales directos para conversar sobre una sesión o proyecto.'
+  return 'Canales directos del negocio.'
 }
 
 function noCatalogFallbackCopy(mode: 'commerce' | 'services' | 'portfolio' | 'profile') {
@@ -157,16 +170,26 @@ function StorefrontImage({ src, alt, style }: { src: string; alt: string; style?
   return <img src={src} alt={alt} onError={() => setFailed(true)} style={style} />
 }
 
+function descriptionHighlights(description: string | null | undefined) {
+  if (!description) return []
+
+  return description
+    .split(/[.,;]/)
+    .map((part) => part.trim())
+    .filter((part) => part.length >= 12)
+    .slice(0, 4)
+}
+
 const publicStoreStyles = {
-  pageStack: { display: 'grid', gap: theme.spacing.xxl, paddingBottom: theme.spacing.xxxl },
-  heroMobile: { padding: `${theme.spacing.xl} ${theme.spacing.lg}` },
-  heroDesktop: { padding: `${theme.spacing.xxxl} ${theme.spacing.xxl}` },
-  surfaceMobile: { padding: `${theme.spacing.xl} 0` },
-  surfaceDesktop: { padding: `${theme.spacing.xxl} 0` },
+  pageStack: { display: 'grid', gap: theme.spacing.lg, paddingBottom: theme.spacing.xxl },
+  heroMobile: { padding: `${theme.spacing.lg} ${theme.spacing.md}` },
+  heroDesktop: { padding: `${theme.spacing.xl} ${theme.spacing.xxl}` },
+  surfaceMobile: { padding: `${theme.spacing.md} 0` },
+  surfaceDesktop: { padding: `${theme.spacing.lg} 0` },
   storefrontHero: {
     position: 'relative',
     overflow: 'hidden',
-    minHeight: 340,
+    minHeight: 260,
     borderRadius: theme.radius.md,
     background: theme.colors.bgSurfaceAlt
   },
@@ -192,15 +215,15 @@ const publicStoreStyles = {
     position: 'relative',
     zIndex: 1,
     display: 'grid',
-    gap: theme.spacing.lg,
+    gap: theme.spacing.md,
     alignContent: 'center',
-    minHeight: 340
+    minHeight: 260
   },
   heroContentCompact: { minHeight: 0 },
   heroMain: { display: 'grid', gap: theme.spacing.md, maxWidth: 820 },
   heroLogoFrame: {
-    width: 132,
-    height: 132,
+    width: 96,
+    height: 96,
     borderRadius: theme.radius.lg,
     border: `1px solid ${theme.colors.borderDefault}`,
     background: theme.colors.bgSurface,
@@ -209,17 +232,17 @@ const publicStoreStyles = {
     padding: theme.spacing.md,
     boxShadow: `0 18px 42px ${alpha(theme.colors.textPrimary, 0.18)}`
   },
-  heroLogo: { maxWidth: 108, maxHeight: 108, objectFit: 'contain' },
+  heroLogo: { maxWidth: 76, maxHeight: 76, objectFit: 'contain' },
   heroTitle: {
     margin: 0,
-    fontSize: 'clamp(34px, 5vw, 56px)',
-    lineHeight: 1,
+    fontSize: 'clamp(28px, 4vw, 42px)',
+    lineHeight: 1.05,
     letterSpacing: 0,
     color: theme.colors.textPrimary,
     overflowWrap: 'anywhere'
   },
   heroTitleOnImage: { color: theme.colors.bgSurface },
-  heroDescription: { margin: 0, color: theme.colors.textMuted, fontSize: 17, lineHeight: 1.6, maxWidth: 760 },
+  heroDescription: { margin: 0, color: theme.colors.textMuted, fontSize: 15, lineHeight: 1.45, maxWidth: 720 },
   heroDescriptionOnImage: { color: alpha(theme.colors.bgSurface, 0.88) },
   heroActionRow: { display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' },
   eyebrow: {
@@ -239,28 +262,43 @@ const publicStoreStyles = {
   compactMutedCopy: { color: theme.colors.textMuted, lineHeight: 1.5 },
   badgeRow: { display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' },
   introBadgeRow: { display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', marginBottom: theme.spacing.sm },
-  sectionStack: { display: 'grid', gap: theme.spacing.lg },
-  openSection: { display: 'grid', gap: theme.spacing.lg },
-  openSectionNarrow: { display: 'grid', gap: theme.spacing.lg, maxWidth: 860 },
-  contentStack: { display: 'grid', gap: theme.spacing.xl },
+  sectionStack: { display: 'grid', gap: theme.spacing.md },
+  openSection: { display: 'grid', gap: theme.spacing.md },
+  openSectionNarrow: { display: 'grid', gap: theme.spacing.md, maxWidth: 860 },
+  contentStack: { display: 'grid', gap: theme.spacing.lg },
+  valueGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 210px), 1fr))' },
+  valueTile: {
+    display: 'grid',
+    gap: 6,
+    padding: `${theme.spacing.md} 0`,
+    borderTop: `1px solid ${theme.colors.borderDefault}`
+  },
+  valueTileLabel: { color: theme.colors.textMuted, fontSize: theme.typography.small.size, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0 },
+  highlightList: { display: 'grid', gap: theme.spacing.sm, margin: 0, padding: 0, listStyle: 'none' },
+  highlightItem: {
+    paddingLeft: theme.spacing.md,
+    borderLeft: `3px solid var(--store-secondary, ${theme.colors.actionPrimary})`,
+    color: theme.colors.textMuted,
+    lineHeight: 1.5
+  },
   compactStack: { display: 'grid', gap: 6 },
   microStack: { display: 'grid', gap: 4 },
-  contactGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', marginTop: theme.spacing.md },
+  contactGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', marginTop: theme.spacing.sm },
   contactItem: {
     display: 'grid',
     gap: 6,
-    paddingTop: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
     borderTopWidth: 2,
     borderTopStyle: 'solid',
     borderTopColor: `var(--store-secondary, ${theme.colors.actionPrimary})`
   },
   contactLink: { color: `var(--store-primary, ${theme.colors.actionPrimary})`, fontWeight: 700, textDecoration: 'none', overflowWrap: 'anywhere' },
-  promoGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' },
+  promoGrid: { display: 'grid', gap: theme.spacing.sm, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' },
   promoCard: {
     display: 'grid',
-    gap: theme.spacing.md,
-    padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
+    gap: theme.spacing.sm,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
     background: theme.colors.bgSurfaceAlt,
     border: `1px solid ${theme.colors.borderDefault}`
   },
@@ -281,8 +319,8 @@ const publicStoreStyles = {
   wrapEndRow: { display: 'flex', alignItems: 'center', gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'flex-end' },
   filterPanel: {
     display: 'grid',
-    gap: theme.spacing.lg,
-    padding: `${theme.spacing.lg} 0`,
+    gap: theme.spacing.md,
+    padding: `${theme.spacing.md} 0`,
     borderTopWidth: 1,
     borderTopStyle: 'solid',
     borderTopColor: theme.colors.borderDefault,
@@ -296,16 +334,16 @@ const publicStoreStyles = {
   fieldLabel: { fontWeight: 600, marginBottom: theme.spacing.xs },
   categoryStack: { display: 'grid', gap: theme.spacing.sm },
   checkboxLabel: { display: 'flex', alignItems: 'center', gap: theme.spacing.sm, color: theme.colors.textMuted },
-  productGrid: { display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' },
+  productGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))' },
   productCard: { padding: 0, overflow: 'hidden', borderRadius: theme.radius.md },
   productCardActive: { padding: 0, overflow: 'hidden', borderColor: `var(--store-primary, ${theme.colors.actionPrimary})`, borderRadius: theme.radius.md },
   productMediaWrap: {
-    padding: theme.spacing.md,
+    padding: theme.spacing.sm,
     borderBottom: `1px solid ${theme.colors.borderDefault}`,
     background: theme.colors.bgSurfaceAlt
   },
   productMedia: {
-    minHeight: 148,
+    minHeight: 112,
     borderRadius: theme.radius.md,
     border: `1px solid var(--store-secondary, ${theme.colors.actionPrimary})`,
     background: theme.colors.bgSurface,
@@ -318,7 +356,7 @@ const publicStoreStyles = {
     textTransform: 'uppercase',
     fontSize: 28
   },
-  productBody: { display: 'grid', gap: theme.spacing.lg, padding: theme.spacing.xl },
+  productBody: { display: 'grid', gap: theme.spacing.md, padding: theme.spacing.lg },
   productTitle: { fontWeight: 700, fontSize: 18, letterSpacing: 0, overflowWrap: 'anywhere' },
   productTitleLink: { color: theme.colors.textPrimary, textDecoration: 'none' },
   anywhereMuted: { color: theme.colors.textMuted, overflowWrap: 'anywhere' },
@@ -332,10 +370,10 @@ const publicStoreStyles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    gap: theme.spacing.lg,
+    gap: theme.spacing.md,
     flexWrap: 'wrap',
-    padding: theme.spacing.lg,
-    borderRadius: theme.radius.lg,
+    padding: theme.spacing.md,
+    borderRadius: theme.radius.md,
     border: `1px solid ${theme.colors.borderDefault}`,
     background: theme.colors.bgSurfaceAlt
   },
@@ -426,8 +464,8 @@ export default function PublicStoreScreen() {
   const heroStyle = {
     ...(isMobile ? publicStoreStyles.heroMobile : publicStoreStyles.heroDesktop),
     ...brandedVariables,
-    ...(!branding.bannerUrl && !productsEnabled ? { padding: isMobile ? `${theme.spacing.xl} 0` : `${theme.spacing.xxl} 0` } : null),
-    ...(isPortfolioAppearance ? { paddingBottom: isMobile ? theme.spacing.lg : theme.spacing.xl } : null)
+    ...(!branding.bannerUrl && !productsEnabled ? { padding: isMobile ? `${theme.spacing.lg} 0` : `${theme.spacing.xl} 0` } : null),
+    ...(isPortfolioAppearance ? { paddingBottom: isMobile ? theme.spacing.md : theme.spacing.lg } : null)
   }
   const surfaceStyle = {
     ...(isMobile ? publicStoreStyles.surfaceMobile : publicStoreStyles.surfaceDesktop),
@@ -467,6 +505,42 @@ export default function PublicStoreScreen() {
   const storeName = store?.name ?? 'Tienda'
   const primaryCategory = store?.categories[0]?.name
   const noCatalogFallback = noCatalogFallbackCopy(storefrontMode)
+  const profileHighlights = descriptionHighlights(aboutEnabled ? store?.profile.description : null)
+  const hasCatalogFilters = Boolean(deferredSearchQuery.trim() || availableOnly || sort !== 'default' || categoryId)
+  const trustSignals = store
+    ? [
+      productsEnabled ? {
+        label: 'Catálogo',
+        value: productsPage && !hasCatalogFilters
+          ? `${productsPage.totalElements} producto${productsPage.totalElements === 1 ? '' : 's'} publicado${productsPage.totalElements === 1 ? '' : 's'}`
+          : 'Productos con precio y disponibilidad'
+      } : null,
+      productsEnabled && store.categories.length > 0 ? {
+        label: 'Categorías',
+        value: `${store.categories.length} categoría${store.categories.length === 1 ? '' : 's'} para explorar`
+      } : null,
+      productsEnabled && checkoutEnabled ? {
+        label: 'Compra',
+        value: 'Pedido online con validación de stock al finalizar'
+      } : null,
+      productsEnabled && hasPublicStoreCapability(store.capabilities, 'SHIPPING') ? {
+        label: 'Entrega',
+        value: 'Opciones de envío disponibles en checkout'
+      } : null,
+      showPromotions ? {
+        label: 'Promociones',
+        value: `${store.promotions.length} código${store.promotions.length === 1 ? '' : 's'} activo${store.promotions.length === 1 ? '' : 's'}`
+      } : null,
+      !productsEnabled && profileHighlights.length > 0 ? {
+        label: storefrontMode === 'portfolio' ? 'Perfil' : 'Especialidad',
+        value: profileHighlights[0]
+      } : null,
+      showContact ? {
+        label: 'Contacto',
+        value: `${contactItems.length} canal${contactItems.length === 1 ? '' : 'es'} disponible${contactItems.length === 1 ? '' : 's'}`
+      } : null
+    ].filter((item): item is { label: string; value: string } => item !== null)
+    : []
   useSeoMetadata({
     title: `${storeName} | Barmi`,
     description: primaryCategory
@@ -528,6 +602,13 @@ export default function PublicStoreScreen() {
             {store.profile.description}
           </div>
         </div>
+        {profileHighlights.length > 1 ? (
+          <ul style={publicStoreStyles.highlightList}>
+            {profileHighlights.slice(1).map((highlight) => (
+              <li key={highlight} style={publicStoreStyles.highlightItem}>{highlight}</li>
+            ))}
+          </ul>
+        ) : null}
     </section>
   ) : null
 
@@ -535,7 +616,10 @@ export default function PublicStoreScreen() {
     <section id="contacto" style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
         <div style={publicStoreStyles.compactStack}>
           <div style={publicStoreStyles.splitRow}>
-            <div style={publicStoreStyles.titleText}>Contacto</div>
+            <div style={publicStoreStyles.compactStack}>
+              <div style={publicStoreStyles.titleText}>Contacto</div>
+              <div style={publicStoreStyles.compactMutedCopy}>{contactIntro(storefrontMode)}</div>
+            </div>
             {isLocalBusinessAppearance && contactHref ? (
               <a href={contactHref} style={{ textDecoration: 'none' }} target={contactHref.startsWith('http') ? '_blank' : undefined} rel={contactHref.startsWith('http') ? 'noreferrer' : undefined}>
                 <Button variant="primary">{contactActionLabel}</Button>
@@ -578,6 +662,40 @@ export default function PublicStoreScreen() {
           <div style={publicStoreStyles.titleText}>{noCatalogFallback.title}</div>
           <div style={publicStoreStyles.mutedCopy}>{noCatalogFallback.description}</div>
         </div>
+        {profileHighlights.length > 0 ? (
+          <div style={publicStoreStyles.valueGrid}>
+            {profileHighlights.map((highlight) => (
+              <div key={highlight} style={publicStoreStyles.valueTile}>
+                <div style={publicStoreStyles.valueTileLabel}>{offerSummaryTitle(storefrontMode)}</div>
+                <div style={publicStoreStyles.cartItemName}>{highlight}</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+    </section>
+  ) : null
+
+  const trustSection = !error && store && trustSignals.length > 0 ? (
+    <section aria-label="Señales de confianza" style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
+      <div style={publicStoreStyles.splitTopRow}>
+        <div style={publicStoreStyles.compactStack}>
+          <div style={publicStoreStyles.eyebrow}>Información útil</div>
+          <div style={publicStoreStyles.titleText}>{offerSummaryTitle(storefrontMode)}</div>
+        </div>
+        {contactHref ? (
+          <a href={contactHref} style={{ textDecoration: 'none' }} target={contactHref.startsWith('http') ? '_blank' : undefined} rel={contactHref.startsWith('http') ? 'noreferrer' : undefined}>
+            <Button variant="secondary">{contactActionLabel}</Button>
+          </a>
+        ) : null}
+      </div>
+      <div style={publicStoreStyles.valueGrid}>
+        {trustSignals.map((signal) => (
+          <div key={signal.label} style={publicStoreStyles.valueTile}>
+            <div style={publicStoreStyles.valueTileLabel}>{signal.label}</div>
+            <div style={publicStoreStyles.cartItemName}>{signal.value}</div>
+          </div>
+        ))}
+      </div>
     </section>
   ) : null
 
@@ -706,8 +824,6 @@ export default function PublicStoreScreen() {
       branding={store?.branding}
       capabilities={store?.capabilities}
     >
-      <Breadcrumbs items={[{ label: store?.name ?? 'Inicio', href: routes.publicStore(slug) }, { label: productsEnabled ? 'Productos' : 'Información' }]} />
-
       <div id="inicio" data-appearance={appearance} style={{ ...publicStoreStyles.pageStack, ...brandedVariables, gap: isClassicAppearance ? theme.spacing.lg : publicStoreStyles.pageStack.gap }}>
         <section
           style={{
@@ -813,43 +929,10 @@ export default function PublicStoreScreen() {
           </section>
         ) : null}
 
+        {trustSection}
+
         {!productsEnabled ? nonCommerceLeadSection : null}
         {!productsEnabled ? profileSections : null}
-
-        {showPromotions ? (
-          <section style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
-              <div style={publicStoreStyles.compactStack}>
-                <div style={publicStoreStyles.titleText}>
-                  Promociones activas
-                </div>
-                <div style={publicStoreStyles.mutedCopy}>
-                  Ingresá el código al finalizar la compra para ver el descuento aplicado sobre tu total.
-                </div>
-              </div>
-              <div style={publicStoreStyles.promoGrid}>
-                {store.promotions.map((promotion) => (
-                  <div
-                    key={promotion.code}
-                    style={publicStoreStyles.promoCard}
-                  >
-                    <div style={publicStoreStyles.splitTopRow}>
-                      <Badge variant="info" style={{ color: branding.secondaryColor }}>Promoción</Badge>
-                      {formatPromotionExpiry(promotion) ? <Badge variant="neutral">Vence {formatPromotionExpiry(promotion)}</Badge> : null}
-                    </div>
-                    <div style={publicStoreStyles.microStack}>
-                      <div style={publicStoreStyles.cartItemName}>{promotion.shortLabel}</div>
-                      <div style={publicStoreStyles.anywhereMuted}>
-                        Código: <strong>{promotion.code}</strong>
-                      </div>
-                    </div>
-                    <Button variant="secondary" onClick={() => navigate(routes.storeCheckout)}>
-                      Usar al comprar
-                    </Button>
-                  </div>
-                ))}
-              </div>
-          </section>
-        ) : null}
 
         {!error && store && !productsEnabled && !showAbout && !showContact ? (
           <section style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
@@ -940,27 +1023,6 @@ export default function PublicStoreScreen() {
                       ]}
                       aria-label="Filtrar por categoría"
                     />
-                    <div style={publicStoreStyles.badgeRow}>
-                      <Button type="button" variant={categoryId === '' ? 'primary' : 'secondary'} onClick={() => {
-                        setCategoryId('')
-                        setPage(0)
-                      }}>
-                        Todas
-                      </Button>
-                      {store.categories.slice(0, 4).map((category) => (
-                        <Button
-                          key={category.id}
-                          type="button"
-                          variant={categoryId === category.id ? 'primary' : 'secondary'}
-                          onClick={() => {
-                            setCategoryId(category.id)
-                            setPage(0)
-                          }}
-                        >
-                          {category.name}
-                        </Button>
-                      ))}
-                    </div>
                   </div>
                 ) : null}
 
@@ -977,9 +1039,6 @@ export default function PublicStoreScreen() {
                   Solo disponibles
                 </label>
 
-                <div style={publicStoreStyles.compactMutedCopy}>
-                  Probá por nombre o categoría.
-                </div>
               </div>
 
               {isOutOfRangePage ? (
@@ -1117,7 +1176,39 @@ export default function PublicStoreScreen() {
           </section>
         ) : null}
 
-        {checkoutEnabled ? (
+        {showPromotions ? (
+          <section style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
+              <div style={publicStoreStyles.splitRow}>
+                <div style={publicStoreStyles.compactStack}>
+                  <div style={publicStoreStyles.titleText}>
+                    Promociones activas
+                  </div>
+                  <div style={publicStoreStyles.compactMutedCopy}>
+                    Usá el código al finalizar la compra.
+                  </div>
+                </div>
+                <Button variant="secondary" onClick={() => navigate(routes.storeCheckout)}>
+                  Ir al checkout
+                </Button>
+              </div>
+              <div style={publicStoreStyles.promoGrid}>
+                {store.promotions.map((promotion) => (
+                  <div
+                    key={promotion.code}
+                    style={publicStoreStyles.promoCard}
+                  >
+                    <div style={publicStoreStyles.splitTopRow}>
+                      <Badge variant="info" style={{ color: branding.secondaryColor }}>{promotion.code}</Badge>
+                      {formatPromotionExpiry(promotion) ? <Badge variant="neutral">Vence {formatPromotionExpiry(promotion)}</Badge> : null}
+                    </div>
+                    <div style={publicStoreStyles.cartItemName}>{promotion.shortLabel}</div>
+                  </div>
+                ))}
+              </div>
+          </section>
+        ) : null}
+
+        {checkoutEnabled && cart.items.length > 0 ? (
         <section
           style={{
             ...publicStoreStyles.openSection,
@@ -1142,15 +1233,7 @@ export default function PublicStoreScreen() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gap: theme.spacing.lg, marginTop: theme.spacing.xl }}>
-            {cart.items.length === 0 ? (
-              <EmptyState
-                title="Carrito vacío"
-                description="Todavía no agregaste productos. Podés seguir mirando el catálogo."
-                actionLabel="Seguir comprando en la tienda"
-                onAction={() => navigate(routes.publicStore(slug))}
-              />
-            ) : (
+          <div style={{ display: 'grid', gap: theme.spacing.md, marginTop: theme.spacing.md }}>
               <div style={publicStoreStyles.cartList}>
                 {cart.items.map((item) => {
                   const product = productById.get(item.productId)
@@ -1189,7 +1272,6 @@ export default function PublicStoreScreen() {
                   )
                 })}
               </div>
-            )}
 
             <div style={publicStoreStyles.totalRow}>
               <div style={publicStoreStyles.microStack}>

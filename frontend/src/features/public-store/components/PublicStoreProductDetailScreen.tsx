@@ -19,9 +19,9 @@ import { trackBetaEvent } from '@/features/beta'
 import { normalizeStoreBranding, storeBrandingCssVariables } from '@/features/store/branding'
 
 const detailStyles = {
-  pageStack: { display: 'grid', gap: theme.spacing.xl, paddingBottom: theme.spacing.xxxl },
-  detailGrid: { display: 'grid', gap: theme.spacing.xl, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', alignItems: 'start' },
-  mediaCard: { padding: theme.spacing.md, borderRadius: theme.radius.md },
+  pageStack: { display: 'grid', gap: theme.spacing.lg, paddingBottom: theme.spacing.xxl },
+  detailGrid: { display: 'grid', gap: theme.spacing.lg, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', alignItems: 'start' },
+  mediaCard: { padding: theme.spacing.sm, borderRadius: theme.radius.md },
   image: {
     width: '100%',
     aspectRatio: '4 / 3',
@@ -31,7 +31,7 @@ const detailStyles = {
     background: theme.colors.bgSurfaceAlt
   },
   placeholder: {
-    minHeight: 260,
+    minHeight: 220,
     borderRadius: theme.radius.md,
     border: `1px solid ${theme.colors.borderDefault}`,
     background: theme.colors.bgSurfaceAlt,
@@ -43,16 +43,16 @@ const detailStyles = {
     textAlign: 'center',
     padding: theme.spacing.lg
   },
-  contentStack: { display: 'grid', gap: theme.spacing.lg },
+  contentStack: { display: 'grid', gap: theme.spacing.md },
   compactStack: { display: 'grid', gap: 6 },
   badgeRow: { display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' },
-  title: { fontSize: theme.typography.title.size, fontWeight: 700, letterSpacing: 0, color: theme.colors.textPrimary, overflowWrap: 'anywhere' },
-  muted: { color: theme.colors.textMuted, lineHeight: 1.6, overflowWrap: 'anywhere' },
-  price: { fontSize: theme.typography.h2.size, fontWeight: 800, letterSpacing: 0, color: theme.colors.textPrimary },
+  title: { fontSize: 'clamp(24px, 3vw, 32px)', fontWeight: 700, letterSpacing: 0, color: theme.colors.textPrimary, overflowWrap: 'anywhere' },
+  muted: { color: theme.colors.textMuted, lineHeight: 1.5, overflowWrap: 'anywhere' },
+  price: { fontSize: 'clamp(24px, 3vw, 32px)', fontWeight: 800, letterSpacing: 0, color: theme.colors.textPrimary },
   actionRow: { display: 'flex', gap: theme.spacing.md, flexWrap: 'wrap', alignItems: 'center' },
   metaGrid: { display: 'grid', gap: theme.spacing.sm, gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' },
   metaItem: {
-    padding: theme.spacing.md,
+    padding: theme.spacing.sm,
     borderRadius: theme.radius.md,
     border: `1px solid ${theme.colors.borderDefault}`,
     background: theme.colors.bgSurfaceAlt
