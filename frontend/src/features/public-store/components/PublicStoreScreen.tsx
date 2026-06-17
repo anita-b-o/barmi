@@ -20,7 +20,6 @@ import ErrorAlert from '@/components/feedback/ErrorState'
 import LoadingBlock from '@/components/feedback/LoadingState'
 import { alpha, theme } from '@/app/theme'
 import { useViewportMode } from '@/core/hooks/useViewportMode'
-import { EcosystemSurfaceSection } from '@/features/ecosystem'
 import { trackBetaEvent } from '@/features/beta'
 import { buildCanonicalUrl, useJsonLd, useSeoMetadata } from '@/core/seo'
 import { normalizeStoreBranding, storeBrandingCssVariables } from '@/features/store/branding'
@@ -159,22 +158,21 @@ function StorefrontImage({ src, alt, style }: { src: string; alt: string; style?
 }
 
 const publicStoreStyles = {
-  pageStack: { display: 'grid', gap: theme.spacing.xl, paddingBottom: theme.spacing.xxxl },
-  heroMobile: { padding: theme.spacing.lg },
-  heroDesktop: { padding: theme.spacing.xxl },
-  surfaceMobile: { padding: theme.spacing.lg },
-  surfaceDesktop: { padding: theme.spacing.xl },
+  pageStack: { display: 'grid', gap: theme.spacing.xxl, paddingBottom: theme.spacing.xxxl },
+  heroMobile: { padding: `${theme.spacing.xl} ${theme.spacing.lg}` },
+  heroDesktop: { padding: `${theme.spacing.xxxl} ${theme.spacing.xxl}` },
+  surfaceMobile: { padding: `${theme.spacing.xl} 0` },
+  surfaceDesktop: { padding: `${theme.spacing.xxl} 0` },
   storefrontHero: {
     position: 'relative',
     overflow: 'hidden',
-    minHeight: 360,
-    borderRadius: theme.radius.lg,
-    border: `1px solid var(--store-primary, ${theme.colors.actionPrimary})`,
+    minHeight: 340,
+    borderRadius: theme.radius.md,
     background: theme.colors.bgSurfaceAlt
   },
   storefrontHeroCompact: {
     minHeight: 0,
-    background: theme.colors.bgSurface
+    background: 'transparent'
   },
   heroBannerImage: {
     position: 'absolute',
@@ -195,8 +193,8 @@ const publicStoreStyles = {
     zIndex: 1,
     display: 'grid',
     gap: theme.spacing.lg,
-    alignContent: 'end',
-    minHeight: 360
+    alignContent: 'center',
+    minHeight: 340
   },
   heroContentCompact: { minHeight: 0 },
   heroMain: { display: 'grid', gap: theme.spacing.md, maxWidth: 820 },
@@ -242,17 +240,19 @@ const publicStoreStyles = {
   badgeRow: { display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' },
   introBadgeRow: { display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', marginBottom: theme.spacing.sm },
   sectionStack: { display: 'grid', gap: theme.spacing.lg },
+  openSection: { display: 'grid', gap: theme.spacing.lg },
+  openSectionNarrow: { display: 'grid', gap: theme.spacing.lg, maxWidth: 860 },
   contentStack: { display: 'grid', gap: theme.spacing.xl },
   compactStack: { display: 'grid', gap: 6 },
   microStack: { display: 'grid', gap: 4 },
-  contactGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', marginTop: theme.spacing.sm },
+  contactGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', marginTop: theme.spacing.md },
   contactItem: {
     display: 'grid',
-    gap: theme.spacing.sm,
-    padding: theme.spacing.md,
-    borderRadius: theme.radius.md,
-    border: `1px solid var(--store-secondary, ${theme.colors.actionPrimary})`,
-    background: theme.colors.bgSurface
+    gap: 6,
+    paddingTop: theme.spacing.md,
+    borderTopWidth: 2,
+    borderTopStyle: 'solid',
+    borderTopColor: `var(--store-secondary, ${theme.colors.actionPrimary})`
   },
   contactLink: { color: `var(--store-primary, ${theme.colors.actionPrimary})`, fontWeight: 700, textDecoration: 'none', overflowWrap: 'anywhere' },
   promoGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' },
@@ -282,10 +282,14 @@ const publicStoreStyles = {
   filterPanel: {
     display: 'grid',
     gap: theme.spacing.lg,
-    padding: theme.spacing.lg,
-    borderRadius: theme.radius.md,
-    background: theme.colors.bgSurface,
-    border: `1px solid ${theme.colors.borderDefault}`
+    padding: `${theme.spacing.lg} 0`,
+    borderTopWidth: 1,
+    borderTopStyle: 'solid',
+    borderTopColor: theme.colors.borderDefault,
+    borderBottomWidth: 1,
+    borderBottomStyle: 'solid',
+    borderBottomColor: theme.colors.borderDefault,
+    background: 'transparent'
   },
   filterHeader: { display: 'flex', justifyContent: 'space-between', gap: theme.spacing.md, alignItems: 'center', flexWrap: 'wrap' },
   filterControls: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', alignItems: 'end' },
@@ -422,20 +426,19 @@ export default function PublicStoreScreen() {
   const heroStyle = {
     ...(isMobile ? publicStoreStyles.heroMobile : publicStoreStyles.heroDesktop),
     ...brandedVariables,
-    borderColor: branding.primaryColor,
-    ...(isClassicAppearance ? { borderColor: theme.colors.borderStrong } : null),
-    ...(!branding.bannerUrl && !productsEnabled ? { padding: isMobile ? theme.spacing.lg : theme.spacing.xl } : null),
+    ...(!branding.bannerUrl && !productsEnabled ? { padding: isMobile ? `${theme.spacing.xl} 0` : `${theme.spacing.xxl} 0` } : null),
     ...(isPortfolioAppearance ? { paddingBottom: isMobile ? theme.spacing.lg : theme.spacing.xl } : null)
   }
   const surfaceStyle = {
     ...(isMobile ? publicStoreStyles.surfaceMobile : publicStoreStyles.surfaceDesktop),
-    ...(isClassicAppearance ? { border: `1px solid ${theme.colors.borderStrong}`, padding: isMobile ? theme.spacing.md : theme.spacing.lg } : null)
+    ...(isClassicAppearance ? { padding: isMobile ? `${theme.spacing.lg} 0` : `${theme.spacing.xl} 0` } : null)
   }
   const filterPanelStyle = {
     ...publicStoreStyles.filterPanel,
-    borderColor: branding.secondaryColor,
-    ...(isClassicAppearance ? { padding: theme.spacing.md, borderColor: theme.colors.borderStrong } : null),
-    ...(isPortfolioAppearance ? { background: theme.colors.bgSurface, borderColor: theme.colors.borderDefault } : null)
+    borderTopColor: branding.secondaryColor,
+    borderBottomColor: branding.secondaryColor,
+    ...(isClassicAppearance ? { padding: `${theme.spacing.md} 0`, borderTopColor: theme.colors.borderStrong, borderBottomColor: theme.colors.borderStrong } : null),
+    ...(isPortfolioAppearance ? { borderTopColor: theme.colors.borderDefault, borderBottomColor: theme.colors.borderDefault } : null)
   }
   const productGridStyle = {
     ...publicStoreStyles.productGrid,
@@ -518,21 +521,18 @@ export default function PublicStoreScreen() {
   })
 
   const aboutSection = showAbout ? (
-    <EcosystemSurfaceSection style={surfaceStyle}>
-      <div id="sobre-nosotros" style={publicStoreStyles.sectionStack}>
+    <section id="sobre-nosotros" style={{ ...publicStoreStyles.openSectionNarrow, ...surfaceStyle }}>
         <div style={publicStoreStyles.compactStack}>
           <div style={publicStoreStyles.titleText}>{aboutTitle(storefrontMode)}</div>
           <div style={publicStoreStyles.mutedCopy}>
             {store.profile.description}
           </div>
         </div>
-      </div>
-    </EcosystemSurfaceSection>
+    </section>
   ) : null
 
   const contactSection = showContact ? (
-    <EcosystemSurfaceSection tone={isLocalBusinessAppearance ? 'warm' : undefined} style={surfaceStyle}>
-      <div id="contacto" style={publicStoreStyles.sectionStack}>
+    <section id="contacto" style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
         <div style={publicStoreStyles.compactStack}>
           <div style={publicStoreStyles.splitRow}>
             <div style={publicStoreStyles.titleText}>Contacto</div>
@@ -548,7 +548,7 @@ export default function PublicStoreScreen() {
                 key={item.label}
                 style={{
                   ...publicStoreStyles.contactItem,
-                  ...(isClassicAppearance ? { borderColor: theme.colors.borderStrong, padding: theme.spacing.sm } : null)
+                  ...(isClassicAppearance ? { borderTopColor: theme.colors.borderStrong } : null)
                 }}
               >
                 <div style={publicStoreStyles.fieldLabel}>{item.label}</div>
@@ -564,8 +564,7 @@ export default function PublicStoreScreen() {
             ))}
           </div>
         </div>
-      </div>
-    </EcosystemSurfaceSection>
+    </section>
   ) : null
   const profileSections = (
     <>
@@ -574,14 +573,12 @@ export default function PublicStoreScreen() {
     </>
   )
   const nonCommerceLeadSection = !productsEnabled && (storefrontMode === 'services' || storefrontMode === 'portfolio') ? (
-    <EcosystemSurfaceSection style={surfaceStyle}>
-      <div style={publicStoreStyles.sectionStack}>
+    <section style={{ ...publicStoreStyles.openSectionNarrow, ...surfaceStyle }}>
         <div style={publicStoreStyles.compactStack}>
           <div style={publicStoreStyles.titleText}>{noCatalogFallback.title}</div>
           <div style={publicStoreStyles.mutedCopy}>{noCatalogFallback.description}</div>
         </div>
-      </div>
-    </EcosystemSurfaceSection>
+    </section>
   ) : null
 
   useEffect(() => {
@@ -778,8 +775,8 @@ export default function PublicStoreScreen() {
                 {checkoutEnabled && cartItemsCount > 0 ? <Badge variant="neutral">Carrito: {cartItemsCount} item{cartItemsCount === 1 ? '' : 's'}</Badge> : null}
               </div>
               <div style={publicStoreStyles.heroActionRow}>
-                {checkoutEnabled ? (
-                  <Button variant="primary" onClick={() => navigate(routes.storeCheckout)} disabled={cart.items.length === 0}>
+                {checkoutEnabled && cartItemsCount > 0 ? (
+                  <Button variant="primary" onClick={() => navigate(routes.storeCheckout)}>
                     Ver carrito{cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}
                   </Button>
                 ) : null}
@@ -794,34 +791,33 @@ export default function PublicStoreScreen() {
         </section>
 
         {checkoutEnabled && cart.storeSlug && cart.storeSlug !== slug ? (
-          <EcosystemSurfaceSection tone="warm" style={surfaceStyle}>
+          <section style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
             <Badge variant="warning">Tu carrito pertenece a otra tienda</Badge>
-          </EcosystemSurfaceSection>
+          </section>
         ) : null}
 
         {isInitialLoading ? (
-          <EcosystemSurfaceSection>
+          <section style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
             <LoadingBlock label="Cargando tienda..." />
-          </EcosystemSurfaceSection>
+          </section>
         ) : null}
 
         {error ? (
-          <EcosystemSurfaceSection>
+          <section style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
             <ErrorAlert
               message={error}
               actionLabel="Reintentar"
               onAction={refetch}
               actionDisabled={isRetrying}
             />
-          </EcosystemSurfaceSection>
+          </section>
         ) : null}
 
         {!productsEnabled ? nonCommerceLeadSection : null}
         {!productsEnabled ? profileSections : null}
 
         {showPromotions ? (
-          <EcosystemSurfaceSection tone="warm">
-            <div style={publicStoreStyles.sectionStack}>
+          <section style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
               <div style={publicStoreStyles.compactStack}>
                 <div style={publicStoreStyles.titleText}>
                   Promociones activas
@@ -852,24 +848,22 @@ export default function PublicStoreScreen() {
                   </div>
                 ))}
               </div>
-            </div>
-          </EcosystemSurfaceSection>
+          </section>
         ) : null}
 
         {!error && store && !productsEnabled && !showAbout && !showContact ? (
-          <EcosystemSurfaceSection style={surfaceStyle}>
+          <section style={{ ...publicStoreStyles.openSection, ...surfaceStyle }}>
             <EmptyState
               title={noCatalogFallback.title}
               description={noCatalogFallback.description}
               actionLabel="Ver otras tiendas"
               onAction={() => navigate(routes.ecosystemStoresMap)}
             />
-          </EcosystemSurfaceSection>
+          </section>
         ) : null}
 
         {showCatalog ? (
-          <EcosystemSurfaceSection>
-            <div id="productos" style={publicStoreStyles.contentStack}>
+          <section id="productos" style={{ ...publicStoreStyles.contentStack, ...surfaceStyle }}>
               <div
                 style={publicStoreStyles.splitRow}
               >
@@ -1120,14 +1114,17 @@ export default function PublicStoreScreen() {
                   Siguiente
                 </Button>
               </div>
-            </div>
-          </EcosystemSurfaceSection>
+          </section>
         ) : null}
 
         {checkoutEnabled ? (
-        <EcosystemSurfaceSection
-          tone="warm"
-          style={publicStoreStyles.warmSurface}
+        <section
+          style={{
+            ...publicStoreStyles.openSection,
+            ...surfaceStyle,
+            ...publicStoreStyles.warmSurface,
+            background: 'transparent'
+          }}
         >
           <div
             style={publicStoreStyles.splitTopRow}
@@ -1211,7 +1208,7 @@ export default function PublicStoreScreen() {
               </div>
             </div>
           </div>
-        </EcosystemSurfaceSection>
+        </section>
         ) : null}
 
         {productsEnabled ? profileSections : null}
