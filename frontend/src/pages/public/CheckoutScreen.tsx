@@ -96,11 +96,15 @@ export default function CheckoutScreen() {
   }
 
   return (
-    <PublicStoreLayout>
+    <PublicStoreLayout
+      storeName={store?.name}
+      storeDescription={store?.profile.description}
+      capabilities={store?.capabilities}
+    >
       <Breadcrumbs
         items={[
-          { label: 'Store', href: backToStoreHref },
-          { label: 'Checkout' }
+          { label: store?.name ?? 'Tienda', href: backToStoreHref },
+          { label: 'Finalizar compra' }
         ]}
       />
 
@@ -118,15 +122,15 @@ export default function CheckoutScreen() {
         >
           <div style={{ display: 'grid', gap: theme.spacing.md, maxWidth: 780 }}>
             <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
-              <Badge variant="neutral">{store?.name ?? 'Store'}</Badge>
-              <Badge variant="neutral">Carrito independiente del ecosystem</Badge>
+              <Badge variant="neutral">{store?.name ?? 'Tienda'}</Badge>
+              <Badge variant="neutral">Compra en curso</Badge>
             </div>
             <div style={{ display: 'grid', gap: theme.spacing.sm }}>
               <h1 style={checkoutHeroTitleStyle}>
-                Checkout de la tienda
+                Finalizar compra
               </h1>
               <p style={checkoutHeroDescriptionStyle}>
-                Compra simple, total transparente. Revisá tu compra antes de pagar dentro del carrito propio de esta tienda, sin mezclar productos externos del ecosystem.
+                Revisá tu compra, confirmá el envío y avanzá con el total final claro.
               </p>
             </div>
             <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap' }}>
@@ -138,13 +142,13 @@ export default function CheckoutScreen() {
           <div style={getNavigationPanelStyle(isMobile)}>
             <div style={{ display: 'grid', gap: 6 }}>
               <div style={checkoutEyebrowStyle}>
-                Navegación cruzada
+                ¿Querés seguir mirando?
               </div>
               <div style={checkoutPanelTitleStyle}>
-                Seguir comprando o volver al ecosystem
+                Podés volver a la tienda
               </div>
               <div style={checkoutPanelTextStyle}>
-                Composición clara de carrito, entrega y resumen para cerrar la compra de esta tienda sin mezclar el flujo del ecosystem.
+                Tu compra queda guardada mientras revisás otros productos de esta tienda.
               </div>
             </div>
             <Button variant="secondary" onClick={() => navigate(backToStoreHref)}>
@@ -163,7 +167,7 @@ export default function CheckoutScreen() {
       >
         <div style={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', marginBottom: theme.spacing.sm }}>
           <Badge variant="neutral">Carrito de {store?.name ?? 'esta tienda'}</Badge>
-          <Badge variant="neutral">Los productos externos del ecosystem se gestionan por separado</Badge>
+          <Badge variant="neutral">Total calculado al confirmar</Badge>
         </div>
         <div style={checkoutIntroTextStyle}>
           Ajustá el carrito, cotizá envío, aplicá cupón si corresponde y recién después confirmá la orden con el total final a la vista.

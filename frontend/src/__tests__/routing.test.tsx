@@ -59,7 +59,7 @@ describe('router basics', () => {
     const { cleanup } = await renderAppAt('/public/demo-store')
     await flush()
     expect(document.body.textContent).toContain('Productos')
-    expect(document.body.textContent).toContain('Catálogo')
+    expect(document.body.textContent).toContain('Demo Store')
     expect(document.body.textContent).not.toContain('Ecosystem')
     await cleanup()
   })

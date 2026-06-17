@@ -173,8 +173,8 @@ describe('public store product detail', () => {
     await flush()
 
     const catalogLink = Array.from(document.querySelectorAll<HTMLAnchorElement>('a'))
-      .find((link) => link.textContent === 'Catálogo')
-    expect(catalogLink?.getAttribute('href')).toBe('/public/otra-store')
+      .find((link) => link.textContent === 'Productos')
+    expect(catalogLink?.getAttribute('href')).toBe('/public/otra-store#productos')
 
     await cleanup()
   })

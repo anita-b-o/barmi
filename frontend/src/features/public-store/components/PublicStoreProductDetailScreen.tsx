@@ -212,9 +212,15 @@ export default function PublicStoreProductDetailScreen() {
   const canAddToCart = checkoutEnabled && loadedProduct.isAvailable && cartProduct && !isCartLookupLoading
 
   return (
-    <PublicStoreLayout showCatalogNav={productsEnabled} showCheckoutNav={checkoutEnabled}>
+    <PublicStoreLayout
+      showCatalogNav={productsEnabled}
+      showCheckoutNav={checkoutEnabled}
+      storeName={loadedStore.name}
+      storeDescription={loadedStore.categoryName}
+      capabilities={loadedStore.capabilities}
+    >
       <Breadcrumbs items={[
-        { label: 'Store', href: routes.publicStore(storeSlug) },
+        { label: loadedStore.name, href: routes.publicStore(storeSlug) },
         { label: loadedProduct.name }
       ]} />
 

@@ -84,7 +84,7 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Promociones activas para esta store')
+    expect(document.body.textContent).toContain('Promociones activas')
     expect(document.body.textContent).toContain('BIENVENIDA10')
     expect(document.body.textContent).toContain('Sobre esta tienda')
     expect(document.body.textContent).toContain('Cafetería de especialidad con desayunos y atención de barrio.')
@@ -237,7 +237,7 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).toContain('Esta tienda no muestra productos')
+    expect(document.body.textContent).toContain('Pronto habrá más para ver')
     expect(document.body.textContent).not.toContain('Cafe molido')
     expect(document.querySelector('input[aria-label="Buscar productos"]')).toBeNull()
     expect(handler.mock.calls.map(([url]) => String(url)).filter((url) => url.includes('/api/public/stores/demo-store/products'))).toHaveLength(0)
@@ -266,7 +266,7 @@ describe('public store catalog discovery', () => {
 
     expect(document.body.textContent).toContain('Cafe molido')
     expect(document.body.textContent).not.toContain('Carrito de Demo Store')
-    expect(document.body.textContent).not.toContain('Ir al checkout de la tienda')
+    expect(document.body.textContent).not.toContain('Finalizar compra')
     expect(document.body.textContent).not.toContain('Agregar')
     expect(Array.from(document.querySelectorAll('a')).some((link) => link.getAttribute('href') === '/checkout')).toBe(false)
 
@@ -1200,7 +1200,7 @@ describe('public store catalog discovery', () => {
     await flush()
     await flush()
 
-    expect(document.body.textContent).not.toContain('Promociones activas para esta store')
+    expect(document.body.textContent).not.toContain('Promociones activas')
 
     await cleanup()
   })

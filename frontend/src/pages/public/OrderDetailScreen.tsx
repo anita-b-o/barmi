@@ -148,8 +148,8 @@ export default function OrderDetailScreen() {
     <PublicStoreLayout>
       <Breadcrumbs
         items={[
-          { label: 'Store', href: storeHref },
-          { label: 'Mis órdenes', href: routes.storeOrders },
+          { label: 'Tienda', href: storeHref },
+          { label: 'Mis pedidos', href: routes.storeOrders },
           { label: orderId ?? 'Detalle' }
         ]}
       />
@@ -164,7 +164,7 @@ export default function OrderDetailScreen() {
                 ? 'La orden quedó cerrada. Acá todavía podés revisar su resumen final.'
                 : order.order?.status === 'PENDING_PAYMENT'
                   ? 'Desde esta pantalla podés completar el pago o seguir cualquier novedad posterior.'
-                  : 'Seguimiento público de la orden STORE.'
+                  : 'Seguimiento público del pedido.'
           }
           badges={order.order ? (
             <>

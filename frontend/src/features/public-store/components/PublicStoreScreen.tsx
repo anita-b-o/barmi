@@ -318,7 +318,7 @@ export default function PublicStoreScreen() {
   const cartQtyByProductId = useMemo(() => Object.fromEntries(cart.items.map((item) => [item.productId, item.qty])), [cart.items])
   const productById = useMemo(() => new Map(products.map((product) => [product.id, product])), [products])
   const isCurrentStoreCart = cart.storeSlug === slug || cart.storeSlug === null
-  const storeName = store?.name ?? 'Tienda Barmi'
+  const storeName = store?.name ?? 'Tienda'
   const primaryCategory = store?.categories[0]?.name
   useSeoMetadata({
     title: `${storeName} | Barmi`,
@@ -375,7 +375,7 @@ export default function PublicStoreScreen() {
 
   const aboutSection = showAbout ? (
     <EcosystemSurfaceSection style={surfaceStyle}>
-      <div style={publicStoreStyles.sectionStack}>
+      <div id="sobre-nosotros" style={publicStoreStyles.sectionStack}>
         <div style={publicStoreStyles.compactStack}>
           <div style={publicStoreStyles.titleText}>Sobre esta tienda</div>
           <div style={publicStoreStyles.mutedCopy}>
@@ -388,7 +388,7 @@ export default function PublicStoreScreen() {
 
   const contactSection = showContact ? (
     <EcosystemSurfaceSection tone={isLocalBusinessAppearance ? 'warm' : undefined} style={surfaceStyle}>
-      <div style={publicStoreStyles.sectionStack}>
+      <div id="contacto" style={publicStoreStyles.sectionStack}>
         <div style={publicStoreStyles.compactStack}>
           <div style={publicStoreStyles.splitRow}>
             <div style={publicStoreStyles.titleText}>Contacto</div>
@@ -535,24 +535,31 @@ export default function PublicStoreScreen() {
     })
   }, [deferredSearchQuery, isFetchingProducts, products.length, productsEnabled, store])
 
-  if (!slug) return <PublicStoreLayout><ErrorAlert message="Slug requerido." /></PublicStoreLayout>
+  if (!slug) return <PublicStoreLayout><ErrorAlert message="No pudimos abrir esta tienda." /></PublicStoreLayout>
 
   return (
-    <PublicStoreLayout showCatalogNav={productsEnabled} showCheckoutNav={checkoutEnabled}>
-      <Breadcrumbs items={[{ label: 'Store', href: routes.publicStore(slug) }, { label: 'Catálogo' }]} />
+    <PublicStoreLayout
+      showCatalogNav={productsEnabled}
+      showCheckoutNav={checkoutEnabled}
+      storeName={store?.name}
+      storeDescription={aboutEnabled ? store?.profile.description : null}
+      capabilities={store?.capabilities}
+    >
+      <Breadcrumbs items={[{ label: store?.name ?? 'Inicio', href: routes.publicStore(slug) }, { label: productsEnabled ? 'Productos' : 'Información' }]} />
 
-      <div data-appearance={appearance} style={{ ...publicStoreStyles.pageStack, gap: isClassicAppearance ? theme.spacing.lg : publicStoreStyles.pageStack.gap }}>
+      <div id="inicio" data-appearance={appearance} style={{ ...publicStoreStyles.pageStack, gap: isClassicAppearance ? theme.spacing.lg : publicStoreStyles.pageStack.gap }}>
         <EcosystemHeroSection
-          eyebrow="Store storefront"
-          title="Catálogo de la tienda"
-          description="Ahora estás dentro de una tienda específica. Los productos que agregues acá se guardan en el carrito propio de esta store y no se mezclan con el carrito externo del ecosystem."
+          eyebrow={productsEnabled ? 'Tienda online' : 'Información'}
+          title={store?.name ?? 'Tienda'}
+          description={(aboutEnabled ? store?.profile.description : null) ?? (productsEnabled
+            ? 'Conocé sus productos, disponibilidad y formas de contacto.'
+            : 'Conocé más sobre esta tienda y sus canales de contacto.')}
           badges={(
             <>
-              <EcosystemHeroBadge>{store?.name ?? 'Store'}</EcosystemHeroBadge>
-              {productsEnabled ? <EcosystemHeroBadge variant="info">Productos propios</EcosystemHeroBadge> : null}
-              {productsEnabled ? <EcosystemHeroBadge variant="success">{products.length} productos visibles</EcosystemHeroBadge> : null}
+              {primaryCategory ? <EcosystemHeroBadge>{primaryCategory}</EcosystemHeroBadge> : null}
+              {productsEnabled ? <EcosystemHeroBadge variant="success">{products.length} producto{products.length === 1 ? '' : 's'}</EcosystemHeroBadge> : null}
               {checkoutEnabled ? <EcosystemHeroBadge>Carrito: {cartItemsCount} item{cartItemsCount === 1 ? '' : 's'}</EcosystemHeroBadge> : null}
-              {store?.categories.length ? <EcosystemHeroBadge>{store.categories.length} categorías públicas</EcosystemHeroBadge> : null}
+              {store?.categories.length ? <EcosystemHeroBadge>{store.categories.length} categoría{store.categories.length === 1 ? '' : 's'}</EcosystemHeroBadge> : null}
             </>
           )}
           actions={!isMobile ? (
@@ -562,8 +569,8 @@ export default function PublicStoreScreen() {
                   Ir al carrito de la tienda{cartItemsCount > 0 ? ` (${cartItemsCount})` : ''}
                 </Button>
               ) : null}
-              <Button variant="secondary" onClick={() => navigate(routes.ecosystemHome)}>
-                Volver al ecosystem
+              <Button variant="secondary" onClick={() => navigate(routes.ecosystemStoresMap)}>
+                Ver otras tiendas
               </Button>
               {isLocalBusinessAppearance && contactHref ? (
                 <a href={contactHref} style={{ textDecoration: 'none' }}>
@@ -576,15 +583,15 @@ export default function PublicStoreScreen() {
             <>
               <div style={publicStoreStyles.asideStack}>
                 <div style={publicStoreStyles.eyebrow}>
-                  Flujo público Barmi
+                  Atención de la tienda
                 </div>
                 <div style={publicStoreStyles.titleText}>
                   {checkoutEnabled ? `Carrito de ${store?.name ?? 'esta tienda'}` : store?.name ?? 'Esta tienda'}
                 </div>
                 <div style={publicStoreStyles.mutedCopy}>
                   {checkoutEnabled
-                    ? 'Catálogo rápido, contexto claro de tienda y compra dentro de su carrito propio. El ecosystem queda separado para discovery y productos externos.'
-                    : 'Storefront público con módulos configurados por la tienda. El ecosystem queda disponible para discovery y comparación.'}
+                    ? 'Los productos que agregues acá quedan listos para finalizar tu compra en esta tienda.'
+                    : 'Encontrá la información principal y los canales de contacto disponibles.'}
                 </div>
               </div>
               {checkoutEnabled ? (
@@ -597,8 +604,8 @@ export default function PublicStoreScreen() {
                   <Button variant="secondary">Contactar</Button>
                 </a>
               ) : null}
-              <Button variant="secondary" onClick={() => navigate(routes.ecosystemHome)}>
-                Volver al ecosystem
+              <Button variant="secondary" onClick={() => navigate(routes.ecosystemStoresMap)}>
+                Ver otras tiendas
               </Button>
               <Button variant="ghost" onClick={() => navigate(routes.ecosystemStoresMap)}>
                 Ver mapa de tiendas
@@ -610,20 +617,18 @@ export default function PublicStoreScreen() {
 
         <EcosystemSurfaceSection tone="warm" style={surfaceStyle}>
           <div style={publicStoreStyles.introBadgeRow}>
-            <Badge variant="neutral">Storefront público</Badge>
-            {checkoutEnabled ? <Badge variant="neutral">Carrito separado del ecosystem</Badge> : null}
             {checkoutEnabled && cart.storeSlug && cart.storeSlug !== slug ? <Badge variant="warning">Tu carrito pertenece a otra tienda</Badge> : null}
           </div>
           <div style={publicStoreStyles.compactMutedCopy}>
             {checkoutEnabled
-              ? 'Este flujo de compra pertenece a la tienda actual. Si venís desde Explore o desde el mapa del ecosystem, el discovery queda atrás y la compra continúa con el carrito independiente de esta store.'
-              : 'Esta tienda configuró una presencia pública sin checkout visible por ahora.'}
+              ? 'Estás comprando en esta tienda. Revisá productos, cantidades y disponibilidad antes de avanzar.'
+              : 'Esta tienda todavía no recibe compras por acá, pero podés consultar su información de contacto.'}
           </div>
         </EcosystemSurfaceSection>
 
         {isInitialLoading ? (
           <EcosystemSurfaceSection>
-            <LoadingBlock label="Cargando store..." />
+            <LoadingBlock label="Cargando tienda..." />
           </EcosystemSurfaceSection>
         ) : null}
 
@@ -646,10 +651,10 @@ export default function PublicStoreScreen() {
             <div style={publicStoreStyles.sectionStack}>
               <div style={publicStoreStyles.compactStack}>
                 <div style={publicStoreStyles.titleText}>
-                  Promociones activas para esta store
+                  Promociones activas
                 </div>
                 <div style={publicStoreStyles.mutedCopy}>
-                  Ingresá el código manualmente en checkout para ver el descuento aplicado sobre tu total dentro de esta tienda.
+                  Ingresá el código al finalizar la compra para ver el descuento aplicado sobre tu total.
                 </div>
               </div>
               <div style={publicStoreStyles.promoGrid}>
@@ -659,7 +664,7 @@ export default function PublicStoreScreen() {
                     style={publicStoreStyles.promoCard}
                   >
                     <div style={publicStoreStyles.splitTopRow}>
-                      <Badge variant="info">Promo store</Badge>
+                      <Badge variant="info">Promoción</Badge>
                       {formatPromotionExpiry(promotion) ? <Badge variant="neutral">Vence {formatPromotionExpiry(promotion)}</Badge> : null}
                     </div>
                     <div style={publicStoreStyles.microStack}>
@@ -669,7 +674,7 @@ export default function PublicStoreScreen() {
                       </div>
                     </div>
                     <Button variant="secondary" onClick={() => navigate(routes.storeCheckout)}>
-                      Usar en checkout
+                      Usar al comprar
                     </Button>
                   </div>
                 ))}
@@ -681,17 +686,17 @@ export default function PublicStoreScreen() {
         {!error && store && !productsEnabled ? (
           <EcosystemSurfaceSection style={surfaceStyle}>
             <EmptyState
-              title="Esta tienda no muestra productos"
-              description="El catálogo público no está activo en este storefront."
-              actionLabel="Volver al ecosystem"
-              onAction={() => navigate(routes.ecosystemHome)}
+              title="Pronto habrá más para ver"
+              description="Por ahora esta tienda comparte su información principal y sus canales de contacto."
+              actionLabel="Ver otras tiendas"
+              onAction={() => navigate(routes.ecosystemStoresMap)}
             />
           </EcosystemSurfaceSection>
         ) : null}
 
         {showCatalog ? (
           <EcosystemSurfaceSection>
-            <div style={publicStoreStyles.contentStack}>
+            <div id="productos" style={publicStoreStyles.contentStack}>
               <div
                 style={publicStoreStyles.splitRow}
               >
@@ -700,7 +705,7 @@ export default function PublicStoreScreen() {
                     Productos
                   </div>
                   <div style={publicStoreStyles.compactMutedCopy}>
-                    Explorar catálogo con foco en productos propios de esta tienda y compra directa desde su carrito independiente.
+                    Mirá disponibilidad, precios y categorías antes de agregar productos al carrito.
                   </div>
                 </div>
                 <div style={publicStoreStyles.wrapEndRow}>
@@ -806,7 +811,7 @@ export default function PublicStoreScreen() {
                 </label>
 
                 <div style={publicStoreStyles.compactMutedCopy}>
-                  Si no encontrás algo, limpiá filtros o volvé al mapa para comparar otras tiendas del ecosystem.
+                  Si no encontrás algo, probá con otra búsqueda o limpiá los filtros.
                 </div>
               </div>
 
@@ -823,8 +828,8 @@ export default function PublicStoreScreen() {
                     ? 'No hay productos para esos filtros'
                     : 'No hay productos disponibles'}
                   description={searchQuery.trim() || availableOnly || sort !== 'default' || categoryId
-                    ? 'Probá otra búsqueda, quitá filtros o volvé al orden actual para no cortar la compra.'
-                    : 'Esta tienda todavía no publicó productos para compra directa. Podés dejar feedback o volver al mapa para seguir explorando.'}
+                    ? 'Probá otra búsqueda o quitá filtros para ver más opciones.'
+                    : 'La tienda todavía está preparando su catálogo. Volvé a consultar más adelante o usá sus canales de contacto.'}
                 />
               ) : (
                 <div style={productGridStyle}>
@@ -844,7 +849,7 @@ export default function PublicStoreScreen() {
                           aria-hidden="true"
                           style={publicStoreStyles.productMedia}
                         >
-                          Producto store
+                          Producto
                         </div>
                       </div>
 
@@ -879,7 +884,7 @@ export default function PublicStoreScreen() {
                           <div style={publicStoreStyles.anywhereMuted}>SKU: {product.sku}</div>
                           <div style={publicStoreStyles.mutedCopy}>
                             {product.isAvailable
-                              ? 'Este producto se compra directamente en esta tienda y se agrega a su carrito propio.'
+                              ? 'Disponible para agregar al carrito.'
                               : 'Se mantiene visible para referencia, pero no se puede agregar al carrito.'}
                           </div>
                         </div>
@@ -960,11 +965,11 @@ export default function PublicStoreScreen() {
                 Carrito de {store?.name ?? 'la tienda'}
               </div>
               <div style={publicStoreStyles.mutedCopy}>
-                Este carrito es independiente del carrito de productos externos del ecosystem. Podés seguir comprando en la tienda o pasar al checkout de store cuando quieras.
+                Podés seguir agregando productos o avanzar cuando tengas todo listo.
               </div>
             </div>
             <div style={publicStoreStyles.badgeRow}>
-              <Badge variant="neutral">{isCurrentStoreCart ? 'Carrito alineado con esta tienda' : 'Cambiarías de carrito al agregar productos aquí'}</Badge>
+              <Badge variant="neutral">{isCurrentStoreCart ? 'Carrito de esta tienda' : 'Hay productos de otra tienda en el carrito'}</Badge>
             </div>
           </div>
 
@@ -972,7 +977,7 @@ export default function PublicStoreScreen() {
             {cart.items.length === 0 ? (
               <EmptyState
                 title="Carrito vacío"
-                description="Todavía no agregaste productos de esta tienda. Podés seguir explorando el catálogo o volver al ecosystem."
+                description="Todavía no agregaste productos. Podés seguir mirando el catálogo."
                 actionLabel="Seguir comprando en la tienda"
                 onAction={() => navigate(routes.publicStore(slug))}
               />
@@ -1029,7 +1034,7 @@ export default function PublicStoreScreen() {
                   Seguir comprando en tienda
                 </Button>
                 <Button variant="primary" disabled={cart.items.length === 0} onClick={() => navigate(routes.storeCheckout)}>
-                  Ir al checkout de la tienda
+                  Finalizar compra
                 </Button>
               </div>
             </div>

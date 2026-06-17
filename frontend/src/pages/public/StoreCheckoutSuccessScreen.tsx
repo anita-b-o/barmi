@@ -70,7 +70,7 @@ export default function StoreCheckoutSuccessScreen() {
 
   return (
     <PublicStoreLayout>
-      <Breadcrumbs items={[{ label: 'Store', href: storeHref }, { label: 'Checkout' }, { label: 'Confirmación' }]} />
+      <Breadcrumbs items={[{ label: 'Tienda', href: storeHref }, { label: 'Finalizar compra' }, { label: 'Confirmación' }]} />
 
       {!successState ? (
         <EcosystemSurfaceSection>
