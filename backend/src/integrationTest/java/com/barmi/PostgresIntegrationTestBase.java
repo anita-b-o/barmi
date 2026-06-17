@@ -70,6 +70,7 @@ public abstract class PostgresIntegrationTestBase {
         registry.add("spring.flyway.url", postgres::getJdbcUrl);
         registry.add("spring.flyway.user", postgres::getUsername);
         registry.add("spring.flyway.password", postgres::getPassword);
+        registry.add("app.uploads.root", () -> "build/test-uploads");
     }
 
     protected void truncateAllTables(JdbcTemplate jdbcTemplate) {

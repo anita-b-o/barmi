@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setAuthSession, setInputElementValue } from '../test-utils/testUtils'
+import { clearStorage, clickElement, flush, mockFetch, renderAppAt, selectFile, setAuthSession, setInputElementValue } from '../test-utils/testUtils'
 
 const authMe = {
   userId: 'u1',
@@ -23,6 +23,14 @@ beforeEach(() => {
   clearStorage()
   document.body.innerHTML = ''
   setAuthSession()
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true,
+    value: vi.fn(() => 'blob:preview')
+  })
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    configurable: true,
+    value: vi.fn()
+  })
 })
 
 afterEach(() => {
@@ -42,26 +50,29 @@ describe('admin store branding', () => {
 
     expect(document.body.textContent).toContain('Marca')
     expect(document.body.textContent).toContain('Personalizá tu marca')
-    expect((document.querySelector('input[aria-label="URL logo"]') as HTMLInputElement).value).toBe(branding.logoUrl)
-    expect((document.querySelector('input[aria-label="URL banner"]') as HTMLInputElement).value).toBe(branding.bannerUrl)
+    expect(document.querySelector('input[aria-label="Seleccionar archivo logo"]')).toBeTruthy()
+    expect(document.querySelector('input[aria-label="Seleccionar archivo banner"]')).toBeTruthy()
     expect((document.querySelector('input[aria-label="Color principal"]') as HTMLInputElement).value).toBe(branding.primaryColor)
     expect((document.querySelector('input[aria-label="Color secundario"]') as HTMLInputElement).value).toBe(branding.secondaryColor)
     expect(document.querySelector('img[src="https://cdn.demo.test/logo.png"]')).toBeTruthy()
+    expect(document.querySelector('img[src="https://cdn.demo.test/banner.jpg"]')).toBeTruthy()
     expect(document.body.textContent).toContain('Botón principal')
     expect(document.body.textContent).toContain('Botón secundario')
 
     await cleanup()
   })
 
-  it('saves branding payload and refreshes preview', async () => {
+  it('selects files, previews them, uploads successfully and saves returned urls', async () => {
     const handler = mockFetch({
       '/api/auth/me': { body: authMe },
+      '/api/store/assets/logo': { body: { url: '/uploads/stores/s1/logo.png' } },
+      '/api/store/assets/banner': { body: { url: '/uploads/stores/s1/banner.webp' } },
       '/api/store/branding': (url, init) => {
         if (init?.method === 'PUT') {
           return {
             body: {
-              logoUrl: 'https://cdn.demo.test/new-logo.png',
-              bannerUrl: null,
+              logoUrl: '/uploads/stores/s1/logo.png',
+              bannerUrl: '/uploads/stores/s1/banner.webp',
               primaryColor: '#7C3AED',
               secondaryColor: '#6D28D9'
             }
@@ -75,24 +86,79 @@ describe('admin store branding', () => {
     await flush()
     await flush()
 
-    await setInputElementValue(document.querySelector('input[aria-label="URL logo"]') as HTMLInputElement, 'https://cdn.demo.test/new-logo.png')
-    await setInputElementValue(document.querySelector('input[aria-label="URL banner"]') as HTMLInputElement, '')
+    await selectFile(document.querySelector('input[aria-label="Seleccionar archivo logo"]') as HTMLInputElement, new File(['logo'], 'logo.png', { type: 'image/png' }))
+    await selectFile(document.querySelector('input[aria-label="Seleccionar archivo banner"]') as HTMLInputElement, new File(['banner'], 'banner.webp', { type: 'image/webp' }))
     await setInputElementValue(document.querySelector('input[aria-label="Color principal"]') as HTMLInputElement, '#7c3aed')
     await setInputElementValue(document.querySelector('input[aria-label="Color secundario"]') as HTMLInputElement, '#6d28d9')
+    expect(document.querySelectorAll('img[src="blob:preview"]').length).toBeGreaterThan(0)
+
+    await clickElement(Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Guardar marca')))
+    await flush()
+    await flush()
+
+    expect(handler.mock.calls.some(([url, init]) => String(url).includes('/api/store/assets/logo') && init?.method === 'POST' && init.body instanceof FormData)).toBe(true)
+    expect(handler.mock.calls.some(([url, init]) => String(url).includes('/api/store/assets/banner') && init?.method === 'POST' && init.body instanceof FormData)).toBe(true)
+    const putCall = handler.mock.calls.find(([url, init]) => String(url).includes('/api/store/branding') && init?.method === 'PUT')
+    expect(putCall).toBeTruthy()
+    expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({
+      logoUrl: '/uploads/stores/s1/logo.png',
+      bannerUrl: '/uploads/stores/s1/banner.webp',
+      primaryColor: '#7C3AED',
+      secondaryColor: '#6D28D9'
+    })
+    expect(document.querySelector('[role="status"]')?.textContent).toContain('Marca guardada.')
+    expect(document.querySelector('img[src="/uploads/stores/s1/logo.png"]')).toBeTruthy()
+
+    await cleanup()
+  })
+
+  it('shows upload errors without saving branding', async () => {
+    const handler = mockFetch({
+      '/api/auth/me': { body: authMe },
+      '/api/store/assets/logo': {
+        status: 400,
+        body: { error: { code: 'unsupported_image_type', message: 'Request failed', status: 400 } }
+      },
+      '/api/store/branding': { body: branding }
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store/branding')
+    await flush()
+    await flush()
+
+    await selectFile(document.querySelector('input[aria-label="Seleccionar archivo logo"]') as HTMLInputElement, new File(['gif'], 'logo.gif', { type: 'image/gif' }))
+    await clickElement(Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Guardar marca')))
+    await flush()
+    await flush()
+
+    expect(document.body.textContent).toContain('Request failed')
+    expect(handler.mock.calls.some(([url, init]) => String(url).includes('/api/store/branding') && init?.method === 'PUT')).toBe(false)
+
+    await cleanup()
+  })
+
+  it('removes an existing image and saves null url', async () => {
+    const handler = mockFetch({
+      '/api/auth/me': { body: authMe },
+      '/api/store/branding': (url, init) => {
+        if (init?.method === 'PUT') {
+          return { body: { ...branding, logoUrl: null } }
+        }
+        return { body: branding }
+      }
+    })
+
+    const { cleanup } = await renderAppAt('/admin/store/branding')
+    await flush()
+    await flush()
+
+    await clickElement(Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Eliminar imagen')))
     await clickElement(Array.from(document.querySelectorAll('button')).find((button) => button.textContent?.includes('Guardar marca')))
     await flush()
     await flush()
 
     const putCall = handler.mock.calls.find(([url, init]) => String(url).includes('/api/store/branding') && init?.method === 'PUT')
-    expect(putCall).toBeTruthy()
-    expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({
-      logoUrl: 'https://cdn.demo.test/new-logo.png',
-      bannerUrl: null,
-      primaryColor: '#7C3AED',
-      secondaryColor: '#6D28D9'
-    })
-    expect(document.querySelector('[role="status"]')?.textContent).toContain('Marca guardada.')
-    expect(document.querySelector('img[src="https://cdn.demo.test/new-logo.png"]')).toBeTruthy()
+    expect(JSON.parse(String(putCall?.[1]?.body)).logoUrl).toBeNull()
 
     await cleanup()
   })

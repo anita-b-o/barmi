@@ -32,6 +32,10 @@ export type StoreBranding = {
 
 export type StoreBrandingUpdateReq = StoreBranding
 
+export type StoreAssetUpload = {
+  url: string
+}
+
 export type StoreCapabilityMetadata = {
   key: StoreCapability
   label: string

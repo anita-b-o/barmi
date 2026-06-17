@@ -236,7 +236,7 @@ public class ProductionReadinessGuard {
     }
 
     private void validateProdHttpLimits() {
-        long maxBodyBytes = DataSize.ofMegabytes(1).toBytes();
+        long maxBodyBytes = DataSize.ofMegabytes(10).toBytes();
         long maxHeaderBytes = DataSize.ofKilobytes(64).toBytes();
 
         validatePositiveBoundedDataSize(maxHttpFormPostSize, maxBodyBytes, "prod_profile_requires_bounded_http_form_post_size");

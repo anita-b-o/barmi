@@ -101,11 +101,30 @@ export async function clickElement(element: Element | null | undefined) {
   })
 }
 
+export async function dispatchElementEvent(element: Element | null | undefined, event: Event) {
+  if (!element) return
+  await act(async () => {
+    element.dispatchEvent(event)
+    await Promise.resolve()
+  })
+}
+
 export async function setInputElementValue(input: HTMLInputElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set
   await act(async () => {
     setter?.call(input, value)
     input.dispatchEvent(new Event('input', { bubbles: true }))
+    input.dispatchEvent(new Event('change', { bubbles: true }))
+    await Promise.resolve()
+  })
+}
+
+export async function selectFile(input: HTMLInputElement, file: File) {
+  await act(async () => {
+    Object.defineProperty(input, 'files', {
+      configurable: true,
+      value: [file]
+    })
     input.dispatchEvent(new Event('change', { bubbles: true }))
     await Promise.resolve()
   })

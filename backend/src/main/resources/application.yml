@@ -3,8 +3,8 @@ spring:
     name: barmi-backend
   servlet:
     multipart:
-      max-file-size: ${HTTP_MULTIPART_MAX_FILE_SIZE:256KB}
-      max-request-size: ${HTTP_MULTIPART_MAX_REQUEST_SIZE:256KB}
+      max-file-size: ${HTTP_MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${HTTP_MULTIPART_MAX_REQUEST_SIZE:10MB}
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:barmi}
     username: ${DB_USER:barmi}
@@ -28,8 +28,8 @@ server:
   forward-headers-strategy: ${SERVER_FORWARD_HEADERS_STRATEGY:none}
   max-http-request-header-size: ${HTTP_MAX_REQUEST_HEADER_SIZE:16KB}
   tomcat:
-    max-http-form-post-size: ${HTTP_MAX_FORM_POST_SIZE:256KB}
-    max-swallow-size: ${HTTP_MAX_SWALLOW_SIZE:256KB}
+    max-http-form-post-size: ${HTTP_MAX_FORM_POST_SIZE:10MB}
+    max-swallow-size: ${HTTP_MAX_SWALLOW_SIZE:10MB}
 
 logging:
   pattern:
@@ -78,6 +78,8 @@ app:
   rateLimit:
     enabled: ${RATE_LIMIT_ENABLED:true}
     maxCachedBodyBytes: ${RATE_LIMIT_MAX_CACHED_BODY_BYTES:262144}
+  uploads:
+    root: ${APP_UPLOADS_ROOT:uploads}
   observability:
     smoke:
       enabled: ${APP_OBSERVABILITY_SMOKE_ENABLED:false}

@@ -4,6 +4,7 @@ import type {
   StoreAppearance,
   StoreAppearancePreset,
   StoreAppearanceUpdateReq,
+  StoreAssetUpload,
   StoreBranding,
   StoreBrandingUpdateReq,
   StoreCapabilities,
@@ -271,6 +272,12 @@ export function parseStoreBranding(data: unknown): StoreBranding {
     primaryColor: parseHexColor(data.primaryColor, 'Store branding primaryColor is invalid'),
     secondaryColor: parseHexColor(data.secondaryColor, 'Store branding secondaryColor is invalid')
   }
+}
+
+export function parseStoreAssetUpload(data: unknown): StoreAssetUpload {
+  assertRecord(data, 'Invalid store asset upload payload')
+  assertString(data.url, 'Store asset upload url is required')
+  return { url: data.url }
 }
 
 function parseStoreCapabilityPreset(data: unknown, index: number): StoreCapabilityPreset {
@@ -722,6 +729,34 @@ export const storeAdminAdapter = {
       auth
     )
     return parseStoreBranding(data)
+  },
+  async uploadStoreLogo(file: File, auth: AuthRequestContext) {
+    const body = new FormData()
+    body.append('file', file)
+    const data = await requestJsonWithAuth<unknown>(
+      '/api/store/assets/logo',
+      {
+        method: 'POST',
+        body
+      },
+      {},
+      auth
+    )
+    return parseStoreAssetUpload(data)
+  },
+  async uploadStoreBanner(file: File, auth: AuthRequestContext) {
+    const body = new FormData()
+    body.append('file', file)
+    const data = await requestJsonWithAuth<unknown>(
+      '/api/store/assets/banner',
+      {
+        method: 'POST',
+        body
+      },
+      {},
+      auth
+    )
+    return parseStoreAssetUpload(data)
   },
   async listStoreCapabilityPresets(auth: AuthRequestContext) {
     const data = await requestJsonWithAuth<unknown>('/api/store/capability-presets', {}, {}, auth)

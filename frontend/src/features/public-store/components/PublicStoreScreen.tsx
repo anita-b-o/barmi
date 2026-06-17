@@ -92,6 +92,40 @@ function formatPromotionExpiry(promotion: PublicStorePromotion) {
   return new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium' }).format(new Date(promotion.expirationDate))
 }
 
+function StorefrontImage({ src, alt, style }: { src: string; alt: string; style?: CSSProperties }) {
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setFailed(false)
+  }, [src])
+
+  if (failed) return null
+
+  return <img src={src} alt={alt} onError={() => setFailed(true)} style={style} />
+}
+
+function StorefrontBanner({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setFailed(false)
+  }, [src])
+
+  if (failed) return null
+
+  return (
+    <div style={publicStoreStyles.banner}>
+      <img
+        src={src}
+        alt={alt}
+        onError={() => setFailed(true)}
+        style={publicStoreStyles.bannerImage}
+      />
+      <div aria-hidden="true" style={publicStoreStyles.bannerOverlay} />
+    </div>
+  )
+}
+
 const publicStoreStyles = {
   pageStack: { display: 'grid', gap: theme.spacing.xl, paddingBottom: theme.spacing.xxxl },
   heroMobile: { padding: theme.spacing.lg },
@@ -132,11 +166,18 @@ const publicStoreStyles = {
   contactLink: { color: `var(--store-primary, ${theme.colors.actionPrimary})`, fontWeight: 600, textDecoration: 'none', overflowWrap: 'anywhere' },
   storeLogo: { maxWidth: 180, maxHeight: 88, objectFit: 'contain' },
   banner: {
+    position: 'relative',
+    overflow: 'hidden',
     minHeight: 180,
     borderRadius: theme.radius.md,
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
     border: `1px solid ${theme.colors.borderDefault}`
+  },
+  bannerImage: { width: '100%', height: 180, objectFit: 'cover', display: 'block' },
+  bannerOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background: `linear-gradient(90deg, color-mix(in srgb, ${theme.colors.textPrimary} 36%, transparent), color-mix(in srgb, ${theme.colors.textPrimary} 8%, transparent))`,
+    pointerEvents: 'none'
   },
   promoGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' },
   promoCard: {
@@ -564,13 +605,9 @@ export default function PublicStoreScreen() {
 
       <div id="inicio" data-appearance={appearance} style={{ ...publicStoreStyles.pageStack, ...brandedVariables, gap: isClassicAppearance ? theme.spacing.lg : publicStoreStyles.pageStack.gap }}>
         {branding.bannerUrl ? (
-          <div
-            role="img"
-            aria-label={`Portada de ${store?.name ?? 'la tienda'}`}
-            style={{
-              ...publicStoreStyles.banner,
-              backgroundImage: `linear-gradient(90deg, color-mix(in srgb, ${theme.colors.textPrimary} 36%, transparent), color-mix(in srgb, ${theme.colors.textPrimary} 8%, transparent)), url("${branding.bannerUrl}")`
-            }}
+          <StorefrontBanner
+            src={branding.bannerUrl}
+            alt={`Portada de ${store?.name ?? 'la tienda'}`}
           />
         ) : null}
 
@@ -608,7 +645,11 @@ export default function PublicStoreScreen() {
           aside={(
             <>
               {branding.logoUrl ? (
-                <img src={branding.logoUrl} alt={store?.name ?? 'Logo de la tienda'} style={publicStoreStyles.storeLogo} />
+                <StorefrontImage
+                  src={branding.logoUrl}
+                  alt={`Logo de ${store?.name ?? 'la tienda'}`}
+                  style={publicStoreStyles.storeLogo}
+                />
               ) : null}
               <div style={publicStoreStyles.asideStack}>
                 <div style={publicStoreStyles.eyebrow}>

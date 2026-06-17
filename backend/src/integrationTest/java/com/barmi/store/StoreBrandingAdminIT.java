@@ -11,6 +11,8 @@ import com.barmi.infra.repo.StoreMemberRepository;
 import com.barmi.infra.repo.StoreRepository;
 import com.barmi.infra.repo.UserRepository;
 import com.barmi.testsupport.ApiTestClient;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,9 +20,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.http.HttpHeaders;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 
@@ -29,7 +35,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers
 @AutoConfigureMockMvc
 class StoreBrandingAdminIT extends PostgresIntegrationTestBase {
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     private final ApiTestClient api;
+    private final MockMvc mockMvc;
     private final StoreRepository storeRepository;
     private final StoreMemberRepository storeMemberRepository;
     private final UserRepository userRepository;
@@ -51,6 +60,7 @@ class StoreBrandingAdminIT extends PostgresIntegrationTestBase {
             PasswordEncoder passwordEncoder,
             JdbcTemplate jdbcTemplate
     ) {
+        this.mockMvc = mockMvc;
         this.api = new ApiTestClient(mockMvc);
         this.storeRepository = storeRepository;
         this.storeMemberRepository = storeMemberRepository;
@@ -171,6 +181,91 @@ class StoreBrandingAdminIT extends PostgresIntegrationTestBase {
         assertThat(publicStore.rawBody()).doesNotContain(otherStore.getId().toString());
     }
 
+    @Test
+    void uploadsValidLogoAndPersistsUrlForCurrentStoreOnly() throws Exception {
+        ApiTestClient.ApiTestResponse response = multipartAsset(
+                "/api/store/assets/logo",
+                "logo.png",
+                "image/png",
+                new byte[] {1, 2, 3},
+                authHeaders(store, ownerEmail)
+        );
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body().get("url")).isEqualTo("/uploads/stores/" + store.getId() + "/logo.png");
+
+        Store saved = storeRepository.findById(store.getId()).orElseThrow();
+        Store untouched = storeRepository.findById(otherStore.getId()).orElseThrow();
+        assertThat(saved.getLogoUrl()).isEqualTo("/uploads/stores/" + store.getId() + "/logo.png");
+        assertThat(saved.getBannerUrl()).isNull();
+        assertThat(untouched.getLogoUrl()).isNull();
+    }
+
+    @Test
+    void uploadsValidBannerAndKeepsExistingLogo() throws Exception {
+        api.putJson(
+                "/api/store/branding",
+                Map.of(
+                        "logoUrl", "https://cdn.example.test/logo.png",
+                        "primaryColor", "#0F766E",
+                        "secondaryColor", "#155E75"
+                ),
+                authHeaders(store, ownerEmail)
+        );
+
+        ApiTestClient.ApiTestResponse response = multipartAsset(
+                "/api/store/assets/banner",
+                "banner.jpg",
+                "image/jpeg",
+                new byte[] {4, 5, 6},
+                authHeaders(store, ownerEmail)
+        );
+
+        assertThat(response.status()).isEqualTo(200);
+        assertThat(response.body().get("url")).isEqualTo("/uploads/stores/" + store.getId() + "/banner.jpg");
+
+        Store saved = storeRepository.findById(store.getId()).orElseThrow();
+        assertThat(saved.getLogoUrl()).isEqualTo("https://cdn.example.test/logo.png");
+        assertThat(saved.getBannerUrl()).isEqualTo("/uploads/stores/" + store.getId() + "/banner.jpg");
+    }
+
+    @Test
+    void rejectsInvalidMimeTypeAndOversizedLogo() throws Exception {
+        ApiTestClient.ApiTestResponse invalidMime = multipartAsset(
+                "/api/store/assets/logo",
+                "logo.svg",
+                "image/svg+xml",
+                "<svg></svg>".getBytes(StandardCharsets.UTF_8),
+                authHeaders(store, ownerEmail)
+        );
+        ApiTestClient.ApiTestResponse oversizedLogo = multipartAsset(
+                "/api/store/assets/logo",
+                "logo.png",
+                "image/png",
+                new byte[(5 * 1024 * 1024) + 1],
+                authHeaders(store, ownerEmail)
+        );
+
+        assertThat(invalidMime.status()).isEqualTo(400);
+        assertThat(errorCode(invalidMime)).isEqualTo("unsupported_image_type");
+        assertThat(oversizedLogo.status()).isEqualTo(400);
+        assertThat(errorCode(oversizedLogo)).isEqualTo("logo_too_large");
+    }
+
+    @Test
+    void rejectsUnauthorizedAssetUpload() throws Exception {
+        ApiTestClient.ApiTestResponse staffUpload = multipartAsset(
+                "/api/store/assets/banner",
+                "banner.webp",
+                "image/webp",
+                new byte[] {7, 8, 9},
+                authHeaders(store, staffEmail)
+        );
+
+        assertThat(staffUpload.status()).isEqualTo(403);
+        assertThat(errorCode(staffUpload)).isEqualTo("forbidden");
+    }
+
     private void createUserAndMembership(Store targetStore, String email, StoreMemberRole role) {
         userRepository.save(new User(UUID.randomUUID(), email, passwordEncoder.encode("secret"), UserStatus.ACTIVE));
         storeMemberRepository.save(new StoreMember(UUID.randomUUID(), targetStore.getId(), email, role, StoreMemberStatus.ACTIVE));
@@ -194,5 +289,30 @@ class StoreBrandingAdminIT extends PostgresIntegrationTestBase {
 
     private String errorCode(ApiTestClient.ApiTestResponse response) {
         return ((Map<String, Object>) response.body().get("error")).get("code").toString();
+    }
+
+    private ApiTestClient.ApiTestResponse multipartAsset(
+            String path,
+            String filename,
+            String contentType,
+            byte[] content,
+            HttpHeaders headers
+    ) throws Exception {
+        MockMultipartFile file = new MockMultipartFile("file", filename, contentType, content);
+        MvcResult result = mockMvc.perform(MockMvcRequestBuilders.multipart(path)
+                        .file(file)
+                        .headers(headers))
+                .andReturn();
+        String rawBody = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        Map<String, Object> body = rawBody == null || rawBody.isBlank()
+                ? null
+                : MAPPER.readValue(rawBody, new TypeReference<>() {});
+        return new ApiTestClient.ApiTestResponse(
+                result.getResponse().getStatus(),
+                body,
+                rawBody,
+                new HttpHeaders(),
+                result.getResponse().getCookies()
+        );
     }
 }

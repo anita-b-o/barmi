@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clearStorage, clickElement, flush, mockFetch, renderAppAt, setInputElementValue, setSelectElementValue } from '../test-utils/testUtils'
+import { clearStorage, clickElement, dispatchElementEvent, flush, mockFetch, renderAppAt, setInputElementValue, setSelectElementValue } from '../test-utils/testUtils'
 
 function telemetryEvents(handler: ReturnType<typeof mockFetch>) {
   return handler.mock.calls
@@ -186,10 +186,45 @@ describe('public store catalog discovery', () => {
     await flush()
 
     expect(document.querySelector('img[src="https://cdn.demo.test/logo.png"]')).toBeTruthy()
-    expect(document.querySelector('[aria-label="Portada de Demo Store"]')).toBeTruthy()
+    expect(document.querySelector('img[alt="Portada de Demo Store"]')).toBeTruthy()
     const brandedRoot = document.querySelector('#inicio') as HTMLElement
     expect(brandedRoot.style.getPropertyValue('--store-primary')).toBe('#0F766E')
     expect(brandedRoot.style.getPropertyValue('--store-secondary')).toBe('#155E75')
+
+    await cleanup()
+  })
+
+  it('hides storefront branding images when loading fails', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          branding: {
+            logoUrl: '/uploads/stores/s1/logo.png',
+            bannerUrl: '/uploads/stores/s1/banner.jpg',
+            primaryColor: '#0F766E',
+            secondaryColor: '#155E75'
+          }
+        }
+      },
+      '/api/public/stores/demo-store/products': { body: productsPage([]) }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    const logo = document.querySelector('img[alt="Logo de Demo Store"]') as HTMLImageElement
+    const banner = document.querySelector('img[alt="Portada de Demo Store"]') as HTMLImageElement
+    expect(logo).toBeTruthy()
+    expect(banner).toBeTruthy()
+
+    await dispatchElementEvent(logo, new Event('error', { bubbles: false }))
+    await dispatchElementEvent(banner, new Event('error', { bubbles: false }))
+
+    expect(document.querySelector('img[alt="Logo de Demo Store"]')).toBeFalsy()
+    expect(document.querySelector('img[alt="Portada de Demo Store"]')).toBeFalsy()
+    expect(document.body.textContent).toContain('Demo Store')
 
     await cleanup()
   })

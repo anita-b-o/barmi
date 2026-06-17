@@ -353,6 +353,8 @@ Store Branding permite configurar identidad visual básica por tienda sin CSS cu
 
 - `GET /api/store/branding`
 - `PUT /api/store/branding`
+- `POST /api/store/assets/logo`
+- `POST /api/store/assets/banner`
 
 Payload:
 
@@ -366,6 +368,8 @@ Payload:
 ```
 
 `logoUrl` y `bannerUrl` son opcionales. `primaryColor` y `secondaryColor` aceptan sólo hex de seis dígitos y caen a los colores de acción actuales cuando no se configuran. El storefront consume estos valores como variables CSS controladas (`--store-primary` y `--store-secondary`) y mantiene fallback al design system si el branding público falta o es inválido.
+
+Los endpoints de assets reciben `multipart/form-data` con el campo `file`, aceptan `image/png`, `image/jpeg` e `image/webp`, y responden `{ "url": "/uploads/stores/{storeId}/logo.png" }` o banner equivalente. El MVP guarda archivos localmente en `uploads/stores/{storeId}/` y reutiliza `logoUrl`/`bannerUrl`; `PUT /api/store/branding` sigue aceptando URLs existentes para compatibilidad.
 
 La respuesta de readiness incluye `score`, `completedSteps`, `pendingSteps`, `blockers`, `publishReady` y una lista `steps` con label, estado y CTA. Reglas mínimas: una tienda institucional requiere `ABOUT` completo con descripción pública y `CONTACT` completo con al menos un dato público de contacto; una tienda ecommerce requiere `PRODUCTS` + `SHIPPING` + `CHECKOUT`. Promociones suman progreso si están habilitadas, pero no bloquean publicar. `BLOG`, `GALLERY` y `RESERVATIONS` quedan modeladas como pasos futuros no bloqueantes.
 
@@ -659,6 +663,8 @@ No es una referencia exhaustiva. Para payloads más detallados, ver `backend/REA
 - `PUT /api/store/appearance`
 - `GET /api/store/branding`
 - `PUT /api/store/branding`
+- `POST /api/store/assets/logo`
+- `POST /api/store/assets/banner`
 - `GET /api/store/analytics/summary`
 - `GET /api/store/analytics/report?range={today|7d|30d}`
 - `GET /api/store/analytics/products?range=7d`

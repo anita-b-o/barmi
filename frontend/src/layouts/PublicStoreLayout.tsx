@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import PlatformLayout from './PlatformLayout'
 import { routes } from '@/core/constants/routes'
@@ -18,6 +18,25 @@ function publicStoreSlugFromPath(pathname: string) {
   } catch {
     return match[1]
   }
+}
+
+function StoreLogoImage({ src, alt }: { src: string; alt: string }) {
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    setFailed(false)
+  }, [src])
+
+  if (failed) return null
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      onError={() => setFailed(true)}
+      style={{ maxWidth: 152, maxHeight: 48, objectFit: 'contain' }}
+    />
+  )
 }
 
 type PublicStoreLayoutProps = {
@@ -69,9 +88,7 @@ export default function PublicStoreLayout({
       context="store"
       eyebrow={productsEnabled ? 'Tienda online' : 'Tienda'}
       title={title}
-      titleNode={branding?.logoUrl ? (
-        <img src={branding.logoUrl} alt={title} style={{ maxWidth: 152, maxHeight: 48, objectFit: 'contain' }} />
-      ) : undefined}
+      titleNode={branding?.logoUrl ? <StoreLogoImage src={branding.logoUrl} alt={title} /> : undefined}
       subtitle={location.pathname.startsWith('/store/')
         ? 'Compra y seguimiento de tu pedido.'
         : subtitle}

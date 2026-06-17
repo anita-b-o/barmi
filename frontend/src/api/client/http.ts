@@ -99,7 +99,7 @@ async function requestJsonAttempt<T>(
   const method = (init.method ?? 'GET').toUpperCase()
   const retryEnabled = shouldRetryRequest(method, options)
 
-  if (!headers.has('Content-Type') && init.body) {
+  if (!headers.has('Content-Type') && init.body && !(init.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
   }
   if (!headers.has('X-Request-Id')) {

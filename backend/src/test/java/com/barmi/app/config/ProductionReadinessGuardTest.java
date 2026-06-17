@@ -383,7 +383,7 @@ class ProductionReadinessGuardTest {
                 "smtp",
                 "https://app.barmi.example",
                 true,
-                "10MB",
+                "11MB",
                 "256KB",
                 "16KB",
                 "256KB",
