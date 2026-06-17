@@ -23,6 +23,15 @@ export type StoreAppearance = {
 
 export type StoreAppearanceUpdateReq = StoreAppearance
 
+export type StoreBranding = {
+  logoUrl: string | null
+  bannerUrl: string | null
+  primaryColor: string
+  secondaryColor: string
+}
+
+export type StoreBrandingUpdateReq = StoreBranding
+
 export type StoreCapabilityMetadata = {
   key: StoreCapability
   label: string

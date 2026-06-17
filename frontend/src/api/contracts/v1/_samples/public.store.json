@@ -9,6 +9,12 @@
     "phone": "221 555 0101",
     "whatsapp": "+54 9 221 555 0101"
   },
+  "branding": {
+    "logoUrl": "https://cdn.demo.test/logo.png",
+    "bannerUrl": "https://cdn.demo.test/banner.jpg",
+    "primaryColor": "#0F766E",
+    "secondaryColor": "#155E75"
+  },
   "capabilities": ["ABOUT", "PRODUCTS", "PROMOTIONS", "SHIPPING", "CHECKOUT", "CONTACT"],
   "categories": [
     {

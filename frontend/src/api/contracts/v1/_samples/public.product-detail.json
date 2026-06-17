@@ -4,6 +4,12 @@
     "name": "Demo Store",
     "categoryName": "Panaderia",
     "appearance": "PORTFOLIO",
+    "branding": {
+      "logoUrl": "https://cdn.demo.test/logo.png",
+      "bannerUrl": null,
+      "primaryColor": "#0F766E",
+      "secondaryColor": "#155E75"
+    },
     "capabilities": ["ABOUT", "PRODUCTS", "PROMOTIONS", "SHIPPING", "CHECKOUT", "CONTACT"]
   },
   "product": {

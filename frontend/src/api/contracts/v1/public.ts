@@ -21,6 +21,7 @@ export type PublicStore = {
   name: string
   appearance: PublicStoreAppearancePreset
   profile: PublicStoreProfile
+  branding: PublicStoreBranding
   capabilities: PublicStoreCapability[]
   categories: PublicStoreCategory[]
   promotions: PublicStorePromotion[]
@@ -31,6 +32,13 @@ export type PublicStoreProfile = {
   email: string | null
   phone: string | null
   whatsapp: string | null
+}
+
+export type PublicStoreBranding = {
+  logoUrl: string | null
+  bannerUrl: string | null
+  primaryColor: string
+  secondaryColor: string
 }
 
 export type PublicStoreCategory = {
@@ -146,6 +154,7 @@ export type PublicStoreProductDetail = {
     name: string
     categoryName: string | null
     appearance: PublicStoreAppearancePreset
+    branding: PublicStoreBranding
     capabilities: PublicStoreCapability[]
   }
   product: {

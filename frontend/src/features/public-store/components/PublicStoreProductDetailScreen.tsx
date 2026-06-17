@@ -16,6 +16,7 @@ import Card from '@/components/primitives/Card'
 import EmptyState from '@/components/feedback/EmptyState'
 import LoadingBlock from '@/components/feedback/LoadingState'
 import { trackBetaEvent } from '@/features/beta'
+import { normalizeStoreBranding, storeBrandingCssVariables } from '@/features/store/branding'
 
 const detailStyles = {
   pageStack: { display: 'grid', gap: theme.spacing.xl, paddingBottom: theme.spacing.xxxl },
@@ -209,6 +210,7 @@ export default function PublicStoreProductDetailScreen() {
   const loadedProduct = detail.product
   const loadedStore = detail.store
   const appearance = appearanceAttribute(loadedStore.appearance ?? 'MODERN')
+  const branding = normalizeStoreBranding(loadedStore.branding)
   const canAddToCart = checkoutEnabled && loadedProduct.isAvailable && cartProduct && !isCartLookupLoading
 
   return (
@@ -217,6 +219,7 @@ export default function PublicStoreProductDetailScreen() {
       showCheckoutNav={checkoutEnabled}
       storeName={loadedStore.name}
       storeDescription={loadedStore.categoryName}
+      branding={loadedStore.branding}
       capabilities={loadedStore.capabilities}
     >
       <Breadcrumbs items={[
@@ -224,7 +227,7 @@ export default function PublicStoreProductDetailScreen() {
         { label: loadedProduct.name }
       ]} />
 
-      <div data-appearance={appearance} style={detailStyles.pageStack}>
+      <div data-appearance={appearance} style={{ ...detailStyles.pageStack, ...storeBrandingCssVariables(loadedStore.branding) }}>
         <EcosystemSurfaceSection>
           <div style={detailStyles.detailGrid}>
             <Card variant="soft" style={detailStyles.mediaCard}>
@@ -237,7 +240,7 @@ export default function PublicStoreProductDetailScreen() {
 
             <div style={detailStyles.contentStack}>
               <div style={detailStyles.badgeRow}>
-                {loadedProduct.categoryName ? <Badge variant="info">{loadedProduct.categoryName}</Badge> : null}
+                {loadedProduct.categoryName ? <Badge variant="info" style={{ color: branding.secondaryColor }}>{loadedProduct.categoryName}</Badge> : null}
                 <Badge variant={loadedProduct.isAvailable ? 'success' : 'error'}>
                   {loadedProduct.isAvailable ? `Disponible ahora · Stock disponible: ${loadedProduct.stockQuantity}` : 'Sin stock disponible'}
                 </Badge>

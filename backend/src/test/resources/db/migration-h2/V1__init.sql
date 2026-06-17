@@ -5,6 +5,10 @@ CREATE TABLE stores (
   slug          TEXT NOT NULL UNIQUE,
   name          TEXT NOT NULL,
   appearance_preset TEXT NOT NULL DEFAULT 'MODERN' CHECK (appearance_preset IN ('MODERN', 'CLASSIC', 'LOCAL_BUSINESS', 'PORTFOLIO')),
+  logo_url      VARCHAR(500),
+  banner_url    VARCHAR(500),
+  primary_color VARCHAR(7) NOT NULL DEFAULT '#F65F55' CHECK (REGEXP_LIKE(primary_color, '^#[0-9A-Fa-f]{6}$')),
+  secondary_color VARCHAR(7) NOT NULL DEFAULT '#E5544A' CHECK (REGEXP_LIKE(secondary_color, '^#[0-9A-Fa-f]{6}$')),
   is_active     BOOLEAN NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

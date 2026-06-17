@@ -4,6 +4,7 @@ import {
   PublicProductsPage,
   PublicStore,
   PublicStoreAppearancePreset,
+  PublicStoreBranding,
   PublicStoreCapability,
   PublicStoreCatalogSort,
   PublicStoreProductDetail,
@@ -39,6 +40,14 @@ const PUBLIC_STORE_APPEARANCE_PRESETS = new Set<PublicStoreAppearancePreset>([
   'LOCAL_BUSINESS',
   'PORTFOLIO'
 ])
+
+const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/
+const DEFAULT_PUBLIC_STORE_BRANDING: PublicStoreBranding = {
+  logoUrl: null,
+  bannerUrl: null,
+  primaryColor: '#F65F55',
+  secondaryColor: '#E5544A'
+}
 
 function assertBoolean(value: unknown, message: string): asserts value is boolean {
   if (typeof value !== 'boolean') throw new Error(message)
@@ -128,6 +137,30 @@ function parsePublicStoreProfile(data: unknown) {
   }
 }
 
+function parseBrandingUrl(value: unknown, message: string) {
+  if (value === null || value === undefined) return null
+  if (typeof value !== 'string') throw new Error(message)
+  const normalized = value.trim()
+  return normalized || null
+}
+
+function parseBrandingColor(value: unknown, fallback: string) {
+  if (typeof value !== 'string') return fallback
+  const normalized = value.trim()
+  return HEX_COLOR_PATTERN.test(normalized) ? normalized : fallback
+}
+
+export function parsePublicStoreBranding(data: unknown): PublicStoreBranding {
+  if (data === undefined || data === null) return DEFAULT_PUBLIC_STORE_BRANDING
+  assertRecord(data, 'Public store branding is invalid')
+  return {
+    logoUrl: parseBrandingUrl(data.logoUrl, 'Public store branding logoUrl is invalid'),
+    bannerUrl: parseBrandingUrl(data.bannerUrl, 'Public store branding bannerUrl is invalid'),
+    primaryColor: parseBrandingColor(data.primaryColor, DEFAULT_PUBLIC_STORE_BRANDING.primaryColor),
+    secondaryColor: parseBrandingColor(data.secondaryColor, DEFAULT_PUBLIC_STORE_BRANDING.secondaryColor)
+  }
+}
+
 export function hasPublicStoreCapability(
   capabilities: PublicStoreCapability[] | undefined | null,
   capability: PublicStoreCapability
@@ -152,6 +185,7 @@ export function parsePublicStore(data: unknown): PublicStore {
     name: data.name,
     appearance: parsePublicStoreAppearance(data.appearance),
     profile: parsePublicStoreProfile(data.profile),
+    branding: parsePublicStoreBranding(data.branding),
     capabilities: parsePublicStoreCapabilities(data.capabilities, 'Public store capabilities'),
     categories: (data.categories ?? []).map((item, index) => parsePublicCategory(item, index)),
     promotions: (data.promotions ?? []).map((item, index) => parsePublicPromotion(item, index))
@@ -228,6 +262,7 @@ export function parsePublicStoreProductDetail(data: unknown): PublicStoreProduct
       name: store.name,
       categoryName: store.categoryName ?? null,
       appearance: parsePublicStoreAppearance(store.appearance),
+      branding: parsePublicStoreBranding(store.branding),
       capabilities: parsePublicStoreCapabilities(store.capabilities, 'Public store product detail store capabilities')
     },
     product: {

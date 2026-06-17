@@ -401,6 +401,7 @@ describe('backoffice routing guards', () => {
     await flush()
 
     expect(document.body.textContent).toContain('Hub operativo')
+    expect(document.body.textContent).toContain('Personalizá tu marca')
     expect(document.body.textContent).toContain('Gestionar productos')
     expect(document.body.textContent).toContain('Gestionar promociones')
     expect(document.body.textContent).toContain('Gestionar zonas')

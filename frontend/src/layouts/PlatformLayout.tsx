@@ -7,6 +7,7 @@ type PlatformLayoutProps = {
   customHeader?: React.ReactNode
   eyebrow?: string
   title?: string
+  titleNode?: React.ReactNode
   subtitle?: string
   navigation?: React.ReactNode
   headerMeta?: React.ReactNode
@@ -23,6 +24,7 @@ export default function PlatformLayout({
   customHeader,
   eyebrow,
   title = 'Barmi',
+  titleNode,
   subtitle,
   navigation,
   headerMeta,
@@ -73,7 +75,9 @@ export default function PlatformLayout({
                   }}
                 >
                   {eyebrow ? <div style={{ color: palette.accent, fontWeight: 700, fontSize: theme.typography.small.size, letterSpacing: 0, textTransform: 'uppercase' }}>{eyebrow}</div> : null}
-                  <div style={{ fontWeight: 700, fontSize: 'clamp(20px, 3vw, 22px)', color: theme.colors.textPrimary, letterSpacing: 0 }}>{title}</div>
+                  {titleNode ?? (
+                    <div style={{ fontWeight: 700, fontSize: 'clamp(20px, 3vw, 22px)', color: theme.colors.textPrimary, letterSpacing: 0 }}>{title}</div>
+                  )}
                 </div>
 
                 {(subtitle || headerMeta) ? (

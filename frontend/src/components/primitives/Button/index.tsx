@@ -30,9 +30,9 @@ const baseStyle: React.CSSProperties = {
 
 const variantStyles: Record<ButtonVariant, React.CSSProperties> = {
   primary: {
-    background: theme.colors.actionPrimary,
-    color: theme.mode === 'dark' ? theme.colors.textPrimary : theme.colors.bgSurfaceAlt,
-    borderColor: theme.colors.actionPrimary
+    background: `var(--store-primary, ${theme.colors.actionPrimary})`,
+    color: `var(--store-primary-contrast, ${theme.mode === 'dark' ? theme.colors.textPrimary : theme.colors.bgSurfaceAlt})`,
+    borderColor: `var(--store-primary, ${theme.colors.actionPrimary})`
   },
   secondary: {
     background: theme.colors.bgSurfaceAlt,
@@ -66,7 +66,7 @@ export default function Button({ variant = 'secondary', style, ...props }: Butto
   const hoverStyle: React.CSSProperties = props.disabled
     ? {}
     : {
-      primary: { background: theme.colors.actionHover, borderColor: theme.colors.actionHover, boxShadow: theme.shadows.surface },
+      primary: { background: `var(--store-secondary, ${theme.colors.actionHover})`, borderColor: `var(--store-secondary, ${theme.colors.actionHover})`, boxShadow: theme.shadows.surface },
       secondary: { background: theme.colors.bgHover, borderColor: theme.colors.borderHover, color: theme.colors.textPrimary },
       ghost: { background: theme.colors.bgAccentSoft, color: theme.colors.brand }
     }[variant]
@@ -78,7 +78,7 @@ export default function Button({ variant = 'secondary', style, ...props }: Butto
   const activeStyle: React.CSSProperties = isPressed && !props.disabled
     ? {
       transform: 'translateY(1px)',
-      background: variant === 'primary' ? theme.colors.actionHover : undefined,
+      background: variant === 'primary' ? `var(--store-secondary, ${theme.colors.actionHover})` : undefined,
       boxShadow: 'none'
     }
     : {}

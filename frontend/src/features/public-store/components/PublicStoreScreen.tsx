@@ -23,6 +23,7 @@ import { useViewportMode } from '@/core/hooks/useViewportMode'
 import { EcosystemHeroBadge, EcosystemHeroSection, EcosystemSurfaceSection } from '@/features/ecosystem'
 import { trackBetaEvent } from '@/features/beta'
 import { buildCanonicalUrl, useJsonLd, useSeoMetadata } from '@/core/seo'
+import { normalizeStoreBranding, storeBrandingCssVariables } from '@/features/store/branding'
 
 const SORT_OPTIONS: Array<{ value: PublicStoreCatalogSort; label: string }> = [
   { value: 'default', label: 'Orden actual' },
@@ -128,7 +129,15 @@ const publicStoreStyles = {
     border: `1px solid ${theme.colors.borderDefault}`,
     background: theme.colors.bgSurfaceAlt
   },
-  contactLink: { color: theme.colors.actionPrimary, fontWeight: 600, textDecoration: 'none', overflowWrap: 'anywhere' },
+  contactLink: { color: `var(--store-primary, ${theme.colors.actionPrimary})`, fontWeight: 600, textDecoration: 'none', overflowWrap: 'anywhere' },
+  storeLogo: { maxWidth: 180, maxHeight: 88, objectFit: 'contain' },
+  banner: {
+    minHeight: 180,
+    borderRadius: theme.radius.md,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    border: `1px solid ${theme.colors.borderDefault}`
+  },
   promoGrid: { display: 'grid', gap: theme.spacing.md, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))' },
   promoCard: {
     display: 'grid',
@@ -280,8 +289,12 @@ export default function PublicStoreScreen() {
   const isLocalBusinessAppearance = appearancePreset === 'LOCAL_BUSINESS'
   const isPortfolioAppearance = appearancePreset === 'PORTFOLIO'
   const contactHref = contactItems.find((item) => item.href)?.href
+  const branding = normalizeStoreBranding(store?.branding)
+  const brandedVariables = storeBrandingCssVariables(store?.branding)
   const heroStyle = {
     ...(isMobile ? publicStoreStyles.heroMobile : publicStoreStyles.heroDesktop),
+    ...brandedVariables,
+    borderColor: branding.primaryColor,
     ...(isClassicAppearance ? { border: `1px solid ${theme.colors.borderStrong}` } : null),
     ...(isPortfolioAppearance ? { paddingBottom: isMobile ? theme.spacing.lg : theme.spacing.xl } : null)
   }
@@ -291,6 +304,7 @@ export default function PublicStoreScreen() {
   }
   const filterPanelStyle = {
     ...publicStoreStyles.filterPanel,
+    borderColor: branding.secondaryColor,
     ...(isClassicAppearance ? { padding: theme.spacing.md, borderColor: theme.colors.borderStrong } : null),
     ...(isPortfolioAppearance ? { background: theme.colors.bgSurface, borderColor: theme.colors.borderDefault } : null)
   }
@@ -543,11 +557,23 @@ export default function PublicStoreScreen() {
       showCheckoutNav={checkoutEnabled}
       storeName={store?.name}
       storeDescription={aboutEnabled ? store?.profile.description : null}
+      branding={store?.branding}
       capabilities={store?.capabilities}
     >
       <Breadcrumbs items={[{ label: store?.name ?? 'Inicio', href: routes.publicStore(slug) }, { label: productsEnabled ? 'Productos' : 'Información' }]} />
 
-      <div id="inicio" data-appearance={appearance} style={{ ...publicStoreStyles.pageStack, gap: isClassicAppearance ? theme.spacing.lg : publicStoreStyles.pageStack.gap }}>
+      <div id="inicio" data-appearance={appearance} style={{ ...publicStoreStyles.pageStack, ...brandedVariables, gap: isClassicAppearance ? theme.spacing.lg : publicStoreStyles.pageStack.gap }}>
+        {branding.bannerUrl ? (
+          <div
+            role="img"
+            aria-label={`Portada de ${store?.name ?? 'la tienda'}`}
+            style={{
+              ...publicStoreStyles.banner,
+              backgroundImage: `linear-gradient(90deg, color-mix(in srgb, ${theme.colors.textPrimary} 36%, transparent), color-mix(in srgb, ${theme.colors.textPrimary} 8%, transparent)), url("${branding.bannerUrl}")`
+            }}
+          />
+        ) : null}
+
         <EcosystemHeroSection
           eyebrow={productsEnabled ? 'Tienda online' : 'Información'}
           title={store?.name ?? 'Tienda'}
@@ -581,6 +607,9 @@ export default function PublicStoreScreen() {
           ) : undefined}
           aside={(
             <>
+              {branding.logoUrl ? (
+                <img src={branding.logoUrl} alt={store?.name ?? 'Logo de la tienda'} style={publicStoreStyles.storeLogo} />
+              ) : null}
               <div style={publicStoreStyles.asideStack}>
                 <div style={publicStoreStyles.eyebrow}>
                   Atención de la tienda
@@ -664,7 +693,7 @@ export default function PublicStoreScreen() {
                     style={publicStoreStyles.promoCard}
                   >
                     <div style={publicStoreStyles.splitTopRow}>
-                      <Badge variant="info">Promoción</Badge>
+                      <Badge variant="info" style={{ color: branding.secondaryColor }}>Promoción</Badge>
                       {formatPromotionExpiry(promotion) ? <Badge variant="neutral">Vence {formatPromotionExpiry(promotion)}</Badge> : null}
                     </div>
                     <div style={publicStoreStyles.microStack}>
@@ -855,7 +884,7 @@ export default function PublicStoreScreen() {
 
                       <div style={productBodyStyle}>
                         <div style={publicStoreStyles.badgeRow}>
-                          {product.categoryName ? <Badge variant="info">{product.categoryName}</Badge> : null}
+                          {product.categoryName ? <Badge variant="info" style={{ color: branding.secondaryColor }}>{product.categoryName}</Badge> : null}
                           <Badge variant={product.isAvailable ? 'success' : 'error'}>
                             {product.isAvailable ? `Disponible ahora · Stock disponible: ${product.stockQuantity}` : 'Sin stock disponible'}
                           </Badge>

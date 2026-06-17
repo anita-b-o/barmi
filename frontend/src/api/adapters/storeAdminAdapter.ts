@@ -4,6 +4,8 @@ import type {
   StoreAppearance,
   StoreAppearancePreset,
   StoreAppearanceUpdateReq,
+  StoreBranding,
+  StoreBrandingUpdateReq,
   StoreCapabilities,
   StoreCapability,
   StoreCapabilityMetadata,
@@ -129,6 +131,12 @@ function parseStoreAppearancePreset(value: unknown, message: string): StoreAppea
   throw new Error(message)
 }
 
+function parseHexColor(value: unknown, message: string): string {
+  assertString(value, message)
+  if (!/^#[0-9A-Fa-f]{6}$/.test(value)) throw new Error(message)
+  return value
+}
+
 function parseCountsRecord<T extends string>(value: unknown, allowedKeys: readonly T[], messagePrefix: string): Record<T, number> {
   assertRecord(value, messagePrefix)
   const parsed = {} as Record<T, number>
@@ -250,6 +258,18 @@ export function parseStoreAppearance(data: unknown): StoreAppearance {
   assertRecord(data, 'Invalid store appearance payload')
   return {
     preset: parseStoreAppearancePreset(data.preset, 'Store appearance preset is invalid')
+  }
+}
+
+export function parseStoreBranding(data: unknown): StoreBranding {
+  assertRecord(data, 'Invalid store branding payload')
+  assertNullableString(data.logoUrl, 'Store branding logoUrl is invalid')
+  assertNullableString(data.bannerUrl, 'Store branding bannerUrl is invalid')
+  return {
+    logoUrl: data.logoUrl ?? null,
+    bannerUrl: data.bannerUrl ?? null,
+    primaryColor: parseHexColor(data.primaryColor, 'Store branding primaryColor is invalid'),
+    secondaryColor: parseHexColor(data.secondaryColor, 'Store branding secondaryColor is invalid')
   }
 }
 
@@ -686,6 +706,22 @@ export const storeAdminAdapter = {
       auth
     )
     return parseStoreAppearance(data)
+  },
+  async getStoreBranding(auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>('/api/store/branding', {}, {}, auth)
+    return parseStoreBranding(data)
+  },
+  async updateStoreBranding(payload: StoreBrandingUpdateReq, auth: AuthRequestContext) {
+    const data = await requestJsonWithAuth<unknown>(
+      '/api/store/branding',
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      },
+      {},
+      auth
+    )
+    return parseStoreBranding(data)
   },
   async listStoreCapabilityPresets(auth: AuthRequestContext) {
     const data = await requestJsonWithAuth<unknown>('/api/store/capability-presets', {}, {}, auth)

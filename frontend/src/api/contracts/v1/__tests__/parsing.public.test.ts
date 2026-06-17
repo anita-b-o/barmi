@@ -18,6 +18,8 @@ describe('public contracts parsing', () => {
     expect(store.id).toBe('11111111-1111-1111-1111-111111111111')
     expect(store.name).toBe('Demo Store')
     expect(store.appearance).toBe('LOCAL_BUSINESS')
+    expect(store.branding.logoUrl).toBe('https://cdn.demo.test/logo.png')
+    expect(store.branding.primaryColor).toBe('#0F766E')
     expect(store.profile.description).toBe('Cafetería de especialidad con atención de barrio.')
     expect(store.profile.whatsapp).toBe('+54 9 221 555 0101')
     expect(store.capabilities).toEqual(['ABOUT', 'PRODUCTS', 'PROMOTIONS', 'SHIPPING', 'CHECKOUT', 'CONTACT'])
@@ -40,6 +42,25 @@ describe('public contracts parsing', () => {
   it('uses empty public profile as fallback', () => {
     const store = parsePublicStore({ ...storeSample, profile: undefined })
     expect(store.profile).toEqual({ description: null, email: null, phone: null, whatsapp: null })
+  })
+
+  it('uses design-system branding fallback for missing or invalid public branding colors', () => {
+    expect(parsePublicStore({ ...storeSample, branding: undefined }).branding).toEqual({
+      logoUrl: null,
+      bannerUrl: null,
+      primaryColor: '#F65F55',
+      secondaryColor: '#E5544A'
+    })
+    const store = parsePublicStore({
+      ...storeSample,
+      branding: { logoUrl: null, bannerUrl: null, primaryColor: 'red', secondaryColor: '#12345G' }
+    })
+    expect(store.branding.primaryColor).toBe('#F65F55')
+    expect(store.branding.secondaryColor).toBe('#E5544A')
+    expect(() => parsePublicStore({
+      ...storeSample,
+      branding: { logoUrl: 123, primaryColor: '#F65F55', secondaryColor: '#E5544A' }
+    })).toThrow('Public store branding logoUrl is invalid')
   })
 
   it('parses public products sample', () => {
@@ -78,6 +99,7 @@ describe('public contracts parsing', () => {
     const detail = parsePublicStoreProductDetail(productDetailSample)
     expect(detail.store.slug).toBe('demo-store')
     expect(detail.store.appearance).toBe('PORTFOLIO')
+    expect(detail.store.branding.primaryColor).toBe('#0F766E')
     expect(detail.product.slug).toBe('pan-de-campo')
     expect(detail.product.name).toBe('Pan de campo')
     expect(detail.product.priceCents).toBe(1200)

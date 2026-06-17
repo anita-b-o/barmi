@@ -25,6 +25,12 @@ const storeResponse = {
     phone: '221 555 0101',
     whatsapp: '+54 9 221 555 0101'
   },
+  branding: {
+    logoUrl: null,
+    bannerUrl: null,
+    primaryColor: '#F65F55',
+    secondaryColor: '#E5544A'
+  },
   categories: [
     { id: 'cat-1', slug: 'cat-1', name: 'Bebidas', sortOrder: 10 },
     { id: 'cat-2', slug: 'cat-2', name: 'Snacks', sortOrder: 20 }
@@ -155,6 +161,58 @@ describe('public store catalog discovery', () => {
     await flush()
 
     expect(document.querySelector('[data-appearance="modern"]')).toBeTruthy()
+
+    await cleanup()
+  })
+
+  it('applies store branding logo banner and CSS variables', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          branding: {
+            logoUrl: 'https://cdn.demo.test/logo.png',
+            bannerUrl: 'https://cdn.demo.test/banner.jpg',
+            primaryColor: '#0F766E',
+            secondaryColor: '#155E75'
+          }
+        }
+      },
+      '/api/public/stores/demo-store/products': { body: productsPage([]) }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    expect(document.querySelector('img[src="https://cdn.demo.test/logo.png"]')).toBeTruthy()
+    expect(document.querySelector('[aria-label="Portada de Demo Store"]')).toBeTruthy()
+    const brandedRoot = document.querySelector('#inicio') as HTMLElement
+    expect(brandedRoot.style.getPropertyValue('--store-primary')).toBe('#0F766E')
+    expect(brandedRoot.style.getPropertyValue('--store-secondary')).toBe('#155E75')
+
+    await cleanup()
+  })
+
+  it('keeps design-system fallback when storefront branding is absent', async () => {
+    mockFetch({
+      '/api/public/stores/demo-store': {
+        body: {
+          ...storeResponse,
+          branding: undefined
+        }
+      },
+      '/api/public/stores/demo-store/products': { body: productsPage([]) }
+    })
+
+    const { cleanup } = await renderAppAt('/public/demo-store')
+    await flush()
+    await flush()
+
+    expect(document.querySelector('img[src*="logo"]')).toBeFalsy()
+    const brandedRoot = document.querySelector('#inicio') as HTMLElement
+    expect(brandedRoot.style.getPropertyValue('--store-primary')).toBe('#F65F55')
+    expect(brandedRoot.style.getPropertyValue('--store-secondary')).toBe('#E5544A')
 
     await cleanup()
   })

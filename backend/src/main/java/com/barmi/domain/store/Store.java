@@ -9,6 +9,8 @@ import java.util.UUID;
 @Entity
 @Table(name = "stores")
 public class Store {
+    public static final String DEFAULT_PRIMARY_COLOR = "#F65F55";
+    public static final String DEFAULT_SECONDARY_COLOR = "#E5544A";
 
     @Id
     private UUID id;
@@ -56,6 +58,18 @@ public class Store {
     @Enumerated(EnumType.STRING)
     @Column(name = "appearance_preset", nullable = false, length = 40)
     private StoreAppearancePreset appearancePreset = StoreAppearancePreset.MODERN;
+
+    @Column(name = "logo_url", length = 500)
+    private String logoUrl;
+
+    @Column(name = "banner_url", length = 500)
+    private String bannerUrl;
+
+    @Column(name = "primary_color", nullable = false, length = 7)
+    private String primaryColor = DEFAULT_PRIMARY_COLOR;
+
+    @Column(name = "secondary_color", nullable = false, length = 7)
+    private String secondaryColor = DEFAULT_SECONDARY_COLOR;
 
     protected Store() {}
 
@@ -131,6 +145,13 @@ public class Store {
         this.appearancePreset = appearancePreset == null ? StoreAppearancePreset.MODERN : appearancePreset;
     }
 
+    public void updateBranding(String logoUrl, String bannerUrl, String primaryColor, String secondaryColor) {
+        this.logoUrl = logoUrl;
+        this.bannerUrl = bannerUrl;
+        this.primaryColor = primaryColor == null || primaryColor.isBlank() ? DEFAULT_PRIMARY_COLOR : primaryColor;
+        this.secondaryColor = secondaryColor == null || secondaryColor.isBlank() ? DEFAULT_SECONDARY_COLOR : secondaryColor;
+    }
+
     public void updateEcosystem(Ecosystem ecosystem) {
         this.ecosystem = ecosystem;
     }
@@ -150,5 +171,9 @@ public class Store {
     public String getPublicPhone() { return publicPhone; }
     public String getPublicWhatsapp() { return publicWhatsapp; }
     public StoreAppearancePreset getAppearancePreset() { return appearancePreset == null ? StoreAppearancePreset.MODERN : appearancePreset; }
+    public String getLogoUrl() { return logoUrl; }
+    public String getBannerUrl() { return bannerUrl; }
+    public String getPrimaryColor() { return primaryColor == null || primaryColor.isBlank() ? DEFAULT_PRIMARY_COLOR : primaryColor; }
+    public String getSecondaryColor() { return secondaryColor == null || secondaryColor.isBlank() ? DEFAULT_SECONDARY_COLOR : secondaryColor; }
     public boolean hasPublicLocation() { return publicLatitude != null && publicLongitude != null; }
 }

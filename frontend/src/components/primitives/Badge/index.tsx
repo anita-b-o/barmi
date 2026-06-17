@@ -13,7 +13,7 @@ const variants: Record<BadgeVariant, { background: string; color: string }> = {
   warning: { background: theme.colors.statusWarningSoft, color: theme.colors.warning },
   danger: { background: theme.colors.statusErrorSoft, color: theme.colors.error },
   error: { background: theme.colors.statusErrorSoft, color: theme.colors.error },
-  info: { background: theme.colors.statusInfoSoft, color: theme.colors.info }
+  info: { background: theme.colors.statusInfoSoft, color: `var(--store-secondary, ${theme.colors.info})` }
 }
 
 export default function Badge({ variant = 'neutral', style, ...props }: BadgeProps) {

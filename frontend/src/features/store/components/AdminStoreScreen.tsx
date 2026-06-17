@@ -88,6 +88,12 @@ const operationalAreas = [
     cta: 'Editar partes'
   },
   {
+    title: 'Personalizá tu marca',
+    description: 'Cargá logo, portada y colores básicos para que la tienda pública tenga identidad propia.',
+    href: routes.adminStoreBranding,
+    cta: 'Editar marca'
+  },
+  {
     title: 'Apariencia',
     description: 'Elegí una presentación visual simple para que la tienda se sienta propia sin editar diseño.',
     href: routes.adminStoreAppearance,

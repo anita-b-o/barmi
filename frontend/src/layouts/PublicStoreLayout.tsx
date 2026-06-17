@@ -6,8 +6,9 @@ import { useCart } from '@/features/store/cart/cartContext'
 import { theme } from '@/app/theme'
 import Badge from '@/components/primitives/Badge'
 import Button from '@/components/primitives/Button'
-import type { PublicStoreCapability } from '@/api/contracts/v1/public'
+import type { PublicStoreBranding, PublicStoreCapability } from '@/api/contracts/v1/public'
 import { hasPublicStoreCapability } from '@/api/adapters/publicAdapter'
+import { storeBrandingCssVariables } from '@/features/store/branding'
 
 function publicStoreSlugFromPath(pathname: string) {
   const match = pathname.match(/^\/public\/([^/]+)/)
@@ -25,6 +26,7 @@ type PublicStoreLayoutProps = {
   showCheckoutNav?: boolean
   storeName?: string | null
   storeDescription?: string | null
+  branding?: PublicStoreBranding | null
   capabilities?: PublicStoreCapability[] | null
 }
 
@@ -34,6 +36,7 @@ export default function PublicStoreLayout({
   showCheckoutNav = true,
   storeName,
   storeDescription,
+  branding,
   capabilities
 }: PublicStoreLayoutProps) {
   const location = useLocation()
@@ -50,13 +53,13 @@ export default function PublicStoreLayout({
     ? <Badge variant="success">{cartItems} item{cartItems === 1 ? '' : 's'} en carrito</Badge>
     : undefined
   const navLinkStyle = ({ isActive }: { isActive: boolean }) => ({
-    color: isActive ? theme.colors.actionPrimary : theme.colors.textPrimary,
+    color: isActive ? `var(--store-primary, ${theme.colors.actionPrimary})` : theme.colors.textPrimary,
     textDecoration: 'none',
     fontWeight: isActive ? 700 : 600,
     padding: '10px 6px',
     borderRadius: theme.radius.pill,
     background: 'transparent',
-    borderBottom: `2px solid ${isActive ? theme.colors.actionPrimary : 'transparent'}`,
+    borderBottom: `2px solid ${isActive ? `var(--store-primary, ${theme.colors.actionPrimary})` : 'transparent'}`,
     whiteSpace: 'nowrap',
     transition: 'border-color 0.2s ease, color 0.2s ease'
   })
@@ -66,6 +69,9 @@ export default function PublicStoreLayout({
       context="store"
       eyebrow={productsEnabled ? 'Tienda online' : 'Tienda'}
       title={title}
+      titleNode={branding?.logoUrl ? (
+        <img src={branding.logoUrl} alt={title} style={{ maxWidth: 152, maxHeight: 48, objectFit: 'contain' }} />
+      ) : undefined}
       subtitle={location.pathname.startsWith('/store/')
         ? 'Compra y seguimiento de tu pedido.'
         : subtitle}
@@ -81,12 +87,12 @@ export default function PublicStoreLayout({
       )}
       feedbackStoreSlug={storeSlug}
       navigation={(
-        <>
+        <div style={{ display: 'contents', ...storeBrandingCssVariables(branding) }}>
           <NavLink to={publicStorePath} end style={navLinkStyle}>Inicio</NavLink>
           {productsEnabled ? <NavLink to={`${publicStorePath}#productos`} style={navLinkStyle}>Productos</NavLink> : null}
           {!productsEnabled && aboutEnabled ? <NavLink to={`${publicStorePath}#sobre-nosotros`} style={navLinkStyle}>Sobre nosotros</NavLink> : null}
           {contactEnabled ? <NavLink to={`${publicStorePath}#contacto`} style={navLinkStyle}>Contacto</NavLink> : null}
-        </>
+        </div>
       )}
     >
       {children}

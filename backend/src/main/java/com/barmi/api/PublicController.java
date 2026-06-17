@@ -69,6 +69,7 @@ public class PublicController {
                             "name", s.getName(),
                             "appearance", s.getAppearancePreset().name(),
                             "profile", publicProfile(s),
+                            "branding", publicBranding(s),
                             "capabilities", storeCapabilityService.getEnabledCapabilityNamesForStore(s.getId()),
                             "categories", publicCategories.stream().map(this::toPublicCategory).toList(),
                             "promotions", storePromotionRepository.findVisiblePublicPromotions(s.getId(), Instant.now()).stream()
@@ -237,6 +238,8 @@ public class PublicController {
                 .map(PublicStoreCategory::getLabel)
                 .orElse(null));
         payload.put("appearance", store.getAppearancePreset().name());
+        payload.put("branding", publicBranding(store));
+        payload.put("capabilities", storeCapabilityService.getEnabledCapabilityNamesForStore(store.getId()));
         return payload;
     }
 
@@ -246,6 +249,15 @@ public class PublicController {
         payload.put("email", store.getPublicEmail());
         payload.put("phone", store.getPublicPhone());
         payload.put("whatsapp", store.getPublicWhatsapp());
+        return payload;
+    }
+
+    private Map<String, Object> publicBranding(Store store) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("logoUrl", store.getLogoUrl());
+        payload.put("bannerUrl", store.getBannerUrl());
+        payload.put("primaryColor", store.getPrimaryColor());
+        payload.put("secondaryColor", store.getSecondaryColor());
         return payload;
     }
 

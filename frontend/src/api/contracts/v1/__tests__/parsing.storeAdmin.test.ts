@@ -33,7 +33,8 @@ import {
   parseStoreCapabilityPresets,
   parseStoreReadiness,
   parseStorePublicProfile,
-  parseStoreAppearance
+  parseStoreAppearance,
+  parseStoreBranding
 } from '../../../adapters/storeAdminAdapter'
 
 describe('store admin contracts parsing', () => {
@@ -185,6 +186,21 @@ describe('store admin contracts parsing', () => {
     expect(parseStoreAppearance({ preset: 'PORTFOLIO' }).preset).toBe('PORTFOLIO')
     expect(parseStoreAppearance({ preset: 'LOCAL_BUSINESS' }).preset).toBe('LOCAL_BUSINESS')
     expect(() => parseStoreAppearance({ preset: 'CUSTOM' })).toThrow('Store appearance preset is invalid')
+  })
+
+  it('parses store branding payload', () => {
+    expect(parseStoreBranding({
+      logoUrl: 'https://cdn.demo.test/logo.png',
+      bannerUrl: null,
+      primaryColor: '#F65F55',
+      secondaryColor: '#E5544A'
+    })).toEqual({
+      logoUrl: 'https://cdn.demo.test/logo.png',
+      bannerUrl: null,
+      primaryColor: '#F65F55',
+      secondaryColor: '#E5544A'
+    })
+    expect(() => parseStoreBranding({ logoUrl: null, bannerUrl: null, primaryColor: 'red', secondaryColor: '#E5544A' })).toThrow('Store branding primaryColor is invalid')
   })
 
   it('parses store capability presets sample', () => {
